@@ -791,6 +791,8 @@
           href: common-control-parameters.md
         - name: "Common Resource Attributes"
           href: common-resource-attributes.md
+        - name: "Predefined Constants (WinUser.h)"
+          href: winuserh-predefined-constants.md
       - name: "Sample Resource-Definition File"
         href: sample-resource-definition-file.md
     - name: "Using RC (The RC Command Line)"
