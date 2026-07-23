@@ -742,8 +742,7 @@ void parser::parse_unknown_resource(resource& res)
     advance();
 
   skip_newlines();
-  if(match(token_type::begin))
-    skip_begin_end();
+  skip_begin_end();
 }
 
 resource parser::parse_resource()
@@ -795,6 +794,9 @@ rc_file parser::parse()
     if(current().type == token_type::identifier && to_upper(current().value) == "LANGUAGE")
     {
       advance();
+      skip_newlines();
+      if(current().type == token_type::integer_literal || current().type == token_type::identifier)
+        advance();
       skip_newlines();
       if(current().type == token_type::comma)
         advance();
