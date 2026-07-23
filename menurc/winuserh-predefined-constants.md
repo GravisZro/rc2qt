@@ -902,6 +902,111 @@ Standard return values from dialog box buttons.
 | IDTRYAGAIN | 10 | Try Again button |
 | IDCONTINUE | 11 | Continue button |
 
+### System Control Identifiers
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| IDC\_STATIC | (-1) | Non-interactive static control (label, image) |
+
+## Menu Flags (MF\_\*, MFT\_\*, MFS\_\*)
+
+Used in MENU resource statements to configure menu item appearance and behavior.
+
+### MF\_ — Classic Menu Flags
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| MF\_STRING | 0x0000 | Display text string (default) |
+| MF\_GRAYED | 0x0001 | Grayed, non-selectable |
+| MF\_DISABLED | 0x0002 | Disabled, non-selectable |
+| MF\_CHECKED | 0x0008 | Check mark next to item |
+| MF\_UNCHECKED | 0x0000 | No check mark (default) |
+| MF\_POPUP | 0x0010 | Item opens a submenu |
+| MF\_MENUBARBREAK | 0x0020 | New column with separator |
+| MF\_MENUBREAK | 0x0040 | New column, no separator |
+| MF\_SEPARATOR | 0x0800 | Horizontal separator line |
+| MF\_OWNERDRAW | 0x0100 | Owner-drawn item |
+| MF\_DEFAULT | 0x1000 | Default menu item (bold) |
+| MF\_SYSMENU | 0x2000 | System menu item |
+| MF\_HELP | 0x4000 | Help item |
+| MF\_END | 0x0080 | Last item in menu |
+| MF\_RIGHTJUSTIFY | 0x4000 | Right-justify group |
+| MF\_MOUSESELECT | 0x8000 | Selected by mouse |
+| MF\_BYCOMMAND | 0x0000 | Identify by command ID (default) |
+| MF\_BYPOSITION | 0x0400 | Identify by position |
+
+### MFT\_ — Extended Menu Item Types
+
+Used with `MENUEX` resources. These correspond to the `fType` member of `MENUITEMINFO`.
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| MFT\_STRING | 0x0000 | Text string |
+| MFT\_BITMAP | 0x0004 | Bitmap |
+| MFT\_MENUBARBREAK | 0x0020 | New column with separator |
+| MFT\_MENUBREAK | 0x0040 | New column, no separator |
+| MFT\_OWNERDRAW | 0x0100 | Owner-drawn |
+| MFT\_RADIOCHECK | 0x0200 | Radio-style check mark |
+| MFT\_SEPARATOR | 0x0800 | Horizontal separator |
+| MFT\_RIGHTORDER | 0x2000 | Right-to-left ordering |
+| MFT\_RIGHTJUSTIFY | 0x4000 | Right-justify group |
+
+### MFS\_ — Extended Menu Item States
+
+Used with `MENUEX` resources. These correspond to the `fState` member of `MENUITEMINFO`.
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| MFS\_ENABLED | 0x0000 | Enabled (default) |
+| MFS\_DISABLED | 0x0003 | Disabled |
+| MFS\_GRAYED | 0x0003 | Grayed |
+| MFS\_CHECKED | 0x0008 | Checked |
+| MFS\_UNCHECKED | 0x0000 | Unchecked (default) |
+| MFS\_HILITE | 0x0080 | Highlighted |
+| MFS\_UNHILITE | 0x0000 | Not highlighted (default) |
+| MFS\_DEFAULT | 0x1000 | Default item (bold) |
+
+## Accelerator Key Flags (F\_\*, NOINVERT)
+
+Used inside ACCELERATORS resource statements to define modifier keys for accelerator entries.
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| FVIRTKEY | 0x01 | Virtual key code (VK\_\*) follows |
+| FNOINVERT | 0x02 | No uppercase conversion on Alt |
+| FSHIFT | 0x04 | Shift key must be pressed |
+| FCONTROL | 0x08 | Ctrl key must be pressed |
+| FALT | 0x10 | Alt key must be pressed |
+| NOINVERT | 0x02 | Alias for FNOINVERT (RC keyword) |
+
+## Predefined Resource Types (RT\_\*)
+
+Internal resource type ordinals used by the resource compiler. In RC files, you use the resource keyword (ICON, BITMAP, DIALOG, etc.) instead of these directly. They are defined here for completeness and programmatic use.
+
+| Constant | Value | RC Keyword Equivalent |
+|----------|-------|-----------------------|
+| RT\_CURSOR | 1 | CURSOR |
+| RT\_BITMAP | 2 | BITMAP |
+| RT\_ICON | 3 | ICON |
+| RT\_MENU | 4 | MENU |
+| RT\_DIALOG | 5 | DIALOG |
+| RT\_STRING | 6 | STRINGTABLE |
+| RT\_FONTDIR | 7 | (internal) |
+| RT\_FONT | 8 | FONT |
+| RT\_ACCELERATOR | 9 | ACCELERATORS |
+| RT\_RCDATA | 10 | RCDATA |
+| RT\_MESSAGETABLE | 11 | MESSAGETABLE |
+| RT\_GROUP\_CURSOR | 22 | CURSOR (group) |
+| RT\_GROUP\_ICON | 23 | ICON (group) |
+| RT\_VERSION | 16 | VERSIONINFO |
+| RT\_DLGINCLUDE | 17 | DLGINCLUDE |
+| RT\_PLUGPLAY | 19 | PLUGPLAY (obsolete) |
+| RT\_VXD | 20 | VXD (obsolete) |
+| RT\_ANICURSOR | 21 | (animated cursor) |
+| RT\_ANIICON | 22 | (animated icon) |
+| RT\_HTML | 23 | HTML |
+| RT\_MANIFEST | 24 | (manifest resource) |
+
 ## See also
 
 <dl> <dt>
@@ -916,4 +1021,10 @@ Standard return values from dialog box buttons.
 </dt> <dt>
 
 [**STYLE Statement**](style-statement.md)
+</dt> <dt>
+
+[**MENU Resource**](menu-resource.md)
+</dt> <dt>
+
+[**ACCELERATORS Resource**](accelerators-resource.md)
 </dt> </dl>
