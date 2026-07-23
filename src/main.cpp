@@ -112,6 +112,7 @@ int main(int argc, char** argv)
   }
 
   rc::resolver res;
+  res.resolve_file(file);
   std::cout << "\nConstant resolver: " << rc::constant_registry::instance().size() << " constants loaded" << std::endl;
 
   for(const auto& r : file.resources)
@@ -124,18 +125,24 @@ int main(int argc, char** argv)
         std::cout << "\nDialog " << r.id << ":" << std::endl;
         for(const auto& s : dd.statements)
         {
-          int64_t val = res.resolve_style(s.value);
-          std::string resolved = val >= 0 ? res.format_value(val) : "[unresolved]";
           std::cout << "  " << s.keyword << " " << s.value.first;
           for(const auto& [op, name] : s.value.ops)
             std::cout << " " << op << " " << name;
-          std::cout << " -> 0x" << std::hex << val << " (" << resolved << ")" << std::dec << std::endl;
+          if(s.value.resolved_value >= 0)
+            std::cout << " -> 0x" << std::hex << s.value.resolved_value
+                      << " (" << res.format_value(s.value.resolved_value) << ")" << std::dec;
+          std::cout << std::endl;
         }
         for(const auto& c : dd.controls)
         {
-          int64_t val = res.resolve_style(c.style);
-          std::string resolved = val >= 0 ? res.format_value(val) : "[unresolved]";
-          std::cout << "  CONTROL " << c.id << " " << c.class_name << " -> 0x" << std::hex << val << " (" << resolved << ")" << std::dec << std::endl;
+          std::cout << "  CONTROL " << c.id << " " << c.class_name;
+          if(c.style.resolved_value >= 0)
+            std::cout << " style=0x" << std::hex << c.style.resolved_value
+                      << " (" << res.format_value(c.style.resolved_value) << ")" << std::dec;
+          if(c.ext_style.resolved_value >= 0)
+            std::cout << " ext=0x" << std::hex << c.ext_style.resolved_value
+                      << " (" << res.format_value(c.ext_style.resolved_value) << ")" << std::dec;
+          std::cout << std::endl;
         }
       }
     }

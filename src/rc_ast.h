@@ -14,6 +14,7 @@ struct style_expr
 {
   std::string first;
   std::vector<std::pair<std::string, std::string>> ops;
+  int64_t resolved_value = -1;
 };
 
 struct menu_item

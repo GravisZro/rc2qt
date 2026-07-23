@@ -64,4 +64,28 @@ std::string resolver::format_value(int64_t value) const
   return oss.str();
 }
 
+void resolver::resolve_file(rc_file& file) const
+{
+  for(auto& res : file.resources)
+  {
+    if(std::holds_alternative<dialog_data>(res.data))
+      resolve_dialog(std::get<dialog_data>(res.data));
+  }
+}
+
+void resolver::resolve_dialog(dialog_data& dd) const
+{
+  for(auto& s : dd.statements)
+    s.value.resolved_value = resolve_style(s.value);
+
+  for(auto& c : dd.controls)
+    resolve_control(c);
+}
+
+void resolver::resolve_control(control& c) const
+{
+  c.style.resolved_value = resolve_style(c.style);
+  c.ext_style.resolved_value = resolve_style(c.ext_style);
+}
+
 }

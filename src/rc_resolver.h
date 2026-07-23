@@ -9,6 +9,9 @@ namespace rc
 {
 
 struct style_expr;
+struct rc_file;
+struct dialog_data;
+struct control;
 
 class resolver
 {
@@ -18,6 +21,12 @@ public:
 
   std::string resolve_name(const std::string& name) const;
   std::string format_value(int64_t value) const;
+
+  void resolve_file(rc_file& file) const;
+
+private:
+  void resolve_dialog(dialog_data& dd) const;
+  void resolve_control(control& c) const;
 };
 
 }
