@@ -583,6 +583,7 @@ void constant_registry::register_all()
   add("IDHELP",               9,  constant_category::dialog_id);
   add("IDTRYAGAIN",           10, constant_category::dialog_id);
   add("IDCONTINUE",           11, constant_category::dialog_id);
+  add("IDTIMEOUT",            32000, constant_category::dialog_id);
 
   /* ── IDC_* System Control Identifiers ─────────────────────────── */
   add("IDC_STATIC",           -1, constant_category::system_id);
