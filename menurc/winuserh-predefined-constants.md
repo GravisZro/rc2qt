@@ -1,12 +1,12 @@
-# Predefined Constants (WinUser.h)
+# Predefined Constants (WinUser.h / CommCtrl.h)
 
-Numeric constants defined in the Windows SDK header `WinUser.h` can be used interchangeably with their integer values anywhere in a resource script (.rc) file. For example, `VK_RETURN` and `13` are equivalent in an accelerator table, and `WS_CHILD` and `0x40000000` are equivalent in a STYLE statement.
+Numeric constants defined in the Windows SDK headers `WinUser.h` and `CommCtrl.h` can be used interchangeably with their integer values anywhere in a resource script (.rc) file. For example, `VK_RETURN` and `13` are equivalent in an accelerator table, and `WS_CHILD` and `0x40000000` are equivalent in a STYLE statement.
 
-The resource compiler resolves these symbols at compile time via `#include <windows.h>` (or equivalently `#include <winuser.h>`).
+The resource compiler resolves these symbols at compile time via `#include <windows.h>` (which includes both headers).
 
 ## Naming Conventions
 
-Constants in WinUser.h follow a prefix-based naming pattern organized by subsystem:
+Constants follow a prefix-based naming pattern organized by subsystem:
 
 | Prefix | Subsystem | Purpose |
 |--------|-----------|---------|
@@ -37,6 +37,8 @@ Constants in WinUser.h follow a prefix-based naming pattern organized by subsyst
 | ID | Dialog | Button identifiers |
 
 ## Control Messages
+
+> **Header:** `WinUser.h`
 
 These messages are sent to a control via `SendMessage` or `PostMessage`.
 
@@ -220,6 +222,8 @@ These messages are sent to a control via `SendMessage` or `PostMessage`.
 
 ## Notifications
 
+> **Header:** `CommCtrl.h`
+
 These are sent to a parent window via `WM_COMMAND` (low word of wParam = control ID, high word = notification code) or `WM_NOTIFY`.
 
 ### CBN\_ — Combo Box Notifications
@@ -288,6 +292,8 @@ These are sent to a parent window via `WM_COMMAND` (low word of wParam = control
 | STN\_ENABLE | 2 | Control enabled |
 
 ## Window Styles
+
+> **Header:** `WinUser.h` (some control-specific styles also defined in `CommCtrl.h`)
 
 These constants are combined with the bitwise OR operator (`|`) in STYLE statements and control definitions to set the appearance and behavior of windows and controls.
 
@@ -513,6 +519,8 @@ Composite styles (for reference):
 
 ## Window Messages (WM\_)
 
+> **Header:** `WinUser.h`
+
 Sent to a window's `WndProc` function. These are listed here for reference when interpreting `WM_COMMAND` notification codes in resource scripts.
 
 | Constant | Value | Description |
@@ -654,6 +662,8 @@ Sent to a window's `WndProc` function. These are listed here for reference when 
 | WM\_APP | 0x8000 | Application-defined range start |
 
 ## Virtual Key Codes (VK\_)
+
+> **Header:** `WinUser.h`
 
 Used in accelerator tables and key event processing. These can be used in RC files as event specifiers.
 
@@ -852,6 +862,8 @@ Used in accelerator tables and key event processing. These can be used in RC fil
 
 ## Message Box Flags (MB\_)
 
+> **Header:** `WinUser.h`
+
 Used with the `MessageBox` function. Values can be combined with `|`.
 
 | Constant | Value | Description |
@@ -886,6 +898,8 @@ Used with the `MessageBox` function. Values can be combined with `|`.
 
 ## Dialog Button Identifiers
 
+> **Header:** `WinUser.h`
+
 Standard return values from dialog box buttons.
 
 | Constant | Value | Description |
@@ -909,6 +923,8 @@ Standard return values from dialog box buttons.
 | IDC\_STATIC | (-1) | Non-interactive static control (label, image) |
 
 ## Menu Flags (MF\_\*, MFT\_\*, MFS\_\*)
+
+> **Header:** `WinUser.h`
 
 Used in MENU resource statements to configure menu item appearance and behavior.
 
@@ -968,6 +984,8 @@ Used with `MENUEX` resources. These correspond to the `fState` member of `MENUIT
 
 ## Accelerator Key Flags (F\_\*, NOINVERT)
 
+> **Header:** `WinUser.h`
+
 Used inside ACCELERATORS resource statements to define modifier keys for accelerator entries.
 
 | Constant | Value | Description |
@@ -980,6 +998,8 @@ Used inside ACCELERATORS resource statements to define modifier keys for acceler
 | NOINVERT | 0x02 | Alias for FNOINVERT (RC keyword) |
 
 ## Predefined Resource Types (RT\_\*)
+
+> **Header:** `WinUser.h`
 
 Internal resource type ordinals used by the resource compiler. In RC files, you use the resource keyword (ICON, BITMAP, DIALOG, etc.) instead of these directly. They are defined here for completeness and programmatic use.
 
