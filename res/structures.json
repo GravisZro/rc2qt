@@ -1,0 +1,538 @@
+=== built-in keys ===
+"choice"
+"option"
+"multi"
+"literal"
+"type"
+"keyword"
+"container"
+"statements"
+"controls"
+
+=== built-in types ===
+"container"
+"string"
+"char8_t"
+"int16_t"
+"uint16_t"
+"uint32_t"
+"textual_id"
+
+=== style options ===
+"WS_BORDER",
+"WS_CAPTION",
+"WS_CHILD",
+"WS_CHILDWINDOW",
+"WS_CLIPCHILDREN",
+"WS_CLIPSIBLINGS",
+"WS_DISABLED",
+"WS_DLGFRAME",
+"WS_GROUP",
+"WS_HSCROLL",
+"WS_ICONIC",
+"WS_MAXIMIZE",
+"WS_MAXIMIZEBOX",
+"WS_MINIMIZE",
+"WS_MINIMIZEBOX",
+"WS_OVERLAPPED",
+"WS_OVERLAPPEDWINDOW",
+"WS_POPUP",
+"WS_POPUPWINDOW",
+"WS_SIZEBOX",
+"WS_SYSMENU",
+"WS_TABSTOP",
+"WS_THICKFRAME",
+"WS_TILED",
+"WS_TILEDWINDOW",
+"WS_VISIBLE",
+"WS_VSCROLL",
+
+{
+  "definition_types" : [ "resources", "controls", "statements", "attributes", "type_definition" ],
+  "attributes" : [ "FIXED", "MOVEABLE", "DISCARDABLE", "PURE", "IMPURE", "SHARED", "NONSHARED" ],
+
+  "type_definition" :
+  {
+    "BOOLEAN" :     { "choice" : { "literal" : "TRUE", "literal" : "FALSE" } },
+    "text" :        { "type" : "string",    },
+    "x" :           { "type" : "int16_t",   },
+    "y" :           { "type" : "int16_t",   },
+    "width" :       { "type" : "uint16_t",  },
+    "height" :      { "type" : "uint16_t",  },
+    "filename" :    { "type" : "string",    },
+    "idvalue" :     { "type" : "uint16_t"   },
+    "pointsize" :   { "type" : "uint16_t"   },
+    "typeface" :    { "type" : "string"     },
+    "weight" :      { "type" : "uint16_t"   },
+    "italic" :      { "type" : "BOOLEAN"    },
+    "charset" :     { "type" : "textual_id" },
+    "WORD" :        { "type" : "uint16_t"   },
+    "DWORD" :
+    {
+      "type" : "uint32_t",
+      "option" : { "literal" : "L" }
+    },
+    "version" :
+    {
+      "type" : "WORD",
+      "type" : "WORD",
+      "type" : "WORD",
+      "type" : "WORD"
+    },
+    "widestring" :
+    {
+      "literal" : "L",
+      "type" : "string"
+    },
+    "variant" :
+    {
+      "choice" :
+      {
+        "type" : "WORD",
+        "type" : "DWORD",
+        "type" : "string",
+        "type" : "widestring"
+      }
+    },
+    "resource_id" :
+    {
+      "choice" :
+      {
+        "type" : "uint16_t",
+        "type" : "textual_id"
+      }
+    },
+    "language" :    { "type" : "resource_id" },
+    "sublanguage" : { "type" : "resource_id" },
+    "class_id" :
+    {
+      "choice" :
+      {
+        "type" : "textual_id",
+        "literal" : "BUTTON",
+        "literal" : "STATIC",
+        "literal" : "EDIT",
+        "literal" : "LISTBOX",
+        "literal" : "SCROLLBAR",
+        "literal" : "COMBOBOX"
+      }
+    },
+    "idvalue_type" :
+    {
+      "choice" :
+      {
+        "literal" : "ASCII",
+        "literal" : "VIRTKEY"
+      }
+    },
+    "event" :
+    {
+      "choice" :
+      {
+        "type" : "escaped_quoted_char",
+        "type" : "uint8_t",
+        "type" : "quoted_char"
+      }
+    },
+    "quoted_char" :
+    {
+      "literal" : "\"",
+      "type" : "char8_t",
+      "literal" : "\""
+    },
+    "escaped_quoted_char" :
+    {
+      "literal" : "^\"",
+      "type" : "char8_t",
+      "literal" : "\""
+    },
+    "accelerator_type" :
+    {
+      "type" : "event",
+      "type" : "idvalue",
+      "option" : { "type" : "idvalue_type" },
+      "option" : { "literal" : "NOINVERT" },
+      "option" : { "literal" : "ALT" },
+      "option" : { "literal" : "SHIFT" },
+      "option" : { "literal" : "CONTROL" }
+    },
+    "standard_options" :
+    {
+      "option" : { "statements" : [ "CHARACTERISTICS", "LANGUAGE", "VERSION" ] }
+    },
+    "string_table_entry" :
+    {
+      "type" : "resource_id",
+      "choice" :
+      {
+        "type" : "string",
+        "type" : "widestring"
+      }
+    },
+    "bitwise_value" :
+    {
+      "multi" :
+      {
+        "type" : "resource_id",
+        "option" : { "literal" : "|" },
+        "option" : { "literal" : "&" },
+        "option" : { "literal" : "+" },
+        "option" : { "literal" : "-" },
+        "option" : { "literal" : "*" },
+        "option" : { "literal" : "/" }
+      }
+    },
+    "style" : { "type" : "bitwise_value" },
+    "extended_style" : { "option" : { "type" : "bitwise_value" } },
+    "style_options" :
+    {
+      "option" :
+      {
+        "type" : "style",
+        "type" : "extended_style"
+      }
+    },
+    "control_options" :
+    {
+      "type" : "resource_id",
+      "type" : "x",
+      "type" : "y",
+      "type" : "width",
+      "type" : "height",
+      "type" : "style_options"
+    },
+    "toolbar_entry" :
+    {
+      "choice" :
+      [
+        { "keyword" : "SEPARATOR" },
+        { "keyword" : "BUTTON", "type" : "resource_id" }
+      ],
+    }
+
+  },
+  "resources" :
+  {
+    "ACCELERATORS" :
+    {
+      "type" : "resource_id",
+      "keyword" : "ACCELERATORS",
+      "type" : "standard_options",
+      "container" : { "type" : "accelerator_type" }
+    },
+    "BITMAP" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "BITMAP",
+      "type" : "filename"
+    },
+    "CURSOR" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "CURSOR",
+      "type" : "filename"
+    },
+    "DIALOG" :
+    {
+      "type" : "resource_id",
+      "keyword" : "DIALOG",
+      "type" : "x",
+      "type" : "y",
+      "type" : "width",
+      "type" : "height",
+      "option" : { "statements" : [ "CAPTION", "CHARACTERISTICS", "CLASS", "EXSTYLE", "FONT", "LANGUAGE", "MENU", "STYLE", "VERSION" ] },
+      "container" : { "controls" : [ "AUTO3STATE", "AUTOCHECKBOX", "AUTORADIOBUTTON", "CHECKBOX", "COMBOBOX", "CONTROL", "CTEXT",
+                                     "DEFPUSHBUTTON", "EDITTEXT", "GROUPBOX", "ICON", "LISTBOX", "LTEXT", "PUSHBOX", "PUSHBUTTON",
+                                     "RADIOBUTTON", "RTEXT", "SCROLLBAR", "STATE3" ] }
+    },
+    "DIALOGEX" :
+    {
+      "type" : "resource_id",
+      "keyword" : "DIALOGEX",
+      "type" : "x",
+      "type" : "y",
+      "type" : "width",
+      "type" : "height",
+      "option" : { "type" : "resource_id" },
+      "option" : { "statements" : [ "CAPTION", "CHARACTERISTICS", "CLASS", "EXSTYLE", "FONT", "LANGUAGE", "MENU", "STYLE", "VERSION" ] },
+      "container" : { "controls" : [ "AUTO3STATE", "AUTOCHECKBOX", "AUTORADIOBUTTON", "CHECKBOX", "COMBOBOX", "CONTROL", "CTEXT",
+                                     "DEFPUSHBUTTON", "EDITTEXT", "GROUPBOX", "ICON", "LISTBOX", "LTEXT", "PUSHBOX", "PUSHBUTTON",
+                                     "RADIOBUTTON", "RTEXT", "SCROLLBAR", "STATE3" ] }
+    },
+    "FONT" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "FONT",
+      "type" : "filename"
+    },
+    "HTML" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "HTML",
+      "type" : "filename"
+    },
+    "ICON" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "ICON",
+      "type" : "filename"
+    },
+    "MENU" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "MENU",
+      "type" : "standard_options",
+      "container" : { "statements" : [ "MENUITEM", "POPUP" ] }
+    },
+    "MESSAGETABLE" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "MESSAGETABLE",
+      "type" : "filename"
+    },
+    "POPUP" :
+    {
+      "keyword" : "POPUP",
+      "type" : "text",
+      "option" : { "literal" : "CHECKED" },
+      "option" : { "literal" : "GRAYED" },
+      "option" : { "literal" : "HELP" },
+      "option" : { "literal" : "INACTIVE" },
+      "option" : { "literal" : "MENUBARBREAK" },
+      "option" : { "literal" : "MENUBREAK" },
+      "container" : { "statements" : [ "MENUITEM", "POPUP" ] }
+    },
+    "RCDATA" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "RCDATA",
+      "type" : "standard_options",
+      "container" : { "type" : "variant" }
+    },
+    "STRINGTABLE" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "STRINGTABLE",
+      "type" : "standard_options",
+      "container" : { "type" : "string_table_entry" }
+    },
+    "TOOLBAR" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "TOOLBAR",
+      "type" : "width",
+      "type" : "height",
+      "container" : { "type" : "toolbar_entry" }
+    },
+    "VERSIONINFO" :
+    {
+      "type" : "resource_id" ,
+      "keyword" : "VERSIONINFO",
+      "option" : { "keyword" : "FILEVERSION",     "type" : "version" },
+      "option" : { "keyword" : "PRODUCTVERSION",  "type" : "version" },
+      "option" : { "keyword" : "FILEFLAGSMASK",   "type" : "DWORD" },
+      "option" : { "keyword" : "FILEFLAGS",       "type" : "DWORD" },
+      "option" : { "keyword" : "FILEOS",          "type" : "DWORD" },
+      "option" : { "keyword" : "FILETYPE",        "type" : "DWORD" },
+      "option" : { "keyword" : "FILESUBTYPE",     "type" : "DWORD" }
+    }
+  },
+
+  "controls" :
+  {
+    "AUTO3STATE" :
+    {
+      "keyword" : "AUTO3STATE",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "AUTOCHECKBOX" :
+    {
+      "keyword" : "AUTORADIOBUTTON",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "AUTORADIOBUTTON" :
+    {
+      "keyword": "AUTORADIOBUTTON",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "CHECKBOX" :
+    {
+      "keyword": "CHECKBOX",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "COMBOBOX" :
+    {
+      "keyword": "COMBOBOX",
+      "type" : "control_options"
+    },
+    "CONTROL" :
+    {
+      "keyword": "CONTROL",
+      "type" : "text",
+      "type" : "resource_id",
+      "type" : "class",
+      "type" : "style",
+      "type" : "x",
+      "type" : "y",
+      "type" : "width",
+      "type" : "height",
+      "type" : "extended_style"
+    },
+    "CTEXT" :
+    {
+      "keyword": "CTEXT",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "DEFPUSHBUTTON" :
+    {
+      "keyword": "DEFPUSHBUTTON",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "EDITTEXT" :
+    {
+      "keyword": "EDITTEXT",
+      "type" : "control_options"
+    },
+    "GROUPBOX" :
+    {
+      "keyword": "GROUPBOX",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "ICON" :
+    {
+      "keyword": "ICON",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "LISTBOX" :
+    {
+      "keyword": "LISTBOX",
+      "type" : "control_options"
+    },
+    "LTEXT" :
+    {
+      "keyword": "LTEXT",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "PUSHBOX" :
+    {
+      "keyword": "PUSHBOX",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "PUSHBUTTON" :
+    {
+      "keyword": "PUSHBUTTON",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "RADIOBUTTON" :
+    {
+      "keyword": "RADIOBUTTON",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "RTEXT" :
+    {
+      "keyword": "RTEXT",
+      "type" : "text",
+      "type" : "control_options"
+    },
+    "SCROLLBAR" :
+    {
+      "keyword": "SCROLLBAR",
+      "type" : "control_options"
+    },
+    "STATE3" :
+    {
+      "keyword": "STATE3",
+      "type" : "text",
+      "type" : "control_options"
+    }
+  },
+
+  "statements" :
+  {
+    "CAPTION" :
+    {
+      "keyword" : "CAPTION",
+      "type" : "text"
+    },
+    "CHARACTERISTICS" :
+    {
+      "keyword" : "CHARACTERISTICS",
+      "type" : "DWORD"
+    },
+    "CLASS" :
+    {
+      "keyword" : "CLASS",
+      "type" : "class_id"
+    },
+    "EXSTYLE" :
+    {
+      "keyword" : "EXSTYLE",
+      "type" : "bitwise_value"
+    },
+    "FONT" :
+    {
+      "keyword" : "FONT",
+      "type" : "pointsize",
+      "type" : "typeface",
+      "option" :
+      {
+        "type" : "weight",
+        "option" :
+        {
+          "type" : "italic",
+          "option" : { "type" : "charset" }
+        }
+      }
+    },
+    "LANGUAGE" :
+    {
+      "keyword" : "LANGUAGE",
+      "type" : "language",
+      "type" : "sublanguage"
+    },
+    "MENU" :
+    {
+      "keyword" : "MENU",
+      "type" : "resource_id"
+    },
+    "MENUITEM" :
+    {
+      "keyword" : "MENUITEM",
+      "literal" : "SEPARATOR"
+    },
+    "MENUITEM" :
+    {
+      "keyword" : "MENUITEM",
+      "type" : "text",
+      "type" : "resource_id",
+      "option" : { "literal" : "CHECKED" },
+      "option" : { "literal" : "GRAYED" },
+      "option" : { "literal" : "HELP" },
+      "option" : { "literal" : "INACTIVE" },
+      "option" : { "literal" : "MENUBARBREAK" },
+      "option" : { "literal" : "MENUBREAK" }
+    },
+    "STYLE" :
+    {
+      "keyword" : "STYLE",
+      "type" : "bitwise_value"
+    },
+    "VERSION" :
+    {
+      "keyword" : "VERSION",
+      "type" : "DWORD"
+    }
+  }
+}
