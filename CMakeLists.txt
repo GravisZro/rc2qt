@@ -32,7 +32,9 @@ set(HEADERS
   src/bytestream/portable_endian.h
   src/bytestream/posix_stream.h
   src/rc_ast.h
+  src/rc_constants.h
   src/rc_parser.h
+  src/rc_resolver.h
   src/rc_tokenizer.h
   src/rcdef.h
   src/rctype_parsers.h
@@ -41,7 +43,9 @@ set(HEADERS
 
 set(SOURCES
   src/bytestream/posix_stream.cpp
+  src/rc_constants.cpp
   src/rc_parser.cpp
+  src/rc_resolver.cpp
   src/rc_tokenizer.cpp
   src/shortjson_strict.cpp
   src/main.cpp

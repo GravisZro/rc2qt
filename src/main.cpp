@@ -15,6 +15,8 @@
 #include "rc_tokenizer.h"
 #include "rc_parser.h"
 #include "rc_ast.h"
+#include "rc_resolver.h"
+#include "rc_constants.h"
 
 using namespace shortjson;
 
@@ -107,6 +109,36 @@ int main(int argc, char** argv)
     }
 
     std::cout << std::endl;
+  }
+
+  rc::resolver res;
+  std::cout << "\nConstant resolver: " << rc::constant_registry::instance().size() << " constants loaded" << std::endl;
+
+  for(const auto& r : file.resources)
+  {
+    if(std::holds_alternative<rc::dialog_data>(r.data))
+    {
+      const auto& dd = std::get<rc::dialog_data>(r.data);
+      if(!dd.statements.empty())
+      {
+        std::cout << "\nDialog " << r.id << ":" << std::endl;
+        for(const auto& s : dd.statements)
+        {
+          int64_t val = res.resolve_style(s.value);
+          std::string resolved = val >= 0 ? res.format_value(val) : "[unresolved]";
+          std::cout << "  " << s.keyword << " " << s.value.first;
+          for(const auto& [op, name] : s.value.ops)
+            std::cout << " " << op << " " << name;
+          std::cout << " -> 0x" << std::hex << val << " (" << resolved << ")" << std::dec << std::endl;
+        }
+        for(const auto& c : dd.controls)
+        {
+          int64_t val = res.resolve_style(c.style);
+          std::string resolved = val >= 0 ? res.format_value(val) : "[unresolved]";
+          std::cout << "  CONTROL " << c.id << " " << c.class_name << " -> 0x" << std::hex << val << " (" << resolved << ")" << std::dec << std::endl;
+        }
+      }
+    }
   }
 
   return 0;
