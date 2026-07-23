@@ -93,7 +93,8 @@ bool parser::is_resource_type(const std::string& s)
     "ACCELERATORS", "BITMAP", "CURSOR", "DIALOG", "DIALOGEX",
     "FONT", "HTML", "ICON", "MENU", "MENUEX", "MESSAGETABLE",
     "POPUP", "RCDATA", "STRINGTABLE", "TOOLBAR", "VERSIONINFO",
-    "TEXTINCLUDE", "REGISTRY", "DLGINIT"
+    "TEXTINCLUDE", "REGISTRY", "DLGINIT", "GUIDELINES", "DESIGNINFO",
+    "DLGINCLUDE"
   };
   std::string upper = to_upper(s);
   for(const auto& t : types)
@@ -166,6 +167,8 @@ std::string parser::parse_resource_id()
     return advance().value;
   if(current().type == token_type::hex_literal)
     return advance().value;
+  if(current().type == token_type::string_literal)
+    return advance().value;
   return "";
 }
 
@@ -215,13 +218,25 @@ control parser::parse_control()
       if(match(token_type::comma))
         ctrl.style = parse_style_expr();
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.x = static_cast<int16_t>(std::stoi(advance().value));
+      }
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.y = static_cast<int16_t>(std::stoi(advance().value));
+      }
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.width = static_cast<uint16_t>(std::stoi(advance().value));
+      }
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.height = static_cast<uint16_t>(std::stoi(advance().value));
+      }
     }
   }
   else
@@ -232,15 +247,30 @@ control parser::parse_control()
     {
       ctrl.id = parse_resource_id();
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.x = static_cast<int16_t>(std::stoi(advance().value));
+      }
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.y = static_cast<int16_t>(std::stoi(advance().value));
+      }
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.width = static_cast<uint16_t>(std::stoi(advance().value));
+      }
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.height = static_cast<uint16_t>(std::stoi(advance().value));
+      }
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.extra_styles.push_back(advance().value);
+      }
     }
   }
 
@@ -279,6 +309,7 @@ popup* parser::parse_popup()
   {
     pp->flags.push_back(advance().value);
   }
+  skip_newlines();
   if(match(token_type::begin))
   {
     parse_menu_body(pp->entries);
@@ -455,11 +486,20 @@ void parser::parse_dialog_resource(resource& res)
   if(current().type == token_type::integer_literal || current().type == token_type::hex_literal)
     dd.x = static_cast<int16_t>(std::stoi(advance().value));
   if(match(token_type::comma))
+  {
+    skip_newlines();
     dd.y = static_cast<int16_t>(std::stoi(advance().value));
+  }
   if(match(token_type::comma))
+  {
+    skip_newlines();
     dd.width = static_cast<uint16_t>(std::stoi(advance().value));
+  }
   if(match(token_type::comma))
+  {
+    skip_newlines();
     dd.height = static_cast<uint16_t>(std::stoi(advance().value));
+  }
 
   if(to_upper(res.type) == "DIALOGEX")
   {
@@ -529,7 +569,10 @@ void parser::parse_toolbar_resource(resource& res)
   if(current().type == token_type::integer_literal || current().type == token_type::hex_literal)
     td.width = static_cast<uint16_t>(std::stoi(advance().value));
   if(match(token_type::comma))
+  {
+    skip_newlines();
     td.height = static_cast<uint16_t>(std::stoi(advance().value));
+  }
 
   skip_newlines();
   if(match(token_type::begin))
@@ -586,6 +629,8 @@ void parser::parse_accelerator_resource(resource& res)
       if(current().type == token_type::string_literal)
         ae.event = advance().value;
       else if(current().type == token_type::integer_literal || current().type == token_type::hex_literal)
+        ae.event = advance().value;
+      else if(current().type == token_type::identifier)
         ae.event = advance().value;
 
       if(match(token_type::comma))
@@ -645,15 +690,21 @@ void parser::parse_versioninfo_resource(resource& res)
   while(current().type == token_type::identifier && is_attribute(current().value))
     res.attributes.push_back(advance().value);
 
+  while(current().type != token_type::begin && current().type != token_type::eof)
+    advance();
+
   skip_newlines();
   if(match(token_type::begin))
   {
-    while(current().type != token_type::end && current().type != token_type::eof)
+    int depth = 1;
+    while(depth > 0 && current().type != token_type::eof)
     {
-      skip_newlines();
-      if(current().type == token_type::end || current().type == token_type::eof)
-        break;
-      advance();
+      if(current().type == token_type::begin)
+        ++depth;
+      if(current().type == token_type::end)
+        --depth;
+      if(depth > 0)
+        advance();
     }
     match(token_type::end);
   }
@@ -690,6 +741,7 @@ void parser::parse_unknown_resource(resource& res)
         current().type != token_type::eof)
     advance();
 
+  skip_newlines();
   if(match(token_type::begin))
     skip_begin_end();
 }
@@ -740,18 +792,28 @@ rc_file parser::parse()
     if(current().type == token_type::eof)
       break;
 
-    if(current().type == token_type::identifier && is_resource_type(current().value))
+    if(current().type == token_type::identifier && to_upper(current().value) == "LANGUAGE")
     {
-      std::string upper = to_upper(current().value);
-      if(upper == "LANGUAGE" || upper == "STRINGTABLE")
-      {
-        if(upper == "LANGUAGE")
-        {
-          advance();
-          skip_newlines();
-          continue;
-        }
-      }
+      advance();
+      skip_newlines();
+      if(current().type == token_type::comma)
+        advance();
+      skip_newlines();
+      if(current().type == token_type::integer_literal || current().type == token_type::identifier)
+        advance();
+      skip_newlines();
+      continue;
+    }
+
+    if(current().type == token_type::identifier &&
+       to_upper(current().value) == "STRINGTABLE")
+    {
+      resource res;
+      res.type = advance().value;
+      parse_stringtable_resource(res);
+      file.resources.push_back(res);
+      skip_newlines();
+      continue;
     }
 
     if(current().type == token_type::identifier ||
