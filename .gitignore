@@ -23,3 +23,5 @@ temporary_files/
 
 # documentation
 menurc/
+VC-LTL/
+*.pdf
