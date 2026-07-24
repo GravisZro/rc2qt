@@ -301,6 +301,17 @@ popup* parser::parse_popup()
   advance();
   if(current().type == token_type::string_literal)
     pp->text = advance().value;
+  if(match(token_type::comma))
+  {
+    while(current().type == token_type::identifier &&
+          to_upper(current().value) != "BEGIN" &&
+          to_upper(current().value) != "END" &&
+          current().type != token_type::newline &&
+          current().type != token_type::eof)
+    {
+      pp->flags.push_back(advance().value);
+    }
+  }
   while(current().type == token_type::identifier &&
         to_upper(current().value) != "BEGIN" &&
         to_upper(current().value) != "END" &&
