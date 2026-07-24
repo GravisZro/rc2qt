@@ -793,6 +793,8 @@
           href: common-resource-attributes.md
         - name: "Predefined Constants (WinUser.h / CommCtrl.h)"
           href: winuserh-predefined-constants.md
+        - name: "RC Compiler (rc.exe) Quirks and Bugs"
+          href: rc-exe-quirks-and-bugs.md
       - name: "Sample Resource-Definition File"
         href: sample-resource-definition-file.md
     - name: "Using RC (The RC Command Line)"
