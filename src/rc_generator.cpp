@@ -234,7 +234,41 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   if(font_size > 0)
     add_property_font(widget, font_family, font_size, false, false);
 
-  add_property_bool(widget, "enabled", true);
+  std::vector<std::string> flags;
+
+  if(has_dialog_flag(dd, "STYLE", "DS_MODALFRAME") ||
+     has_dialog_flag(dd, "EXSTYLE", "WS_EX_DLGMODALFRAME"))
+    flags.push_back("Qt::MSWindowsFixedSizeDialogHint");
+
+  if(has_dialog_flag(dd, "STYLE", "WS_MINIMIZEBOX"))
+    flags.push_back("Qt::WindowMinimizeButtonHint");
+
+  if(has_dialog_flag(dd, "STYLE", "WS_MAXIMIZEBOX"))
+    flags.push_back("Qt::WindowMaximizeButtonHint");
+
+  if(has_dialog_flag(dd, "EXSTYLE", "WS_EX_CONTEXTHELP"))
+    flags.push_back("Qt::WindowContextHelpButtonHint");
+
+  if(has_dialog_flag(dd, "EXSTYLE", "WS_EX_TOPMOST"))
+    flags.push_back("Qt::WindowStaysOnTopHint");
+
+  if(has_dialog_flag(dd, "EXSTYLE", "WS_EX_TOOLWINDOW"))
+    flags.push_back("Qt::Tool");
+
+  if(!flags.empty())
+  {
+    std::string combined = flags[0];
+    for(size_t i = 1; i < flags.size(); ++i)
+      combined += "|" + flags[i];
+    add_property_set(widget, "windowFlags", combined);
+  }
+
+  bool visible = has_dialog_flag(dd, "STYLE", "WS_VISIBLE");
+  if(visible)
+    add_property_bool(widget, "visible", true);
+
+  bool enabled = !has_dialog_flag(dd, "STYLE", "WS_DISABLED");
+  add_property_bool(widget, "enabled", enabled);
 }
 
 void generator::write_control(pugi::xml_node& parent, const control& ctrl)
@@ -658,6 +692,24 @@ int generator::find_statement_numeric(const dialog_data& dd, const std::string& 
     }
   }
   return default_value;
+}
+
+const style_expr* generator::find_statement_style(const dialog_data& dd, const std::string& keyword) const
+{
+  for(const auto& s : dd.statements)
+  {
+    if(s.keyword == keyword)
+      return &s.value;
+  }
+  return nullptr;
+}
+
+bool generator::has_dialog_flag(const dialog_data& dd, const std::string& keyword, const std::string& flag) const
+{
+  const style_expr* expr = find_statement_style(dd, keyword);
+  if(expr)
+    return has_style(*expr, flag);
+  return false;
 }
 
 void generator::write_menu(pugi::xml_node& parent, const resource& res)

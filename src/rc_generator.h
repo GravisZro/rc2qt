@@ -61,6 +61,8 @@ private:
 
   std::string find_statement_text(const dialog_data& dd, const std::string& keyword) const;
   int find_statement_numeric(const dialog_data& dd, const std::string& keyword, int default_value = 0) const;
+  const style_expr* find_statement_style(const dialog_data& dd, const std::string& keyword) const;
+  bool has_dialog_flag(const dialog_data& dd, const std::string& keyword, const std::string& flag) const;
 
   std::string strip_accelerator(const std::string& text) const;
   std::string map_ms_font(const std::string& ms_font);
