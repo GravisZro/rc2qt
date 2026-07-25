@@ -12,6 +12,9 @@ int64_t resolver::resolve_style(const style_expr& expr) const
 {
   const auto& reg = constant_registry::instance();
 
+  if(expr.first.empty() && expr.ops.empty())
+    return -1;
+
   int64_t result = 0;
   if(!expr.first.empty())
   {
@@ -76,7 +79,10 @@ void resolver::resolve_file(rc_file& file) const
 void resolver::resolve_dialog(dialog_data& dd) const
 {
   for(auto& s : dd.statements)
-    s.value.resolved_value = resolve_style(s.value);
+  {
+    if(s.keyword == "STYLE" || s.keyword == "EXSTYLE" || s.keyword == "VERSION" || s.keyword == "CHARACTERISTICS")
+      s.value.resolved_value = resolve_style(s.value);
+  }
 
   for(auto& c : dd.controls)
     resolve_control(c);

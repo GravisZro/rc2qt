@@ -63,6 +63,7 @@ private:
   int find_statement_numeric(const dialog_data& dd, const std::string& keyword, int default_value = 0) const;
 
   std::string strip_accelerator(const std::string& text) const;
+  std::string map_ms_font(const std::string& ms_font);
 
   std::map<std::string, int> name_counts_;
   std::map<std::string, std::string> accelerator_map_;

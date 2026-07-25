@@ -185,6 +185,7 @@ style_expr parser::parse_style_expr()
          (to_upper(current().value) == "||" || to_upper(current().value) == "OR")))
   {
     std::string op = advance().value;
+    skip_newlines();
     std::string val;
     if(current().type == token_type::identifier)
       val = advance().value;
@@ -192,6 +193,7 @@ style_expr parser::parse_style_expr()
       val = advance().value;
     else
       break;
+    skip_newlines();
     expr.ops.push_back({op, val});
   }
 
@@ -237,6 +239,8 @@ control parser::parse_control()
         skip_newlines();
         ctrl.height = static_cast<uint16_t>(std::stoi(advance().value));
       }
+      if(match(token_type::comma))
+        ctrl.ext_style = parse_style_expr();
     }
   }
   else

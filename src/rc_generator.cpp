@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <sstream>
 
 namespace rc
@@ -223,9 +224,15 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   if(!caption.empty())
     add_property_string(widget, "windowTitle", caption);
 
+  std::string font_family = find_statement_text(dd, "FONT");
+  if(font_family.empty())
+    font_family = "MS Sans Serif";
+  else
+    font_family = map_ms_font(font_family);
+
   int font_size = find_statement_numeric(dd, "FONT", 8);
   if(font_size > 0)
-    add_property_font(widget, "MS Sans Serif", font_size, false, false);
+    add_property_font(widget, font_family, font_size, false, false);
 
   add_property_bool(widget, "enabled", true);
 }
@@ -251,6 +258,13 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
 
   if(!ctrl.text.empty())
     add_property_string(widget, "text", ctrl.text);
+
+  bool visible = !has_style(ctrl.style, "WS_HIDDEN");
+  if(visible)
+    add_property_bool(widget, "visible", true);
+
+  bool enabled = !has_style(ctrl.style, "WS_DISABLED");
+  add_property_bool(widget, "enabled", enabled);
 
   if(qt_class == "QPushButton")
   {
@@ -294,6 +308,12 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
   {
     if(has_style(ctrl.style, "ES_READONLY"))
       add_property_bool(widget, "readOnly", true);
+    if(has_style(ctrl.style, "ES_WANTRETURN"))
+      add_property_bool(widget, "tabChangesFocus", false);
+    if(has_style(ctrl.style, "ES_AUTOVSCROLL"))
+      add_property_enum(widget, "verticalScrollBarPolicy", "Qt::ScrollBarAsNeeded");
+    if(has_style(ctrl.style, "ES_AUTOHSCROLL"))
+      add_property_enum(widget, "horizontalScrollBarPolicy", "Qt::ScrollBarAlwaysOff");
   }
 
   if(qt_class == "QGroupBox")
@@ -307,8 +327,93 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
       add_property_bool(widget, "editable", true);
   }
 
-  bool enabled = !has_style(ctrl.style, "WS_DISABLED");
-  add_property_bool(widget, "enabled", enabled);
+  if(qt_class == "QSlider")
+  {
+    if(has_style(ctrl.style, "TBS_VERT"))
+      add_property_enum(widget, "orientation", "Qt::Vertical");
+    else
+      add_property_enum(widget, "orientation", "Qt::Horizontal");
+
+    if(has_style(ctrl.style, "TBS_NOTICKS"))
+      add_property_enum(widget, "tickPosition", "QSlider::NoTicks");
+    else if(has_style(ctrl.style, "TBS_BOTH"))
+      add_property_enum(widget, "tickPosition", "QSlider::TicksBothSides");
+    else if(has_style(ctrl.style, "TBS_TOP") || has_style(ctrl.style, "TBS_LEFT"))
+      add_property_enum(widget, "tickPosition", "QSlider::TicksAbove");
+    else
+      add_property_enum(widget, "tickPosition", "QSlider::TicksBelow");
+
+    if(has_style(ctrl.style, "TBS_AUTOTICKS"))
+      add_property_int(widget, "tickInterval", 1);
+  }
+
+  if(qt_class == "QTableWidget")
+  {
+    if(has_style(ctrl.style, "LVS_REPORT"))
+      add_property_enum(widget, "selectionBehavior", "QAbstractItemView::SelectRows");
+    if(has_style(ctrl.style, "LVS_SINGLESEL"))
+      add_property_enum(widget, "selectionMode", "QAbstractItemView::SingleSelection");
+    else if(has_style(ctrl.style, "LVS_SHOWSELALWAYS"))
+      add_property_enum(widget, "selectionMode", "QAbstractItemView::ContiguousSelection");
+    if(has_style(ctrl.style, "LVS_SORTASCENDING"))
+      add_property_bool(widget, "sortingEnabled", true);
+  }
+
+  if(qt_class == "QTreeWidget")
+  {
+    if(has_style(ctrl.style, "TVS_HASBUTTONS"))
+      add_property_bool(widget, "rootIsDecorated", true);
+    if(has_style(ctrl.style, "TVS_SHOWSELALWAYS"))
+      add_property_enum(widget, "selectionMode", "QAbstractItemView::SingleSelection");
+  }
+
+  if(qt_class == "QProgressBar")
+  {
+    if(has_style(ctrl.style, "PBS_VERTICAL"))
+      add_property_enum(widget, "orientation", "Qt::Vertical");
+    else
+      add_property_enum(widget, "orientation", "Qt::Horizontal");
+    if(has_style(ctrl.style, "PBS_SMOOTH"))
+      add_property_bool(widget, "textVisible", true);
+    add_property_int(widget, "minimum", 0);
+    add_property_int(widget, "maximum", 100);
+    add_property_int(widget, "value", 0);
+  }
+
+  if(qt_class == "QSpinBox")
+  {
+    if(has_style(ctrl.style, "UDS_WRAP"))
+      add_property_bool(widget, "wrapping", true);
+    if(has_style(ctrl.style, "UDS_SETBUDDYINT"))
+      add_property_bool(widget, "accelerated", true);
+    add_property_int(widget, "minimum", 0);
+    add_property_int(widget, "maximum", 99);
+    add_property_int(widget, "value", 0);
+  }
+
+  if(qt_class == "QDateTimeEdit")
+  {
+    if(has_style(ctrl.style, "DTS_UPDOWN"))
+      add_property_enum(widget, "buttonSymbols", "QAbstractSpinBox::UpDownArrows");
+    else
+      add_property_enum(widget, "buttonSymbols", "QAbstractSpinBox::NoButtons");
+  }
+
+  if(qt_class == "QTabWidget")
+  {
+    if(has_style(ctrl.style, "TCS_BUTTONS"))
+      add_property_enum(widget, "tabPosition", "QTabWidget::North");
+    if(has_style(ctrl.style, "TCS_FIXEDWIDTH"))
+      add_property_bool(widget, "usesScrollButtons", false);
+  }
+
+  if(qt_class == "QListWidget")
+  {
+    if(has_style(ctrl.style, "LBS_MULTIPLE") || has_style(ctrl.style, "LBS_EXTENDED"))
+      add_property_enum(widget, "selectionMode", "QAbstractItemView::ExtendedSelection");
+    else
+      add_property_enum(widget, "selectionMode", "QAbstractItemView::SingleSelection");
+  }
 }
 
 pugi::xml_node generator::add_widget(pugi::xml_node& parent, const std::string& qt_class, const std::string& name)
@@ -547,6 +652,8 @@ int generator::find_statement_numeric(const dialog_data& dd, const std::string& 
     {
       if(s.value.resolved_value >= 0)
         return static_cast<int>(s.value.resolved_value);
+      if(s.numeric_value > 0)
+        return static_cast<int>(s.numeric_value);
       return default_value;
     }
   }
@@ -833,6 +940,38 @@ std::string generator::strip_accelerator(const std::string& text) const
   if(tab_pos != std::string::npos)
     return text.substr(0, tab_pos);
   return text;
+}
+
+std::string generator::map_ms_font(const std::string& ms_font)
+{
+  static const std::map<std::string, std::string> font_map = {
+    {"Arial", "Liberation Sans"},
+    {"MS Sans Serif", "Liberation Sans"},
+    {"MS Shell Dlg", "Liberation Sans"},
+    {"MS Shell Dlg 2", "Liberation Sans"},
+    {"Tahoma", "Liberation Sans"},
+    {"Segoe UI", "Liberation Sans"},
+    {"Verdana", "Liberation Sans"},
+    {"Tahoma", "Liberation Sans"},
+    {"Times New Roman", "Liberation Serif"},
+    {"Courier New", "Liberation Mono"},
+    {"Courier", "Liberation Mono"},
+    {"Consolas", "Liberation Mono"},
+    {"Lucida Console", "Liberation Mono"},
+    {"Calibri", "Carlito"},
+    {"Georgia", "Liberation Serif"},
+    {"Small Fonts", "Liberation Sans"},
+    {"System", "Liberation Sans"},
+    {"Roman", "Liberation Serif"},
+    {"Script", "Liberation Sans"},
+    {"Modern", "Liberation Mono"},
+    {"Courier 10,12,15", "Liberation Mono"},
+  };
+
+  auto it = font_map.find(ms_font);
+  if(it != font_map.end())
+    return it->second;
+  return ms_font;
 }
 
 }
