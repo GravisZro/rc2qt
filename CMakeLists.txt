@@ -23,20 +23,16 @@ find_package(pugixml)
 
 
 set(HEADERS
-  src/bytestream/portable_endian.h
-  src/bytestream/posix_stream.h
   src/rc_ast.h
   src/rc_constants.h
   src/rc_generator.h
   src/rc_parser.h
   src/rc_resolver.h
   src/rc_tokenizer.h
-  src/rctype_parsers.h
   src/shortjson.h
 )
 
 set(SOURCES
-  src/bytestream/posix_stream.cpp
   src/rc_constants.cpp
   src/rc_generator.cpp
   src/rc_parser.cpp
@@ -44,7 +40,6 @@ set(SOURCES
   src/rc_tokenizer.cpp
   src/shortjson_strict.cpp
   src/main.cpp
-  src/rctype_parsers.cpp
 )
 
 add_executable(${TARGET_NAME} ${HEADERS} ${SOURCES})
