@@ -21,6 +21,7 @@ class generator
 {
 public:
   bool generate(const rc_file& file, const std::string& output_path);
+  bool generate_qrc(const rc_file& file, const std::string& output_path);
 
 private:
   void write_dialog(pugi::xml_node& parent, const resource& res);

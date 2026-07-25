@@ -49,6 +49,7 @@ int main(int argc, char** argv)
 {
   std::string input_path;
   std::string output_path;
+  std::string qrc_path;
 
   for(int i = 1; i < argc; ++i)
   {
@@ -57,11 +58,16 @@ int main(int argc, char** argv)
     {
       output_path = argv[++i];
     }
+    else if(arg == "-q" && i + 1 < argc)
+    {
+      qrc_path = argv[++i];
+    }
     else if(arg == "-h" || arg == "--help")
     {
       std::cerr << "Usage: " << argv[0] << " [options] <file.rc>" << std::endl;
-      std::cerr << "  -o <file.ui>  Generate .ui file" << std::endl;
-      std::cerr << "  -h, --help    Show this help" << std::endl;
+      std::cerr << "  -o <file.ui>   Generate .ui file" << std::endl;
+      std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
+      std::cerr << "  -h, --help     Show this help" << std::endl;
       return 0;
     }
     else if(input_path.empty())
@@ -73,8 +79,9 @@ int main(int argc, char** argv)
   if(input_path.empty())
   {
     std::cerr << "Usage: " << argv[0] << " [options] <file.rc>" << std::endl;
-    std::cerr << "  -o <file.ui>  Generate .ui file" << std::endl;
-    std::cerr << "  -h, --help    Show this help" << std::endl;
+    std::cerr << "  -o <file.ui>   Generate .ui file" << std::endl;
+    std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
+    std::cerr << "  -h, --help     Show this help" << std::endl;
     return 1;
   }
 
@@ -174,13 +181,25 @@ int main(int argc, char** argv)
     }
   }
 
-  if(!output_path.empty())
+  if(!output_path.empty() || !qrc_path.empty())
   {
     rc::generator gen;
-    if(gen.generate(file, output_path))
-      std::cout << "Generated: " << output_path << std::endl;
-    else
-      std::cerr << "Error: failed to generate " << output_path << std::endl;
+
+    if(!output_path.empty())
+    {
+      if(gen.generate(file, output_path))
+        std::cout << "Generated: " << output_path << std::endl;
+      else
+        std::cerr << "Error: failed to generate " << output_path << std::endl;
+    }
+
+    if(!qrc_path.empty())
+    {
+      if(gen.generate_qrc(file, qrc_path))
+        std::cout << "Generated: " << qrc_path << std::endl;
+      else
+        std::cerr << "Error: failed to generate " << qrc_path << std::endl;
+    }
   }
 
   return 0;

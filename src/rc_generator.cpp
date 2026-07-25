@@ -24,6 +24,40 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
   return doc.save_file(output_path.c_str(), "  ");
 }
 
+bool generator::generate_qrc(const rc_file& file, const std::string& output_path)
+{
+  pugi::xml_document doc;
+
+  pugi::xml_node qresource = doc.append_child("RCC");
+  pugi::xml_node res_node = qresource.append_child("qresource");
+
+  bool has_resources = false;
+
+  for(const auto& res : file.resources)
+  {
+    if(res.filename.empty())
+      continue;
+
+    if(res.type == "BITMAP" || res.type == "ICON" || res.type == "CURSOR" ||
+       res.type == "RT_MANIFEST" || res.type == "REGISTRY" ||
+       res.type == "TYPELIB" || res.type == "DATA")
+    {
+      pugi::xml_node file_node = res_node.append_child("file");
+      file_node.append_attribute("alias") = res.id.c_str();
+      file_node.text() = res.filename.c_str();
+      has_resources = true;
+    }
+  }
+
+  if(!has_resources)
+  {
+    pugi::xml_node file_node = res_node.append_child("file");
+    file_node.text() = ".";
+  }
+
+  return doc.save_file(output_path.c_str(), "  ");
+}
+
 void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 {
   const auto& dd = std::get<dialog_data>(res.data);
