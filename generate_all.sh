@@ -10,7 +10,7 @@ if [ ! -x "$RC2QT" ]; then
   exit 1
 fi
 
-mkdir -p "$OUTDIR/ui" "$OUTDIR/qrc"
+mkdir -p "$OUTDIR"
 
 total=0
 success=0
@@ -20,8 +20,8 @@ for rc_file in "$TESTDIR"/*.rc; do
   [ -f "$rc_file" ] || continue
   total=$((total + 1))
   name=$(basename "$rc_file" .rc)
-  ui_out="$OUTDIR/ui/${name}.ui"
-  qrc_out="$OUTDIR/qrc/${name}.qrc"
+  ui_out="$OUTDIR/${name}.ui"
+  qrc_out="$OUTDIR/${name}.qrc"
 
   if "$RC2QT" "$rc_file" -o "$ui_out" -q "$qrc_out" >/dev/null 2>&1; then
     success=$((success + 1))
