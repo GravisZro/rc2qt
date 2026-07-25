@@ -194,7 +194,7 @@ int main(int argc, char** argv)
 
     if(!qrc_path.empty())
     {
-      if(gen.generate_qrc(file, qrc_path))
+      if(gen.generate_qrc(file, qrc_path, output_path))
         std::cout << "Generated: " << qrc_path << std::endl;
       else
         std::cerr << "Error: failed to generate " << qrc_path << std::endl;

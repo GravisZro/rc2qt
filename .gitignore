@@ -29,6 +29,6 @@ docs/menurc/*
 !docs/menurc/resource-definition-statements.md
 !docs/menurc/textinclude-resource.md
 !docs/menurc/toc.yml
-!docs/menurc/winuserh-predefined-constants.md
+!docs/menurc/predefined-constants.md
 VC-LTL/
 *.pdf

@@ -151,7 +151,7 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
   return doc.save_file(output_path.c_str(), "  ");
 }
 
-bool generator::generate_qrc(const rc_file& file, const std::string& output_path)
+bool generator::generate_qrc(const rc_file& file, const std::string& output_path, const std::string& ui_path)
 {
   pugi::xml_document doc;
 
@@ -159,6 +159,15 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
   pugi::xml_node res_node = qresource.append_child("qresource");
 
   bool has_resources = false;
+
+  if(!ui_path.empty())
+  {
+    pugi::xml_node file_node = res_node.append_child("file");
+    std::string normalized = ui_path;
+    std::replace(normalized.begin(), normalized.end(), '\\', '/');
+    file_node.text() = std::filesystem::path(normalized).generic_string().c_str();
+    has_resources = true;
+  }
 
   for(const auto& res : file.resources)
   {
