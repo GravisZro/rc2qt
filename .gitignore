@@ -23,5 +23,12 @@ temporary_files/
 
 # documentation
 docs/qt*/
+docs/menurc/*
+!docs/menurc/dlginit-resource.md
+!docs/menurc/rc-exe-quirks-and-bugs.md
+!docs/menurc/resource-definition-statements.md
+!docs/menurc/textinclude-resource.md
+!docs/menurc/toc.yml
+!docs/menurc/winuserh-predefined-constants.md
 VC-LTL/
 *.pdf
