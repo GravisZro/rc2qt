@@ -12,7 +12,6 @@
 #include <filesystem>
 
 #include "shortjson.h"
-#include "rcdef.h"
 #include "rc_tokenizer.h"
 #include "rc_parser.h"
 #include "rc_ast.h"

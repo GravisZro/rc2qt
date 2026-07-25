@@ -22,15 +22,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0")
 find_package(pugixml)
 
 
-set(RESOURCES
-  res/editorutf8.rc
-  res/editor.rc 
-  res/structures.json
-)
-
 set(HEADERS
-  src/bytestream/fixed_string.h
-  src/bytestream/istream_variants.h
   src/bytestream/portable_endian.h
   src/bytestream/posix_stream.h
   src/rc_ast.h
@@ -39,7 +31,6 @@ set(HEADERS
   src/rc_parser.h
   src/rc_resolver.h
   src/rc_tokenizer.h
-  src/rcdef.h
   src/rctype_parsers.h
   src/shortjson.h
 )
