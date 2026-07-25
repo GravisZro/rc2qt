@@ -70,6 +70,7 @@ private:
   std::map<std::string, std::string> menu_text_map_;
   std::map<std::string, bool> menu_disabled_map_;
   std::map<std::string, bool> menu_checked_map_;
+  pugi::xml_node menubar_node_;
 };
 
 }

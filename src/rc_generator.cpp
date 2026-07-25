@@ -17,6 +17,7 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
   menu_text_map_.clear();
   menu_disabled_map_.clear();
   menu_checked_map_.clear();
+  menubar_node_ = pugi::xml_node();
 
   for(const auto& res : file.resources)
   {
@@ -114,22 +115,37 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
 
   pugi::xml_node ui = doc.append_child("ui");
   ui.append_attribute("version") = "4.0";
+  ui.append_child("class").text() = "Form";
 
+  pugi::xml_node root_widget;
   for(const auto& res : file.resources)
   {
     if(std::holds_alternative<dialog_data>(res.data))
-      write_dialog(ui, res);
+    {
+      if(!root_widget)
+      {
+        write_dialog(ui, res);
+        root_widget = ui.child("widget");
+      }
+    }
+  }
+
+  if(!root_widget)
+  {
+    root_widget = ui.append_child("widget");
+    root_widget.append_attribute("class") = "QWidget";
+    root_widget.append_attribute("name") = "Form";
   }
 
   for(const auto& res : file.resources)
   {
     if(std::holds_alternative<menu_data>(res.data))
-      write_menu(ui, res);
+      write_menu(root_widget, res);
     if(std::holds_alternative<toolbar_data>(res.data))
-      write_toolbar(ui, res);
+      write_toolbar(root_widget, res);
   }
 
-  write_actions(ui, file);
+  write_actions(root_widget, file);
 
   return doc.save_file(output_path.c_str(), "  ");
 }
@@ -530,26 +546,19 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
   const auto& md = std::get<menu_data>(res.data);
   int action_counter = 0;
 
-  bool is_first = (name_counts_.find("__menubar_written__") == name_counts_.end());
-  name_counts_["__menubar_written__"] = 1;
-
-  pugi::xml_node container = parent;
-
-  if(is_first)
+  if(!menubar_node_)
   {
-    pugi::xml_node menubar = parent.append_child("widget");
-    menubar.append_attribute("class") = "QMenuBar";
-    menubar.append_attribute("name") = "menubar";
+    menubar_node_ = parent.append_child("widget");
+    menubar_node_.append_attribute("class") = "QMenuBar";
+    menubar_node_.append_attribute("name") = "menubar";
 
-    pugi::xml_node geom = menubar.append_child("property");
+    pugi::xml_node geom = menubar_node_.append_child("property");
     geom.append_attribute("name") = "geometry";
     pugi::xml_node rect = geom.append_child("rect");
     rect.append_child("x").text() = 0;
     rect.append_child("y").text() = 0;
     rect.append_child("width").text() = 800;
     rect.append_child("height").text() = 22;
-
-    container = menubar;
   }
 
   for(const auto& entry : md.entries)
@@ -565,7 +574,7 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
         cleaned = "m" + cleaned;
       menu_name = cleaned;
 
-      pugi::xml_node menu = container.append_child("widget");
+      pugi::xml_node menu = menubar_node_.append_child("widget");
       menu.append_attribute("class") = "QMenu";
       menu.append_attribute("name") = menu_name.c_str();
 
@@ -575,7 +584,7 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
 
       write_menu_entries(menu, popup_ptr->entries, action_counter);
 
-      pugi::xml_node addaction = container.append_child("addaction");
+      pugi::xml_node addaction = menubar_node_.append_child("addaction");
       addaction.append_attribute("name") = menu_name.c_str();
     }
   }
