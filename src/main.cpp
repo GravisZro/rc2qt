@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <filesystem>
 
-#include "shortjson.h"
 #include "rc_tokenizer.h"
 #include "rc_parser.h"
 #include "rc_ast.h"
@@ -19,7 +18,7 @@
 #include "rc_constants.h"
 #include "rc_generator.h"
 
-using namespace shortjson;
+
 
 std::string substitute(std::string str, std::string one, std::string two)
 {

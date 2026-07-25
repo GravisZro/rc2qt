@@ -29,7 +29,6 @@ set(HEADERS
   src/rc_parser.h
   src/rc_resolver.h
   src/rc_tokenizer.h
-  src/shortjson.h
 )
 
 set(SOURCES
@@ -38,7 +37,6 @@ set(SOURCES
   src/rc_parser.cpp
   src/rc_resolver.cpp
   src/rc_tokenizer.cpp
-  src/shortjson_strict.cpp
   src/main.cpp
 )
 
