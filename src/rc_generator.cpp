@@ -208,8 +208,81 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
   write_dialog_properties(widget, dd);
 
-  for(const auto& ctrl : dd.controls)
-    write_control(widget, ctrl);
+  std::vector<int> groupbox_indices;
+  for(size_t i = 0; i < dd.controls.size(); ++i)
+  {
+    const auto& ctrl = dd.controls[i];
+    std::string qt_class = map_keyword_to_widget(ctrl.keyword);
+    if(qt_class.empty() && ctrl.keyword == "CONTROL")
+      qt_class = map_class_to_widget(ctrl.class_name, ctrl.style);
+    if(qt_class == "QGroupBox")
+      groupbox_indices.push_back(static_cast<int>(i));
+  }
+
+  std::vector<int> parent_groupbox(dd.controls.size(), -1);
+  for(int gi : groupbox_indices)
+  {
+    const auto& gb = dd.controls[gi];
+    int16_t gb_x = gb.x;
+    int16_t gb_y = gb.y;
+    uint16_t gb_w = gb.width;
+    uint16_t gb_h = gb.height;
+
+    for(size_t i = 0; i < dd.controls.size(); ++i)
+    {
+      if(static_cast<int>(i) == gi)
+        continue;
+      if(parent_groupbox[i] >= 0)
+        continue;
+
+      const auto& ctrl = dd.controls[i];
+      int16_t cx = ctrl.x + static_cast<int16_t>(ctrl.width / 2);
+      int16_t cy = ctrl.y + static_cast<int16_t>(ctrl.height / 2);
+
+      if(cx >= gb_x && cx < gb_x + static_cast<int16_t>(gb_w) &&
+         cy >= gb_y && cy < gb_y + static_cast<int16_t>(gb_h))
+      {
+        parent_groupbox[i] = gi;
+      }
+    }
+  }
+
+  std::vector<bool> written(dd.controls.size(), false);
+
+  for(int gi : groupbox_indices)
+  {
+    write_control(widget, dd.controls[gi]);
+    written[gi] = true;
+
+    pugi::xml_node gb_widget = widget.last_child();
+
+    for(size_t i = 0; i < dd.controls.size(); ++i)
+    {
+      if(parent_groupbox[i] != gi)
+        continue;
+      if(written[i])
+        continue;
+
+      const auto& gb = dd.controls[gi];
+      const auto& ctrl = dd.controls[i];
+
+      control relative = ctrl;
+      relative.x = ctrl.x - gb.x;
+      relative.y = ctrl.y - gb.y - 4;
+
+      write_control(gb_widget, relative);
+      written[i] = true;
+    }
+  }
+
+  for(size_t i = 0; i < dd.controls.size(); ++i)
+  {
+    if(!written[i])
+    {
+      write_control(widget, dd.controls[i]);
+      written[i] = true;
+    }
+  }
 }
 
 void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd)
