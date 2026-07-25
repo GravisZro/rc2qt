@@ -19,6 +19,8 @@ find_package(Qt5 REQUIRED COMPONENTS Widgets)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0")
+find_package(pugixml)
+
 
 set(RESOURCES
   res/editorutf8.rc
@@ -33,6 +35,7 @@ set(HEADERS
   src/bytestream/posix_stream.h
   src/rc_ast.h
   src/rc_constants.h
+  src/rc_generator.h
   src/rc_parser.h
   src/rc_resolver.h
   src/rc_tokenizer.h
@@ -44,6 +47,7 @@ set(HEADERS
 set(SOURCES
   src/bytestream/posix_stream.cpp
   src/rc_constants.cpp
+  src/rc_generator.cpp
   src/rc_parser.cpp
   src/rc_resolver.cpp
   src/rc_tokenizer.cpp
@@ -55,4 +59,4 @@ set(SOURCES
 add_executable(${TARGET_NAME} ${HEADERS} ${SOURCES})
 
 target_include_directories(${TARGET_NAME} PRIVATE src)
-target_link_libraries(${TARGET_NAME} PRIVATE Qt5::Widgets)
+target_link_libraries(${TARGET_NAME} PRIVATE Qt5::Widgets pugixml::pugixml)

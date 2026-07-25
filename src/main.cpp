@@ -17,6 +17,7 @@
 #include "rc_ast.h"
 #include "rc_resolver.h"
 #include "rc_constants.h"
+#include "rc_generator.h"
 
 using namespace shortjson;
 
@@ -46,17 +47,42 @@ static std::string read_file(const std::string& path)
 
 int main(int argc, char** argv)
 {
-  if(argc < 2)
+  std::string input_path;
+  std::string output_path;
+
+  for(int i = 1; i < argc; ++i)
   {
-    std::cerr << "Usage: " << argv[0] << " <file.rc>" << std::endl;
+    std::string arg = argv[i];
+    if(arg == "-o" && i + 1 < argc)
+    {
+      output_path = argv[++i];
+    }
+    else if(arg == "-h" || arg == "--help")
+    {
+      std::cerr << "Usage: " << argv[0] << " [options] <file.rc>" << std::endl;
+      std::cerr << "  -o <file.ui>  Generate .ui file" << std::endl;
+      std::cerr << "  -h, --help    Show this help" << std::endl;
+      return 0;
+    }
+    else if(input_path.empty())
+    {
+      input_path = arg;
+    }
+  }
+
+  if(input_path.empty())
+  {
+    std::cerr << "Usage: " << argv[0] << " [options] <file.rc>" << std::endl;
+    std::cerr << "  -o <file.ui>  Generate .ui file" << std::endl;
+    std::cerr << "  -h, --help    Show this help" << std::endl;
     return 1;
   }
 
-  std::string content = read_file(argv[1]);
+  std::string content = read_file(input_path);
   if(content.empty())
     return 1;
 
-  std::cout << "Read " << content.size() << " bytes from " << argv[1] << std::endl;
+  std::cout << "Read " << content.size() << " bytes from " << input_path << std::endl;
 
   auto tokens = rc::tokenize(content);
   std::cout << "Tokenized into " << tokens.size() << " tokens" << std::endl;
@@ -146,6 +172,15 @@ int main(int argc, char** argv)
         }
       }
     }
+  }
+
+  if(!output_path.empty())
+  {
+    rc::generator gen;
+    if(gen.generate(file, output_path))
+      std::cout << "Generated: " << output_path << std::endl;
+    else
+      std::cerr << "Error: failed to generate " << output_path << std::endl;
   }
 
   return 0;
