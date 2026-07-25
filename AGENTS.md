@@ -5,7 +5,7 @@ You are an expert C++23 developer tasked with building a robust translator that 
 
 ## 2. Core Requirements
 1. **Parser:** Build a parser for Windows `.rc` files using C++23. Refer to `docs/menurc/` for specifications.
-2. **Generator:** Generate an equivalent Qt Designer `.ui` file from the parsed data. Refer to `docs/qtwidgets/` for widget documentation.
+2. **Generator:** Generate an equivalent Qt Resource `.qrc` and Qt Designer `.ui` files from the parsed data. Refer to `docs/qtwidgets/` for widget documentation.
 
 
 ## 3. Directory and File Restrictions
