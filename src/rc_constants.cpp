@@ -260,6 +260,99 @@ void constant_registry::register_all()
   add("SBS_TOPALIGN", 0x0002, constant_category::scrollbar_style, "Aligns the scroll bar along the top edge of the defined rectangle.");
   add("SBS_VERT", 0x0001, constant_category::scrollbar_style, "Specifies a vertical scroll bar.");
 
+  /* ── LVS_* List-View Styles ───────────────────────────────────── */
+  add("LVS_ALIGNLEFT", 0x0800, constant_category::listview_style, "Left-aligns items in the list-view control.");
+  add("LVS_ALIGNMASK", 0x0c00, constant_category::listview_style, "Mask used to retrieve the alignment style bits of a list-view control.");
+  add("LVS_ALIGNTOP", 0x0000, constant_category::listview_style, "Top-aligns items in the list-view control.");
+  add("LVS_AUTOARRANGE", 0x0100, constant_category::listview_style, "Automatically arranges items in icon view when the list-view window content changes.");
+  add("LVS_EDITLABELS", 0x0080, constant_category::listview_style, "Allows item text to be edited in-place by the user.");
+  add("LVS_ICON", 0x0000, constant_category::listview_style, "Displays items as large icons with labels.");
+  add("LVS_LIST", 0x0003, constant_category::listview_style, "Displays items as a small-icon list with labels.");
+  add("LVS_NOCOLUMNHEADER", 0x4000, constant_category::listview_style, "Hides the column header in report view.");
+  add("LVS_NOLABELWRAP", 0x0080, constant_category::listview_style, "Prevents item labels from wrapping in icon view; text is truncated instead.");
+  add("LVS_NOSCROLL", 0x2000, constant_category::listview_style, "Disables scrolling in the list-view control.");
+  add("LVS_NOSORTHEADER", 0x8000, constant_category::listview_style, "Disables column header click sorting in report view.");
+  add("LVS_OWNERDATA", 0x1000, constant_category::listview_style, "Creates a virtual list-view control where the application supplies item data on demand.");
+  add("LVS_REPORT", 0x0001, constant_category::listview_style, "Displays items in report view with columns.");
+  add("LVS_SHAREIMAGELISTS", 0x0040, constant_category::listview_style, "Does not destroy the image list when the control is destroyed; allows sharing image lists.");
+  add("LVS_SHOWSELALWAYS", 0x0008, constant_category::listview_style, "Keeps the selection visible even when the control loses focus.");
+  add("LVS_SINGLESEL", 0x0004, constant_category::listview_style, "Allows only one item to be selected at a time.");
+  add("LVS_SORTASCENDING", 0x0010, constant_category::listview_style, "Sorts items in ascending order using the current sort column.");
+  add("LVS_SORTDESCENDING", 0x0020, constant_category::listview_style, "Sorts items in descending order using the current sort column.");
+  add("LVS_TYPEMASK", 0x0003, constant_category::listview_style, "Mask used to retrieve the view-type bits of a list-view control.");
+  add("LVS_TYPESTYLEMASK", 0xfc00, constant_category::listview_style, "Mask used to retrieve the type and style bits that affect arranging in list-view.");
+
+  /* ── TVS_* Tree-View Styles ──────────────────────────────────── */
+  add("TVS_CHECKBOXES", 0x0100, constant_category::treeview_style, "Displays check boxes next to each item in the tree-view control.");
+  add("TVS_DISABLEDRAGDROP", 0x0010, constant_category::treeview_style, "Prevents the user from dragging items in the tree-view control.");
+  add("TVS_EDITLABELS", 0x0008, constant_category::treeview_style, "Allows item text to be edited in-place by the user.");
+  add("TVS_FULLROWSELECT", 0x1000, constant_category::treeview_style, "Selects the entire row of the item when clicked, not just the icon or text.");
+  add("TVS_HASBUTTONS", 0x0001, constant_category::treeview_style, "Displays plus/minus buttons next to parent items for expanding and collapsing.");
+  add("TVS_HASLINES", 0x0002, constant_category::treeview_style, "Displays lines connecting parent items to their children in the tree.");
+  add("TVS_LINESATROOT", 0x0004, constant_category::treeview_style, "Displays lines connecting root-level items to each other.");
+  add("TVS_NOHSCROLL", 0x8000, constant_category::treeview_style, "Disables horizontal scrolling in the tree-view control.");
+  add("TVS_NOSCROLL", 0x2000, constant_category::treeview_style, "Disables both horizontal and vertical scrolling in the tree-view control.");
+  add("TVS_NONEVENHEIGHT", 0x4000, constant_category::treeview_style, "Allows tree-view items to have odd heights; otherwise items are forced to even heights.");
+  add("TVS_RTLREADING", 0x0040, constant_category::treeview_style, "Displays text using right-to-left reading order.");
+  add("TVS_SHOWSELALWAYS", 0x0020, constant_category::treeview_style, "Keeps the selected item visible even when the control loses focus.");
+  add("TVS_SINGLEEXPAND", 0x0400, constant_category::treeview_style, "Expands the selected item when it is expanded; collapses other expanded items.");
+  add("TVS_TRACKSELECT", 0x0200, constant_category::treeview_style, "Enables hot-tracking of tree-view items as the mouse pointer moves over them.");
+
+  /* ── TBS_* Trackbar Styles ───────────────────────────────────── */
+  add("TBS_AUTOTICKS", 0x0001, constant_category::trackbar_style, "Automatically creates tick marks at each increment along the trackbar.");
+  add("TBS_BOTH", 0x0008, constant_category::trackbar_style, "Displays tick marks on both sides of the trackbar.");
+  add("TBS_BOTTOM", 0x0000, constant_category::trackbar_style, "Displays tick marks on the bottom of the trackbar.");
+  add("TBS_ENABLESELRANGE", 0x0020, constant_category::trackbar_style, "Enables a selection range in the trackbar control.");
+  add("TBS_FIXEDLENGTH", 0x0040, constant_category::trackbar_style, "Allows the trackbar thumb to have a fixed size, not scaled to the trackbar range.");
+  add("TBS_HORZ", 0x0000, constant_category::trackbar_style, "Displays a horizontal trackbar.");
+  add("TBS_LEFT", 0x0004, constant_category::trackbar_style, "Displays tick marks on the left side of the trackbar.");
+  add("TBS_NOTHUMB", 0x0080, constant_category::trackbar_style, "Hides the trackbar thumb (slider) so the user cannot drag it.");
+  add("TBS_NOTICKS", 0x0010, constant_category::trackbar_style, "Hides the tick marks along the trackbar.");
+  add("TBS_TOP", 0x0004, constant_category::trackbar_style, "Displays tick marks on the top of the trackbar.");
+  add("TBS_VERT", 0x0002, constant_category::trackbar_style, "Displays a vertical trackbar.");
+
+  /* ── PBS_* Progress Bar Styles ───────────────────────────────── */
+  add("PBS_MARQUEE", 0x0008, constant_category::progressbar_style, "Enables marquee mode where the progress bar animates continuously without a specific position.");
+  add("PBS_SMOOTH", 0x0001, constant_category::progressbar_style, "Fills the progress bar with a smooth bar rather than segmented blocks.");
+  add("PBS_SMOOTHREVERSE", 0x0010, constant_category::progressbar_style, "Fills the progress bar with a smooth bar in reverse direction for smooth animation.");
+  add("PBS_VERTICAL", 0x0004, constant_category::progressbar_style, "Displays the progress bar vertically.");
+
+  /* ── UDS_* Up-Down Control Styles ────────────────────────────── */
+  add("UDS_ALIGNLEFT", 0x0008, constant_category::updown_style, "Aligns the up-down control to the left of the buddy edit control.");
+  add("UDS_ALIGNRIGHT", 0x0004, constant_category::updown_style, "Aligns the up-down control to the right of the buddy edit control.");
+  add("UDS_ARROWKEYS", 0x0020, constant_category::updown_style, "Enables arrow key support to increment or decrement the up-down control value.");
+  add("UDS_AUTOBUDDY", 0x0010, constant_category::updown_style, "Automatically selects the previous control in the dialog template as the buddy window.");
+  add("UDS_HORZ", 0x0040, constant_category::updown_style, "Displays the up and down arrows horizontally instead of vertically.");
+  add("UDS_NOTHOUSANDS", 0x0080, constant_category::updown_style, "Does not insert a thousands separator in the buddy edit control.");
+  add("UDS_SETBUDDYINT", 0x0002, constant_category::updown_style, "Sets the buddy edit control text to an integer value whenever the up-down control changes.");
+  add("UDS_WRAP", 0x0001, constant_category::updown_style, "Causes the control to wrap around to the other end when reaching the maximum or minimum value.");
+
+  /* ── DTS_* Date/Time Picker Styles ───────────────────────────── */
+  add("DTS_APPCANPARSE", 0x0010, constant_category::datetimepicker_style, "Enables the owner to parse user input in the date/time picker control.");
+  add("DTS_LONGDATEFORMAT", 0x0004, constant_category::datetimepicker_style, "Uses the long date format string as specified in the user's locale settings.");
+  add("DTS_RIGHTALIGN", 0x0020, constant_category::datetimepicker_style, "Right-aligns the drop-down calendar with the control.");
+  add("DTS_SHOWNONE", 0x0002, constant_category::datetimepicker_style, "Displays a check box next to the control; when unchecked, no date is selected.");
+  add("DTS_TIMEFORMAT", 0x0008, constant_category::datetimepicker_style, "Uses the time format string as specified in the user's locale settings.");
+  add("DTS_UPDOWN", 0x0001, constant_category::datetimepicker_style, "Displays an up-down control rather than a drop-down calendar for date selection.");
+
+  /* ── TCS_* Tab Control Styles ────────────────────────────────── */
+  add("TCS_BOTTOM", 0x0002, constant_category::tabcontrol_style, "Places tabs at the bottom of the control.");
+  add("TCS_BUTTONS", 0x0002, constant_category::tabcontrol_style, "Displays tabs as push buttons.");
+  add("TCS_EX_FLATSEPARATORS", 0x00000001, constant_category::tabcontrol_style, "Draws flat separators between tabs in the tab control.");
+  add("TCS_EX_REGISTERDROP", 0x00000002, constant_category::tabcontrol_style, "Enables tab items to receive WM_QUERYDROPPOSITION notifications.");
+  add("TCS_FIXEDWIDTH", 0x0040, constant_category::tabcontrol_style, "All tabs are the same width; individual text length is ignored.");
+  add("TCS_FLATBUTTONS", 0x0008, constant_category::tabcontrol_style, "Displays tabs as flat push buttons in tab controls without borders.");
+  add("TCS_FOCUSNEVER", 0x0800, constant_category::tabcontrol_style, "Prevents the tab control from receiving input focus.");
+  add("TCS_FOCUSONBUTTONDOWN", 0x0100, constant_category::tabcontrol_style, "Gives input focus to the selected tab when the user clicks on a tab.");
+  add("TCS_FORCESELECTLEFT", 0x0010, constant_category::tabcontrol_style, "Forces the selected tab to be the leftmost visible tab when the tab control gains focus.");
+  add("TCS_MULTILINE", 0x0100, constant_category::tabcontrol_style, "Displays multiple rows of tabs if necessary so all tabs are visible.");
+  add("TCS_MULTISELECT", 0x0004, constant_category::tabcontrol_style, "Enables multiple tab selection using CTRL+click in the tab control.");
+  add("TCS_OWNERDRAWFIXED", 0x0200, constant_category::tabcontrol_style, "Enables the tab control owner to draw tab items in a fixed size.");
+  add("TCS_RAGGEDRIGHT", 0x0080, constant_category::tabcontrol_style, "Prevents tabs from being stretched to fill the tab control width.");
+  add("TCS_RIGHTJUSTIFY", 0x0020, constant_category::tabcontrol_style, "Right-justifies tabs when the tab control is multiline.");
+  add("TCS_SCROLLOP", 0x0001, constant_category::tabcontrol_style, "Enables horizontal scrolling of multiple rows of tabs.");
+  add("TCS_TOOLTIPS", 0x0400, constant_category::tabcontrol_style, "Enables tooltips for each tab in the tab control.");
+
   /* ── VK_* Virtual Key Codes ───────────────────────────────────── */
   add("VK_LBUTTON", 0x01, constant_category::virtual_key, "Virtual key code representing the left mouse button.");
   add("VK_RBUTTON", 0x02, constant_category::virtual_key, "Virtual key code representing the right mouse button.");

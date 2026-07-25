@@ -37,6 +37,13 @@ enum class constant_category
   listbox_style,      // LBS_*
   combobox_style,     // CBS_*
   scrollbar_style,    // SBS_*
+  listview_style,     // LVS_*
+  treeview_style,     // TVS_*
+  trackbar_style,     // TBS_*
+  progressbar_style,  // PBS_*
+  updown_style,       // UDS_*
+  datetimepicker_style, // DTS_*
+  tabcontrol_style,   // TCS_*
   window_message,     // WM_*
   virtual_key,        // VK_*
   message_box,        // MB_*
