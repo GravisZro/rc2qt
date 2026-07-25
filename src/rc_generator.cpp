@@ -3,13 +3,113 @@
 #include "rc_constants.h"
 
 #include <algorithm>
+#include <functional>
 #include <iostream>
+#include <sstream>
 
 namespace rc
 {
 
 bool generator::generate(const rc_file& file, const std::string& output_path)
 {
+  accelerator_map_.clear();
+  string_table_map_.clear();
+  menu_text_map_.clear();
+  menu_disabled_map_.clear();
+  menu_checked_map_.clear();
+
+  for(const auto& res : file.resources)
+  {
+    if(res.type == "ACCELERATORS" &&
+       std::holds_alternative<std::vector<accelerator_entry>>(res.data))
+    {
+      const auto& accels = std::get<std::vector<accelerator_entry>>(res.data);
+      for(const auto& a : accels)
+      {
+        if(!a.id.empty())
+        {
+          std::string qt_key;
+
+          std::string event_upper = a.event;
+          std::transform(event_upper.begin(), event_upper.end(), event_upper.begin(), ::toupper);
+
+          bool has_ctrl = false;
+          bool has_shift = false;
+          bool has_alt = false;
+
+          for(const auto& mod : a.modifiers)
+          {
+            std::string mod_upper = mod;
+            std::transform(mod_upper.begin(), mod_upper.end(), mod_upper.begin(), ::toupper);
+            if(mod_upper == "CONTROL" || mod_upper == "CTRL")
+              has_ctrl = true;
+            else if(mod_upper == "SHIFT")
+              has_shift = true;
+            else if(mod_upper == "ALT")
+              has_alt = true;
+          }
+
+          if(has_ctrl) qt_key += "Ctrl+";
+          if(has_alt) qt_key += "Alt+";
+          if(has_shift) qt_key += "Shift+";
+
+          qt_key += map_vk_to_qt(a.event);
+
+          accelerator_map_[a.id] = qt_key;
+        }
+      }
+    }
+
+    if(res.type == "STRINGTABLE" &&
+       std::holds_alternative<std::vector<string_table_entry>>(res.data))
+    {
+      const auto& strings = std::get<std::vector<string_table_entry>>(res.data);
+      for(const auto& s : strings)
+      {
+        if(!s.id.empty())
+          string_table_map_[s.id] = s.value;
+      }
+    }
+  }
+
+  for(const auto& res : file.resources)
+  {
+    if(std::holds_alternative<menu_data>(res.data))
+    {
+      const auto& md = std::get<menu_data>(res.data);
+      std::function<void(const std::vector<menu_entry>&)> collect_texts = [&](const std::vector<menu_entry>& entries)
+      {
+        for(const auto& entry : entries)
+        {
+          if(std::holds_alternative<menu_item>(entry.item))
+          {
+            const auto& mi = std::get<menu_item>(entry.item);
+            if(!mi.id.empty() && mi.text != "-")
+            {
+              std::string display_text = strip_accelerator(mi.text);
+              if(!display_text.empty())
+                menu_text_map_[mi.id] = display_text;
+
+              for(const auto& f : mi.flags)
+              {
+                if(f == "GRAYED" || f == "INACTIVE")
+                  menu_disabled_map_[mi.id] = true;
+                if(f == "CHECKED")
+                  menu_checked_map_[mi.id] = true;
+              }
+            }
+          }
+          else if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
+          {
+            auto sub = std::get<std::shared_ptr<popup>>(entry.item);
+            collect_texts(sub->entries);
+          }
+        }
+      };
+      collect_texts(md.entries);
+    }
+  }
+
   pugi::xml_document doc;
 
   pugi::xml_node ui = doc.append_child("ui");
@@ -20,6 +120,16 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
     if(std::holds_alternative<dialog_data>(res.data))
       write_dialog(ui, res);
   }
+
+  for(const auto& res : file.resources)
+  {
+    if(std::holds_alternative<menu_data>(res.data))
+      write_menu(ui, res);
+    if(std::holds_alternative<toolbar_data>(res.data))
+      write_toolbar(ui, res);
+  }
+
+  write_actions(ui, file);
 
   return doc.save_file(output_path.c_str(), "  ");
 }
@@ -413,6 +523,295 @@ int generator::find_statement_numeric(const dialog_data& dd, const std::string& 
     }
   }
   return default_value;
+}
+
+void generator::write_menu(pugi::xml_node& parent, const resource& res)
+{
+  const auto& md = std::get<menu_data>(res.data);
+  int action_counter = 0;
+
+  bool is_first = (name_counts_.find("__menubar_written__") == name_counts_.end());
+  name_counts_["__menubar_written__"] = 1;
+
+  pugi::xml_node container = parent;
+
+  if(is_first)
+  {
+    pugi::xml_node menubar = parent.append_child("widget");
+    menubar.append_attribute("class") = "QMenuBar";
+    menubar.append_attribute("name") = "menubar";
+
+    pugi::xml_node geom = menubar.append_child("property");
+    geom.append_attribute("name") = "geometry";
+    pugi::xml_node rect = geom.append_child("rect");
+    rect.append_child("x").text() = 0;
+    rect.append_child("y").text() = 0;
+    rect.append_child("width").text() = 800;
+    rect.append_child("height").text() = 22;
+
+    container = menubar;
+  }
+
+  for(const auto& entry : md.entries)
+  {
+    if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
+    {
+      auto popup_ptr = std::get<std::shared_ptr<popup>>(entry.item);
+      std::string menu_name = "menu" + popup_ptr->text;
+
+      std::string cleaned = menu_name;
+      cleaned.erase(std::remove_if(cleaned.begin(), cleaned.end(), [](unsigned char c) { return !std::isalnum(c); }), cleaned.end());
+      if(!cleaned.empty() && std::isdigit(static_cast<unsigned char>(cleaned[0])))
+        cleaned = "m" + cleaned;
+      menu_name = cleaned;
+
+      pugi::xml_node menu = container.append_child("widget");
+      menu.append_attribute("class") = "QMenu";
+      menu.append_attribute("name") = menu_name.c_str();
+
+      pugi::xml_node title = menu.append_child("property");
+      title.append_attribute("name") = "title";
+      title.append_child("string").text() = popup_ptr->text.c_str();
+
+      write_menu_entries(menu, popup_ptr->entries, action_counter);
+
+      pugi::xml_node addaction = container.append_child("addaction");
+      addaction.append_attribute("name") = menu_name.c_str();
+    }
+  }
+}
+
+void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<menu_entry>& entries, int& action_counter)
+{
+  for(const auto& entry : entries)
+  {
+    if(std::holds_alternative<menu_item>(entry.item))
+    {
+      const auto& mi = std::get<menu_item>(entry.item);
+
+      if(mi.text == "-" || mi.text.empty())
+      {
+        pugi::xml_node addaction = menu_node.append_child("addaction");
+        addaction.append_attribute("name") = "separator";
+        continue;
+      }
+
+      std::string action_name = mi.id.empty()
+        ? "action" + std::to_string(action_counter++)
+        : mi.id;
+
+      pugi::xml_node addaction = menu_node.append_child("addaction");
+      addaction.append_attribute("name") = action_name.c_str();
+    }
+    else if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
+    {
+      auto sub = std::get<std::shared_ptr<popup>>(entry.item);
+
+      std::string sub_name = "menu" + sub->text;
+      std::string cleaned = sub_name;
+      cleaned.erase(std::remove_if(cleaned.begin(), cleaned.end(), [](unsigned char c) { return !std::isalnum(c); }), cleaned.end());
+      if(!cleaned.empty() && std::isdigit(static_cast<unsigned char>(cleaned[0])))
+        cleaned = "m" + cleaned;
+      sub_name = cleaned;
+
+      pugi::xml_node sub_menu = menu_node.append_child("widget");
+      sub_menu.append_attribute("class") = "QMenu";
+      sub_menu.append_attribute("name") = sub_name.c_str();
+
+      pugi::xml_node title = sub_menu.append_child("property");
+      title.append_attribute("name") = "title";
+      title.append_child("string").text() = sub->text.c_str();
+
+      write_menu_entries(sub_menu, sub->entries, action_counter);
+
+      pugi::xml_node addaction = menu_node.append_child("addaction");
+      addaction.append_attribute("name") = sub_name.c_str();
+    }
+  }
+}
+
+void generator::write_toolbar(pugi::xml_node& parent, const resource& res)
+{
+  const auto& td = std::get<toolbar_data>(res.data);
+  std::string tb_name = "toolBar";
+  if(!res.id.empty())
+    tb_name = res.id;
+
+  pugi::xml_node toolbar = parent.append_child("widget");
+  toolbar.append_attribute("class") = "QToolBar";
+  toolbar.append_attribute("name") = tb_name.c_str();
+
+  for(const auto& entry : td.entries)
+  {
+    if(entry.is_separator)
+    {
+      pugi::xml_node addaction = toolbar.append_child("addaction");
+      addaction.append_attribute("name") = "separator";
+    }
+    else if(!entry.id.empty())
+    {
+      pugi::xml_node addaction = toolbar.append_child("addaction");
+      addaction.append_attribute("name") = entry.id.c_str();
+    }
+  }
+}
+
+void generator::write_actions(pugi::xml_node& parent, const rc_file& file)
+{
+  std::map<std::string, bool> actions_defined;
+
+  for(const auto& res : file.resources)
+  {
+    if(std::holds_alternative<menu_data>(res.data))
+    {
+      const auto& md = std::get<menu_data>(res.data);
+      std::function<void(const std::vector<menu_entry>&)> collect = [&](const std::vector<menu_entry>& entries)
+      {
+        for(const auto& entry : entries)
+        {
+          if(std::holds_alternative<menu_item>(entry.item))
+          {
+            const auto& mi = std::get<menu_item>(entry.item);
+            if(!mi.id.empty() && mi.text != "-")
+              actions_defined[mi.id] = true;
+          }
+          else if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
+          {
+            auto sub = std::get<std::shared_ptr<popup>>(entry.item);
+            collect(sub->entries);
+          }
+        }
+      };
+      collect(md.entries);
+    }
+
+    if(std::holds_alternative<toolbar_data>(res.data))
+    {
+      const auto& td = std::get<toolbar_data>(res.data);
+      for(const auto& entry : td.entries)
+      {
+        if(!entry.is_separator && !entry.id.empty())
+          actions_defined[entry.id] = true;
+      }
+    }
+  }
+
+  for(const auto& [id, _] : actions_defined)
+  {
+    pugi::xml_node action = parent.append_child("action");
+    action.append_attribute("name") = id.c_str();
+
+    std::string display_text = id;
+    auto text_it = menu_text_map_.find(id);
+    if(text_it != menu_text_map_.end())
+      display_text = text_it->second;
+
+    pugi::xml_node text = action.append_child("property");
+    text.append_attribute("name") = "text";
+    text.append_child("string").text() = display_text.c_str();
+
+    auto acc_it = accelerator_map_.find(id);
+    if(acc_it != accelerator_map_.end() && !acc_it->second.empty())
+    {
+      pugi::xml_node shortcut = action.append_child("property");
+      shortcut.append_attribute("name") = "shortcut";
+      shortcut.append_child("string").text() = acc_it->second.c_str();
+    }
+
+    auto str_it = string_table_map_.find(id);
+    if(str_it != string_table_map_.end() && !str_it->second.empty())
+    {
+      pugi::xml_node tooltip = action.append_child("property");
+      tooltip.append_attribute("name") = "toolTip";
+      tooltip.append_child("string").text() = str_it->second.c_str();
+    }
+
+    auto dis_it = menu_disabled_map_.find(id);
+    if(dis_it != menu_disabled_map_.end() && dis_it->second)
+      add_property_bool(action, "enabled", false);
+
+    auto chk_it = menu_checked_map_.find(id);
+    if(chk_it != menu_checked_map_.end() && chk_it->second)
+      add_property_bool(action, "checkable", true);
+  }
+}
+
+std::string generator::map_vk_to_qt(const std::string& vk_code)
+{
+  std::string key = vk_code;
+  std::transform(key.begin(), key.end(), key.begin(), ::toupper);
+
+  if(key.size() >= 3 && key[0] == '0' && key[1] == 'X')
+  {
+    std::string hex_str = key.substr(2);
+    try
+    {
+      unsigned long val = std::stoul(hex_str, nullptr, 16);
+      if(val >= 0x20 && val < 0x7F)
+        return std::string(1, static_cast<char>(val));
+      if(val >= 0x30 && val <= 0x39)
+        return std::string(1, static_cast<char>(val));
+      if(val >= 0x41 && val <= 0x5A)
+        return std::string(1, static_cast<char>(val));
+      if(val >= 0x61 && val <= 0x7A)
+        return std::string(1, static_cast<char>(val - 0x20));
+    }
+    catch(...)
+    {
+    }
+    return "";
+  }
+
+  if(key == "VK_CONTROL" || key == "VK_LCONTROL" || key == "VK_RCONTROL")
+    return "";
+  if(key == "VK_SHIFT" || key == "VK_LSHIFT" || key == "VK_RSHIFT")
+    return "";
+  if(key == "VK_MENU" || key == "VK_LMENU" || key == "VK_RMENU")
+    return "";
+
+  if(key == "VK_RETURN")    return "Return";
+  if(key == "VK_ESCAPE")    return "Escape";
+  if(key == "VK_TAB")       return "Tab";
+  if(key == "VK_BACK")      return "Backspace";
+  if(key == "VK_DELETE")    return "Delete";
+  if(key == "VK_INSERT")    return "Insert";
+  if(key == "VK_HOME")      return "Home";
+  if(key == "VK_END")       return "End";
+  if(key == "VK_PRIOR")     return "PgUp";
+  if(key == "VK_NEXT")      return "PgDown";
+  if(key == "VK_LEFT")      return "Left";
+  if(key == "VK_RIGHT")     return "Right";
+  if(key == "VK_UP")        return "Up";
+  if(key == "VK_DOWN")      return "Down";
+  if(key == "VK_F1")        return "F1";
+  if(key == "VK_F2")        return "F2";
+  if(key == "VK_F3")        return "F3";
+  if(key == "VK_F4")        return "F4";
+  if(key == "VK_F5")        return "F5";
+  if(key == "VK_F6")        return "F6";
+  if(key == "VK_F7")        return "F7";
+  if(key == "VK_F8")        return "F8";
+  if(key == "VK_F9")        return "F9";
+  if(key == "VK_F10")       return "F10";
+  if(key == "VK_F11")       return "F11";
+  if(key == "VK_F12")       return "F12";
+  if(key == "VK_SPACE")     return "Space";
+
+  if(key.size() == 1 && key[0] >= 'A' && key[0] <= 'Z')
+    return key;
+
+  if(key.size() == 1 && key[0] >= '0' && key[0] <= '9')
+    return key;
+
+  return "";
+}
+
+std::string generator::strip_accelerator(const std::string& text) const
+{
+  std::string::size_type tab_pos = text.find('\t');
+  if(tab_pos != std::string::npos)
+    return text.substr(0, tab_pos);
+  return text;
 }
 
 }

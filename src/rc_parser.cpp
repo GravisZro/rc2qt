@@ -283,14 +283,21 @@ menu_item parser::parse_menu_item()
   item.text = advance().value;
   if(match(token_type::comma))
     item.id = parse_resource_id();
-  while(current().type == token_type::identifier &&
-        !is_control_keyword(current().value) &&
-        to_upper(current().value) != "POPUP" &&
-        to_upper(current().value) != "END" &&
-        current().type != token_type::eof &&
-        current().type != token_type::newline)
+  while(match(token_type::comma))
   {
-    item.flags.push_back(advance().value);
+    if(current().type == token_type::identifier &&
+       !is_control_keyword(current().value) &&
+       to_upper(current().value) != "POPUP" &&
+       to_upper(current().value) != "END" &&
+       current().type != token_type::eof &&
+       current().type != token_type::newline)
+    {
+      item.flags.push_back(advance().value);
+    }
+    else
+    {
+      break;
+    }
   }
   return item;
 }
