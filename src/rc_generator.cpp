@@ -3,6 +3,7 @@
 #include "rc_constants.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <sstream>
@@ -170,7 +171,7 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
     {
       pugi::xml_node file_node = res_node.append_child("file");
       file_node.append_attribute("alias") = res.id.c_str();
-      file_node.text() = res.filename.c_str();
+      file_node.text() = std::filesystem::path(res.filename).make_preferred().string().c_str();
       has_resources = true;
     }
   }

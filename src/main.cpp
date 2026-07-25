@@ -9,6 +9,7 @@
 #include <list>
 #include <array>
 #include <algorithm>
+#include <filesystem>
 
 #include "shortjson.h"
 #include "rcdef.h"
@@ -56,11 +57,11 @@ int main(int argc, char** argv)
     std::string arg = argv[i];
     if(arg == "-o" && i + 1 < argc)
     {
-      output_path = argv[++i];
+      output_path = std::filesystem::path(argv[++i]).make_preferred().string();
     }
     else if(arg == "-q" && i + 1 < argc)
     {
-      qrc_path = argv[++i];
+      qrc_path = std::filesystem::path(argv[++i]).make_preferred().string();
     }
     else if(arg == "-h" || arg == "--help")
     {
@@ -72,7 +73,7 @@ int main(int argc, char** argv)
     }
     else if(input_path.empty())
     {
-      input_path = arg;
+      input_path = std::filesystem::path(arg).make_preferred().string();
     }
   }
 
