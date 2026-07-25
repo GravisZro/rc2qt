@@ -57,11 +57,11 @@ int main(int argc, char** argv)
     std::string arg = argv[i];
     if(arg == "-o" && i + 1 < argc)
     {
-      output_path = std::filesystem::path(argv[++i]).make_preferred().string();
+      output_path = std::filesystem::path(argv[++i]).generic_string();
     }
     else if(arg == "-q" && i + 1 < argc)
     {
-      qrc_path = std::filesystem::path(argv[++i]).make_preferred().string();
+      qrc_path = std::filesystem::path(argv[++i]).generic_string();
     }
     else if(arg == "-h" || arg == "--help")
     {
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     }
     else if(input_path.empty())
     {
-      input_path = std::filesystem::path(arg).make_preferred().string();
+      input_path = std::filesystem::path(arg).generic_string();
     }
   }
 

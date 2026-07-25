@@ -171,7 +171,9 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
     {
       pugi::xml_node file_node = res_node.append_child("file");
       file_node.append_attribute("alias") = res.id.c_str();
-      file_node.text() = std::filesystem::path(res.filename).make_preferred().string().c_str();
+      std::string normalized = res.filename;
+      std::replace(normalized.begin(), normalized.end(), '\\', '/');
+      file_node.text() = std::filesystem::path(normalized).generic_string().c_str();
       has_resources = true;
     }
   }
