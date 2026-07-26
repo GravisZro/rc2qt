@@ -757,6 +757,121 @@ void parser::parse_rcdata_resource(resource& res)
   res.data = vers;
 }
 
+void parser::parse_dlginit_resource(resource& res)
+{
+  std::vector<dlginit_entry> entries;
+
+  while(current().type == token_type::identifier && is_attribute(current().value))
+    res.attributes.push_back(advance().value);
+
+  skip_newlines();
+  if(!match(token_type::begin))
+  {
+    res.data = entries;
+    return;
+  }
+
+  while(current().type != token_type::end && current().type != token_type::eof)
+  {
+    skip_newlines();
+    if(current().type == token_type::end || current().type == token_type::eof)
+      break;
+
+    if(current().type == token_type::integer_literal || current().type == token_type::hex_literal)
+    {
+      std::string num_str = current().value;
+      bool is_zero = (num_str == "0");
+      if(!is_zero && num_str.size() > 2 && num_str[0] == '0' &&
+         (num_str[1] == 'x' || num_str[1] == 'X'))
+        is_zero = (num_str == "0x0");
+
+      if(is_zero)
+      {
+        advance();
+        while(current().type != token_type::newline && current().type != token_type::end &&
+              current().type != token_type::eof)
+          advance();
+        continue;
+      }
+    }
+
+    if(current().type == token_type::identifier)
+    {
+      dlginit_entry entry;
+      entry.control_id = advance().value;
+
+      if(!match(token_type::comma))
+      {
+        while(current().type != token_type::newline && current().type != token_type::end &&
+              current().type != token_type::eof)
+          advance();
+        continue;
+      }
+
+      skip_newlines();
+
+      if(current().type == token_type::hex_literal || current().type == token_type::integer_literal)
+      {
+        std::string msg = current().value;
+        if(msg.size() > 2 && msg[0] == '0' && (msg[1] == 'x' || msg[1] == 'X'))
+          entry.message = static_cast<uint16_t>(std::stoul(msg, nullptr, 16));
+        else
+          entry.message = static_cast<uint16_t>(std::stoul(msg, nullptr, 0));
+        advance();
+      }
+
+      while(current().type != token_type::newline && current().type != token_type::end &&
+            current().type != token_type::eof)
+        advance();
+
+      skip_newlines();
+
+      std::string text_data;
+      while(current().type != token_type::integer_literal && current().type != token_type::hex_literal &&
+            current().type != token_type::end && current().type != token_type::eof &&
+            current().type != token_type::identifier)
+      {
+        if(current().type == token_type::string_literal)
+        {
+          std::string s = current().value;
+          s.erase(std::remove(s.begin(), s.end(), '"'), s.end());
+          for(size_t i = 0; i < s.size(); ++i)
+            text_data += s[i];
+          advance();
+        }
+        else if(current().type == token_type::hex_literal)
+        {
+          std::string hex = current().value;
+          unsigned val = std::stoul(hex, nullptr, 16);
+          text_data += static_cast<char>(val & 0xFF);
+          text_data += static_cast<char>((val >> 8) & 0xFF);
+          advance();
+        }
+        else
+          advance();
+      }
+
+      size_t last = text_data.find_last_not_of('\0');
+      if(last != std::string::npos)
+        text_data = text_data.substr(0, last + 1);
+      else if(!text_data.empty())
+        text_data = text_data.substr(0, text_data.size());
+
+      entry.text = text_data;
+      entries.push_back(entry);
+    }
+    else
+    {
+      while(current().type != token_type::newline && current().type != token_type::end &&
+            current().type != token_type::eof)
+        advance();
+    }
+  }
+
+  match(token_type::end);
+  res.data = entries;
+}
+
 void parser::parse_unknown_resource(resource& res)
 {
   while(current().type != token_type::newline && current().type != token_type::begin &&
@@ -794,6 +909,8 @@ resource parser::parse_resource()
     parse_versioninfo_resource(res);
   else if(upper == "RCDATA")
     parse_rcdata_resource(res);
+  else if(upper == "DLGINIT")
+    parse_dlginit_resource(res);
   else if(upper == "BITMAP" || upper == "ICON" || upper == "CURSOR" ||
           upper == "FONT" || upper == "HTML" || upper == "MESSAGETABLE")
     parse_simple_resource(res);

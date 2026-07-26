@@ -19,6 +19,8 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
   menu_text_map_.clear();
   menu_disabled_map_.clear();
   menu_checked_map_.clear();
+  dlginit_map_.clear();
+  ds_control_dialogs_.clear();
   menubar_node_ = pugi::xml_node();
 
   for(const auto& res : file.resources)
@@ -73,6 +75,17 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
           string_table_map_[s.id] = s.value;
       }
     }
+
+    if(res.type == "DLGINIT" &&
+       std::holds_alternative<std::vector<dlginit_entry>>(res.data))
+    {
+      const auto& items = std::get<std::vector<dlginit_entry>>(res.data);
+      for(const auto& item : items)
+      {
+        if(item.message == 0x0403 || item.message == 0x0401)
+          dlginit_map_[item.control_id].push_back(item.text);
+      }
+    }
   }
 
   for(const auto& res : file.resources)
@@ -110,6 +123,24 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
         }
       };
       collect_texts(md.entries);
+    }
+  }
+
+  for(const auto& res : file.resources)
+  {
+    if(std::holds_alternative<dialog_data>(res.data))
+    {
+      const auto& dd = std::get<dialog_data>(res.data);
+      bool is_ds_control = false;
+      for(const auto& stmt : dd.statements)
+      {
+        std::string kw_upper = stmt.keyword;
+        std::transform(kw_upper.begin(), kw_upper.end(), kw_upper.begin(), ::toupper);
+        if(kw_upper == "STYLE" && has_style(stmt.value, "DS_CONTROL"))
+          is_ds_control = true;
+      }
+      if(is_ds_control)
+        ds_control_dialogs_[res.id] = &dd;
     }
   }
 
@@ -432,6 +463,16 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
       add_property_bool(widget, "editable", false);
     else if(has_style(ctrl.style, "CBS_DROPDOWN"))
       add_property_bool(widget, "editable", true);
+
+    auto it = dlginit_map_.find(ctrl.id);
+    if(it != dlginit_map_.end())
+    {
+      for(const auto& item_text : it->second)
+      {
+        pugi::xml_node item_node = widget.append_child("item");
+        add_property_string(item_node, "text", item_text);
+      }
+    }
   }
 
   if(qt_class == "QSlider")
@@ -512,6 +553,68 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
       add_property_enum(widget, "tabPosition", "QTabWidget::North");
     if(has_style(ctrl.style, "TCS_FIXEDWIDTH"))
       add_property_bool(widget, "usesScrollButtons", false);
+
+    int tab_idx = 0;
+    for(const auto& [dlg_id, dlg_ptr] : ds_control_dialogs_)
+    {
+      if(!dlg_ptr)
+        continue;
+
+      const auto& dd = *dlg_ptr;
+
+      std::string tab_title;
+      std::string dlg_id_upper = dlg_id;
+      std::transform(dlg_id_upper.begin(), dlg_id_upper.end(), dlg_id_upper.begin(), ::toupper);
+
+      for(const auto& stmt : dd.statements)
+      {
+        std::string kw_upper = stmt.keyword;
+        std::transform(kw_upper.begin(), kw_upper.end(), kw_upper.begin(), ::toupper);
+        if(kw_upper == "CAPTION")
+        {
+          tab_title = stmt.text_value;
+          break;
+        }
+      }
+      if(tab_title.empty())
+        tab_title = dlg_id;
+
+      std::string tab_name = "tabPage";
+      tab_name += std::to_string(tab_idx);
+
+      pugi::xml_node tab_widget = add_widget(widget, "QWidget", tab_name);
+
+      pugi::xml_node tab_prop = tab_widget.append_child("property");
+      tab_prop.append_attribute("name") = "geometry";
+      pugi::xml_node tab_rect = tab_prop.append_child("rect");
+      tab_rect.append_child("x").text() = 0;
+      tab_rect.append_child("y").text() = 0;
+      tab_rect.append_child("width").text() = dlu_to_pixel_x(dd.width);
+      tab_rect.append_child("height").text() = dlu_to_pixel_y(dd.height);
+
+      for(const auto& child_ctrl : dd.controls)
+      {
+        int cx = dlu_to_pixel_x(child_ctrl.x);
+        int cy = dlu_to_pixel_y(child_ctrl.y);
+        int cw = dlu_to_pixel_x(child_ctrl.width);
+        int ch = dlu_to_pixel_y(child_ctrl.height);
+
+        std::string child_class = map_keyword_to_widget(child_ctrl.keyword);
+        if(child_class.empty() && child_ctrl.keyword == "CONTROL")
+          child_class = map_class_to_widget(child_ctrl.class_name, child_ctrl.style);
+        if(child_class.empty())
+          child_class = "QWidget";
+
+        std::string child_name = unique_name(child_ctrl.id);
+        pugi::xml_node child_widget = add_widget(tab_widget, child_class, child_name);
+        add_property_rect(child_widget, cx, cy, cw, ch);
+
+        if(!child_ctrl.text.empty())
+          add_property_string(child_widget, "text", child_ctrl.text);
+      }
+
+      ++tab_idx;
+    }
   }
 
   if(qt_class == "QListWidget")
@@ -520,6 +623,16 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
       add_property_enum(widget, "selectionMode", "QAbstractItemView::ExtendedSelection");
     else
       add_property_enum(widget, "selectionMode", "QAbstractItemView::SingleSelection");
+
+    auto it = dlginit_map_.find(ctrl.id);
+    if(it != dlginit_map_.end())
+    {
+      for(const auto& item_text : it->second)
+      {
+        pugi::xml_node item_node = widget.append_child("item");
+        add_property_string(item_node, "text", item_text);
+      }
+    }
   }
 }
 

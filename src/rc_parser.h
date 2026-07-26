@@ -47,6 +47,7 @@ private:
   void parse_stringtable_resource(resource& res);
   void parse_versioninfo_resource(resource& res);
   void parse_rcdata_resource(resource& res);
+  void parse_dlginit_resource(resource& res);
   void parse_unknown_resource(resource& res);
 
   style_expr parse_style_expr();

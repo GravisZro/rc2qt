@@ -114,6 +114,13 @@ struct menu_data
 
 struct empty_data {};
 
+struct dlginit_entry
+{
+  std::string control_id;
+  uint16_t message = 0;
+  std::string text;
+};
+
 struct resource
 {
   std::string id;
@@ -129,7 +136,8 @@ struct resource
     menu_data,
     std::vector<accelerator_entry>,
     std::vector<string_table_entry>,
-    std::vector<version_info>
+    std::vector<version_info>,
+    std::vector<dlginit_entry>
   > data;
 };
 
