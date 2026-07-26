@@ -563,11 +563,6 @@ void parser::parse_simple_resource(resource& res)
     res.filename = advance().value;
   else if(current().type == token_type::identifier && !is_resource_type(current().value))
     res.filename = advance().value;
-
-  if(to_upper(res.type) == "TOOLBAR" && match(token_type::comma))
-  {
-    // toolbar width, height before BEGIN
-  }
 }
 
 void parser::parse_dialog_resource(resource& res)
