@@ -359,12 +359,6 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
     }
   }
 
-  if(!has_resources)
-  {
-    pugi::xml_node file_node = res_node.append_child("file");
-    file_node.text() = ".";
-  }
-
   return doc.save_file(output_path.c_str(), "  ");
 }
 
@@ -1181,7 +1175,7 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
       cleaned.erase(std::remove_if(cleaned.begin(), cleaned.end(), [](unsigned char c) { return !std::isalnum(c); }), cleaned.end());
       if(!cleaned.empty() && std::isdigit(static_cast<unsigned char>(cleaned[0])))
         cleaned = "m" + cleaned;
-      menu_name = cleaned;
+      menu_name = unique_name(cleaned);
 
       pugi::xml_node menu = menubar_node_.append_child("widget");
       menu.append_attribute("class") = "QMenu";
@@ -1230,7 +1224,7 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       cleaned.erase(std::remove_if(cleaned.begin(), cleaned.end(), [](unsigned char c) { return !std::isalnum(c); }), cleaned.end());
       if(!cleaned.empty() && std::isdigit(static_cast<unsigned char>(cleaned[0])))
         cleaned = "m" + cleaned;
-      sub_name = cleaned;
+      sub_name = unique_name(cleaned);
 
       pugi::xml_node sub_menu = menu_node.append_child("widget");
       sub_menu.append_attribute("class") = "QMenu";
