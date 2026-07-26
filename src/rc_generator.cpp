@@ -523,7 +523,26 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
   if(qt_class.empty())
     qt_class = "QWidget";
 
-  std::string name = unique_name(ctrl.id);
+  std::string name_id = ctrl.id;
+  auto resolved_id = constant_registry::instance().resolve(ctrl.id);
+  bool is_numeric_id = !ctrl.id.empty() &&
+    std::all_of(ctrl.id.begin(), ctrl.id.end(), [](char c) {
+      return std::isdigit(static_cast<unsigned char>(c));
+    });
+  if(is_numeric_id && resolved_id < 0 && !ctrl.text.empty())
+  {
+    std::string text_id;
+    for(char c : ctrl.text)
+    {
+      if(std::isalnum(static_cast<unsigned char>(c)))
+        text_id += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      else if(c == ' ')
+        text_id += '_';
+    }
+    if(!text_id.empty())
+      name_id = "static_" + text_id;
+  }
+  std::string name = unique_name(name_id);
   pugi::xml_node widget = add_widget(parent, qt_class, name);
 
   int px = dlu_to_pixel_x(ctrl.x);
