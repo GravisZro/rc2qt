@@ -63,6 +63,7 @@ struct dialog_stmt
   std::string text_value;
   std::string id_value;
   uint16_t numeric_value = 0;
+  uint16_t numeric_value2 = 0;
   std::string second_text;
 };
 

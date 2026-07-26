@@ -67,6 +67,7 @@ private:
 
   std::string find_statement_text(const dialog_data& dd, const std::string& keyword) const;
   int find_statement_numeric(const dialog_data& dd, const std::string& keyword, int default_value = 0) const;
+  int find_statement_numeric2(const dialog_data& dd, const std::string& keyword, int default_value = 0) const;
   const style_expr* find_statement_style(const dialog_data& dd, const std::string& keyword) const;
   bool has_dialog_flag(const dialog_data& dd, const std::string& keyword, const std::string& flag) const;
 

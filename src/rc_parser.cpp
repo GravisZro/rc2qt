@@ -473,6 +473,11 @@ dialog_stmt parser::parse_dialog_statement()
     {
       if(current().type == token_type::string_literal)
         stmt.text_value = advance().value;
+      if(match(token_type::comma))
+      {
+        if(current().type == token_type::identifier || current().type == token_type::integer_literal)
+          stmt.numeric_value2 = static_cast<uint16_t>(std::stoi(advance().value, nullptr, 0));
+      }
     }
   }
   else if(upper == "CLASS")

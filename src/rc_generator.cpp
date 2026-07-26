@@ -452,6 +452,8 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     font_family = map_ms_font(font_family);
 
   int font_size = find_statement_numeric(dd, "FONT", 8);
+  int font_weight = find_statement_numeric2(dd, "FONT", 0);
+  bool font_bold = (font_weight >= 700);
   set_dlu_factors(font_family, font_size > 0 ? font_size : 8);
 
   int px = dlu_to_pixel_x(dd.x);
@@ -465,7 +467,7 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     add_property_string(widget, "windowTitle", caption);
 
   if(font_size > 0)
-    add_property_font(widget, font_family, font_size, false, false);
+    add_property_font(widget, font_family, font_size, font_bold, false);
 
   std::vector<std::string> flags;
 
@@ -1071,6 +1073,20 @@ int generator::find_statement_numeric(const dialog_data& dd, const std::string& 
         return static_cast<int>(s.value.resolved_value);
       if(s.numeric_value > 0)
         return static_cast<int>(s.numeric_value);
+      return default_value;
+    }
+  }
+  return default_value;
+}
+
+int generator::find_statement_numeric2(const dialog_data& dd, const std::string& keyword, int default_value) const
+{
+  for(const auto& s : dd.statements)
+  {
+    if(s.keyword == keyword)
+    {
+      if(s.numeric_value2 > 0)
+        return static_cast<int>(s.numeric_value2);
       return default_value;
     }
   }
