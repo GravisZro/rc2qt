@@ -368,6 +368,19 @@ popup* parser::parse_popup()
     pp->text = advance().value;
   if(match(token_type::comma))
   {
+    auto is_popup_flag = [](const std::string& s) -> bool {
+      auto u = s;
+      for(auto& c : u) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+      return u == "GRAYED" || u == "INACTIVE" || u == "CHECKED" ||
+             u == "MENUBARBREAK" || u == "MENUBREAK" || u == "RIGHTBREAK";
+    };
+
+    if(current().type == token_type::integer_literal ||
+       current().type == token_type::hex_literal ||
+       (current().type == token_type::identifier && !is_popup_flag(current().value)))
+    {
+      pp->id = advance().value;
+    }
     while(current().type == token_type::identifier &&
           to_upper(current().value) != "BEGIN" &&
           to_upper(current().value) != "END" &&

@@ -35,6 +35,7 @@ struct menu_entry
 struct popup
 {
   std::string text;
+  std::string id;
   std::vector<std::string> flags;
   std::vector<menu_entry> entries;
 };
