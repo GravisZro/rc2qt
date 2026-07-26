@@ -166,6 +166,8 @@ void constant_registry::register_all()
   add("BS_TOP", 0x0400, constant_category::button_style, "Places text at the top of the button rectangle.");
   add("BS_VCENTER", 0x0C00, constant_category::button_style, "Vertically centers text in the button rectangle.");
   add("BS_FLAT", 0x8000, constant_category::button_style, "Specifies that the button is drawn flat");
+  add("BS_COMMANDLINK", 0x0000000E, constant_category::button_style, "Creates a command link button with a large glyph and multi-line text.");
+  add("BS_DEFCOMMANDLINK", 0x0000000F, constant_category::button_style, "Creates a default command link button that receives the default action when the user presses ENTER.");
 
   /* ── ES_* Edit Control Styles ─────────────────────────────────── */
   add("ES_AUTOHSCROLL", 0x0080, constant_category::edit_style, "Automatically scrolls edit control text to the right when typing reaches the right border.");
@@ -214,6 +216,7 @@ void constant_registry::register_all()
   add("SS_ENDELLIPSIS", 0x00004000, constant_category::static_style, "Replaces characters at the end of static text with an ellipsis if they exceed control bounds.");
   add("SS_PATHELLIPSIS", 0x00008000, constant_category::static_style, "Replaces characters in the middle of a file path with an ellipsis to fit inside the static control.");
   add("SS_WORDELLIPSIS", 0x0000C000, constant_category::static_style, "Truncates text that extends beyond the control end and inserts an ellipsis after the last visible word.");
+  add("SS_INMOTION", 0x00040000, constant_category::static_style, "Indicates the static control displays an animated content in motion (Vista+ animation flag).");
 
   /* ── LBS_* List Box Styles ────────────────────────────────────── */
   add("LBS_DISABLENOSCROLL", 0x1000, constant_category::listbox_style, "Shows a disabled vertical scroll bar in the list box when it contains too few items to scroll.");
@@ -297,6 +300,8 @@ void constant_registry::register_all()
   add("TVS_SHOWSELALWAYS", 0x0020, constant_category::treeview_style, "Keeps the selected item visible even when the control loses focus.");
   add("TVS_SINGLEEXPAND", 0x0400, constant_category::treeview_style, "Expands the selected item when it is expanded; collapses other expanded items.");
   add("TVS_TRACKSELECT", 0x0200, constant_category::treeview_style, "Enables hot-tracking of tree-view items as the mouse pointer moves over them.");
+  add("TVS_NOTOOLTIPS", 0x0080, constant_category::treeview_style, "Disables tooltips for tree-view items.");
+  add("TVS_INFOTIP", 0x0800, constant_category::treeview_style, "Enables information tooltips for tree-view items that display the full description of each item.");
 
   /* ── TBS_* Trackbar Styles ───────────────────────────────────── */
   add("TBS_AUTOTICKS", 0x0001, constant_category::trackbar_style, "Automatically creates tick marks at each increment along the trackbar.");
@@ -310,12 +315,15 @@ void constant_registry::register_all()
   add("TBS_NOTICKS", 0x0010, constant_category::trackbar_style, "Hides the tick marks along the trackbar.");
   add("TBS_TOP", 0x0004, constant_category::trackbar_style, "Displays tick marks on the top of the trackbar.");
   add("TBS_VERT", 0x0002, constant_category::trackbar_style, "Displays a vertical trackbar.");
+  add("TBS_TOPTOP", 0x0000, constant_category::trackbar_style, "Displays tick marks on the top and positions the thumb at the top.");
+  add("TBS_RIGHT", 0x0000, constant_category::trackbar_style, "Displays tick marks on the right side of the trackbar (same as TBS_BOTTOM).");
 
   /* ── PBS_* Progress Bar Styles ───────────────────────────────── */
   add("PBS_MARQUEE", 0x0008, constant_category::progressbar_style, "Enables marquee mode where the progress bar animates continuously without a specific position.");
   add("PBS_SMOOTH", 0x0001, constant_category::progressbar_style, "Fills the progress bar with a smooth bar rather than segmented blocks.");
   add("PBS_SMOOTHREVERSE", 0x0010, constant_category::progressbar_style, "Fills the progress bar with a smooth bar in reverse direction for smooth animation.");
   add("PBS_VERTICAL", 0x0004, constant_category::progressbar_style, "Displays the progress bar vertically.");
+  add("PBS_TEXTONLY", 0x00000100, constant_category::progressbar_style, "Displays only text on the progress bar instead of the bar graphic.");
 
   /* ── UDS_* Up-Down Control Styles ────────────────────────────── */
   add("UDS_ALIGNLEFT", 0x0008, constant_category::updown_style, "Aligns the up-down control to the left of the buddy edit control.");
@@ -334,6 +342,8 @@ void constant_registry::register_all()
   add("DTS_SHOWNONE", 0x0002, constant_category::datetimepicker_style, "Displays a check box next to the control; when unchecked, no date is selected.");
   add("DTS_TIMEFORMAT", 0x0008, constant_category::datetimepicker_style, "Uses the time format string as specified in the user's locale settings.");
   add("DTS_UPDOWN", 0x0001, constant_category::datetimepicker_style, "Displays an up-down control rather than a drop-down calendar for date selection.");
+  add("DTS_SHORTDATEFORMAT", 0x0000, constant_category::datetimepicker_style, "Uses the short date format as specified in the user's locale settings (default).");
+  add("DTS_MONTHCAL", 0x0020, constant_category::datetimepicker_style, "Displays a month calendar control as a drop-down rather than a simple drop-down list.");
 
   /* ── TCS_* Tab Control Styles ────────────────────────────────── */
   add("TCS_BOTTOM", 0x0002, constant_category::tabcontrol_style, "Places tabs at the bottom of the control.");
@@ -352,6 +362,25 @@ void constant_registry::register_all()
   add("TCS_RIGHTJUSTIFY", 0x0020, constant_category::tabcontrol_style, "Right-justifies tabs when the tab control is multiline.");
   add("TCS_SCROLLOP", 0x0001, constant_category::tabcontrol_style, "Enables horizontal scrolling of multiple rows of tabs.");
   add("TCS_TOOLTIPS", 0x0400, constant_category::tabcontrol_style, "Enables tooltips for each tab in the tab control.");
+
+  /* ── SB_* Scroll Bar Constants ───────────────────────────────── */
+  add("SB_HORZ", 0x0000, constant_category::scrollbar_style, "Identifies a horizontal scroll bar for scroll bar messages.");
+  add("SB_VERT", 0x0001, constant_category::scrollbar_style, "Identifies a vertical scroll bar for scroll bar messages.");
+  add("SB_CTL", 0x0002, constant_category::scrollbar_style, "Identifies a scroll bar control for scroll bar messages.");
+  add("SB_BOTH", 0x0003, constant_category::scrollbar_style, "Identifies both horizontal and vertical scroll bars for scroll bar messages.");
+
+  /* ── SBARS_* Status Bar Styles ──────────────────────────────── */
+  add("SBARS_SIZEGRIP", 0x0100, constant_category::scrollbar_style, "Displays a size grip in the lower-right corner of the status bar window.");
+  add("SBARS_TOOLTIPS", 0x0800, constant_category::scrollbar_style, "Enables tooltips for status bar parts when the mouse hovers over them.");
+
+  /* ── MCS_* Month Calendar Styles ─────────────────────────────── */
+  add("MCS_DAYSTATE", 0x0001, constant_category::datetimepicker_style, "Requests the parent to supply day state information to display bolded dates.");
+  add("MCS_MULTISELECT", 0x0002, constant_category::datetimepicker_style, "Enables selection of a range of dates in the month calendar control.");
+  add("MCS_WEEKNUMBERS", 0x0004, constant_category::datetimepicker_style, "Displays week numbers along the left edge of the calendar.");
+  add("MCS_NOTODAYCIRCLE", 0x0008, constant_category::datetimepicker_style, "Disables the circle that highlights today's date in the month calendar.");
+  add("MCS_NOTODAY", 0x0010, constant_category::datetimepicker_style, "Hides the today selection row at the bottom of the month calendar control.");
+  add("MCS_NORROWHEAD", 0x0020, constant_category::datetimepicker_style, "Hides the left column that shows the week numbers in the month calendar.");
+  add("MCS_NODATEPICK", 0x0040, constant_category::datetimepicker_style, "Hides the date picker at the top of the month calendar control.");
 
   /* ── VK_* Virtual Key Codes ───────────────────────────────────── */
   add("VK_LBUTTON", 0x01, constant_category::virtual_key, "Virtual key code representing the left mouse button.");
