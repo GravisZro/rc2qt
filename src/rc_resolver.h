@@ -17,9 +17,7 @@ class resolver
 {
 public:
   int64_t resolve_style(const style_expr& expr) const;
-  std::string format_style(int64_t value) const;
 
-  std::string resolve_name(const std::string& name) const;
   std::string format_value(int64_t value) const;
 
   void resolve_file(rc_file& file) const;

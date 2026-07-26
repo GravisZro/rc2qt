@@ -20,17 +20,6 @@
 
 
 
-std::string substitute(std::string str, std::string one, std::string two)
-{
-  for(size_t loc = std::string::npos; (loc = str.find("$1")) != std::string::npos;)
-    str = str.replace(loc, 2, one);
-
-  for(size_t loc = std::string::npos; (loc = str.find("$2")) != std::string::npos;)
-    str = str.replace(loc, 2, two);
-
-  return str;
-}
-
 static std::string read_file(const std::string& path)
 {
   std::ifstream file(path);

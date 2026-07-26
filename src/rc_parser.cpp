@@ -795,8 +795,7 @@ void parser::parse_versioninfo_resource(resource& res)
 
       if(depth >= 2 && current().type == token_type::string_literal)
       {
-        std::string block_name = advance().value;
-        (void)block_name;
+        advance();
       }
 
       if(depth >= 2 && current().type == token_type::identifier &&
@@ -985,8 +984,8 @@ void parser::parse_dlginit_resource(resource& res)
       size_t last = text_data.find_last_not_of('\0');
       if(last != std::string::npos)
         text_data = text_data.substr(0, last + 1);
-      else if(!text_data.empty())
-        text_data = text_data.substr(0, text_data.size());
+      else
+        text_data.clear();
 
       entry.text = text_data;
       entries.push_back(entry);

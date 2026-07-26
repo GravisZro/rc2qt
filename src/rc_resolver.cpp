@@ -40,21 +40,6 @@ int64_t resolver::resolve_style(const style_expr& expr) const
   return result;
 }
 
-std::string resolver::format_style(int64_t value) const
-{
-  const auto& reg = constant_registry::instance();
-  return reg.resolve(value);
-}
-
-std::string resolver::resolve_name(const std::string& name) const
-{
-  const auto& reg = constant_registry::instance();
-  int64_t val = reg.resolve(name);
-  if(val >= 0)
-    return format_value(val);
-  return name;
-}
-
 std::string resolver::format_value(int64_t value) const
 {
   const auto& reg = constant_registry::instance();

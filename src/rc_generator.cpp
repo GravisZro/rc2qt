@@ -929,9 +929,6 @@ std::string generator::map_class_to_widget(const std::string& class_name, const 
 
   if(lower == "static")
   {
-    if(has_style(style, "SS_ICON") || has_style(style, "SS_BITMAP") ||
-       has_style(style, "SS_ENHMETAFILE"))
-      return "QLabel";
     return "QLabel";
   }
 

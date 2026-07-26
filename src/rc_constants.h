@@ -83,7 +83,6 @@ public:
            const std::string& desc = "");
 
   bool has_name(const std::string& name) const;
-  bool has_value(int64_t value, constant_category cat = {}) const;
 
   int64_t resolve(const std::string& name) const;
   std::string resolve(int64_t value, constant_category cat = {}) const;
