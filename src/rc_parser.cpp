@@ -1068,7 +1068,8 @@ resource parser::parse_resource()
   else if(upper == "DLGINIT")
     parse_dlginit_resource(res);
   else if(upper == "BITMAP" || upper == "ICON" || upper == "CURSOR" ||
-          upper == "FONT" || upper == "HTML" || upper == "MESSAGETABLE")
+          upper == "FONT" || upper == "HTML" || upper == "MESSAGETABLE" ||
+          upper == "REGISTRY" || upper == "DLGINCLUDE")
     parse_simple_resource(res);
   else
     parse_unknown_resource(res);
