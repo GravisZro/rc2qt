@@ -11,17 +11,26 @@ parser::parser(const std::vector<token>& t) : tokens(t) {}
 
 const token& parser::current() const
 {
+  if(pos >= tokens.size())
+    return tokens.back();
   return tokens[pos];
 }
 
 const token& parser::peek(size_t offset) const
 {
   size_t idx = pos + offset;
-  return idx < tokens.size() ? tokens[idx] : tokens.back();
+  if(idx < tokens.size())
+    return tokens[idx];
+  if(!tokens.empty())
+    return tokens.back();
+  static const token eof_token{token_type::eof, "", 0};
+  return eof_token;
 }
 
 token parser::advance()
 {
+  if(pos >= tokens.size())
+    return {token_type::eof, "", 0};
   return tokens[pos++];
 }
 
@@ -163,6 +172,34 @@ bool parser::is_known_id(const std::string& s)
   return false;
 }
 
+static int64_t safe_stoi(const std::string& s, int64_t default_value = 0)
+{
+  try
+  {
+    if(!s.empty() && (s[0] == '+' || s[0] == '-'))
+      return std::stoll(s);
+    if(s.size() > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+      return std::stoll(s, nullptr, 16);
+    return std::stoll(s);
+  }
+  catch(const std::exception&)
+  {
+    return default_value;
+  }
+}
+
+static uint64_t safe_stoul(const std::string& s, int base = 0, uint64_t default_value = 0)
+{
+  try
+  {
+    return std::stoull(s, nullptr, base);
+  }
+  catch(const std::exception&)
+  {
+    return default_value;
+  }
+}
+
 std::string parser::parse_resource_id()
 {
   if(current().type == token_type::identifier)
@@ -257,22 +294,22 @@ control parser::parse_control()
       if(match(token_type::comma))
       {
         skip_newlines();
-        ctrl.x = static_cast<int16_t>(std::stoi(advance().value));
+        ctrl.x = static_cast<int16_t>(safe_stoi(advance().value));
       }
       if(match(token_type::comma))
       {
         skip_newlines();
-        ctrl.y = static_cast<int16_t>(std::stoi(advance().value));
+        ctrl.y = static_cast<int16_t>(safe_stoi(advance().value));
       }
       if(match(token_type::comma))
       {
         skip_newlines();
-        ctrl.width = static_cast<uint16_t>(std::stoi(advance().value));
+        ctrl.width = static_cast<uint16_t>(safe_stoi(advance().value));
       }
       if(match(token_type::comma))
       {
         skip_newlines();
-        ctrl.height = static_cast<uint16_t>(std::stoi(advance().value));
+        ctrl.height = static_cast<uint16_t>(safe_stoi(advance().value));
       }
       if(match(token_type::comma))
         ctrl.ext_style = parse_style_expr();
@@ -303,22 +340,22 @@ control parser::parse_control()
     if(match(token_type::comma))
     {
       skip_newlines();
-      ctrl.x = static_cast<int16_t>(std::stoi(advance().value));
+      ctrl.x = static_cast<int16_t>(safe_stoi(advance().value));
     }
     if(match(token_type::comma))
     {
       skip_newlines();
-      ctrl.y = static_cast<int16_t>(std::stoi(advance().value));
+      ctrl.y = static_cast<int16_t>(safe_stoi(advance().value));
     }
     if(match(token_type::comma))
     {
       skip_newlines();
-      ctrl.width = static_cast<uint16_t>(std::stoi(advance().value));
+      ctrl.width = static_cast<uint16_t>(safe_stoi(advance().value));
     }
     if(match(token_type::comma))
     {
       skip_newlines();
-      ctrl.height = static_cast<uint16_t>(std::stoi(advance().value));
+      ctrl.height = static_cast<uint16_t>(safe_stoi(advance().value));
     }
     if(match(token_type::comma))
     {
@@ -468,7 +505,7 @@ dialog_stmt parser::parse_dialog_statement()
   else if(upper == "FONT")
   {
     if(current().type == token_type::integer_literal)
-      stmt.numeric_value = static_cast<uint16_t>(std::stoi(advance().value));
+      stmt.numeric_value = static_cast<uint16_t>(safe_stoi(advance().value));
     if(match(token_type::comma))
     {
       if(current().type == token_type::string_literal)
@@ -476,7 +513,7 @@ dialog_stmt parser::parse_dialog_statement()
       if(match(token_type::comma))
       {
         if(current().type == token_type::identifier || current().type == token_type::integer_literal)
-          stmt.numeric_value2 = static_cast<uint16_t>(std::stoi(advance().value, nullptr, 0));
+          stmt.numeric_value2 = static_cast<uint16_t>(safe_stoi(advance().value));
       }
     }
   }
@@ -573,21 +610,21 @@ void parser::parse_dialog_resource(resource& res)
     res.attributes.push_back(advance().value);
 
   if(current().type == token_type::integer_literal || current().type == token_type::hex_literal)
-    dd.x = static_cast<int16_t>(std::stoi(advance().value));
+    dd.x = static_cast<int16_t>(safe_stoi(advance().value));
   if(match(token_type::comma))
   {
     skip_newlines();
-    dd.y = static_cast<int16_t>(std::stoi(advance().value));
+    dd.y = static_cast<int16_t>(safe_stoi(advance().value));
   }
   if(match(token_type::comma))
   {
     skip_newlines();
-    dd.width = static_cast<uint16_t>(std::stoi(advance().value));
+    dd.width = static_cast<uint16_t>(safe_stoi(advance().value));
   }
   if(match(token_type::comma))
   {
     skip_newlines();
-    dd.height = static_cast<uint16_t>(std::stoi(advance().value));
+    dd.height = static_cast<uint16_t>(safe_stoi(advance().value));
   }
 
   if(to_upper(res.type) == "DIALOGEX")
@@ -656,11 +693,11 @@ void parser::parse_toolbar_resource(resource& res)
     res.attributes.push_back(advance().value);
 
   if(current().type == token_type::integer_literal || current().type == token_type::hex_literal)
-    td.width = static_cast<uint16_t>(std::stoi(advance().value));
+    td.width = static_cast<uint16_t>(safe_stoi(advance().value));
   if(match(token_type::comma))
   {
     skip_newlines();
-    td.height = static_cast<uint16_t>(std::stoi(advance().value));
+    td.height = static_cast<uint16_t>(safe_stoi(advance().value));
   }
 
   skip_newlines();
@@ -944,9 +981,9 @@ void parser::parse_dlginit_resource(resource& res)
       {
         std::string msg = current().value;
         if(msg.size() > 2 && msg[0] == '0' && (msg[1] == 'x' || msg[1] == 'X'))
-          entry.message = static_cast<uint16_t>(std::stoul(msg, nullptr, 16));
+          entry.message = static_cast<uint16_t>(safe_stoul(msg, 16));
         else
-          entry.message = static_cast<uint16_t>(std::stoul(msg, nullptr, 0));
+          entry.message = static_cast<uint16_t>(safe_stoul(msg));
         advance();
       }
 
@@ -963,7 +1000,7 @@ void parser::parse_dlginit_resource(resource& res)
         if(current().type == token_type::hex_literal)
         {
           std::string hex = current().value;
-          unsigned val = std::stoul(hex, nullptr, 16);
+          unsigned val = safe_stoul(hex, 16);
           text_data += static_cast<char>(val & 0xFF);
           text_data += static_cast<char>((val >> 8) & 0xFF);
           advance();
@@ -974,7 +1011,7 @@ void parser::parse_dlginit_resource(resource& res)
             if(current().type == token_type::hex_literal)
             {
               std::string h2 = current().value;
-              unsigned v2 = std::stoul(h2, nullptr, 16);
+              unsigned v2 = safe_stoul(h2, 16);
               text_data += static_cast<char>(v2 & 0xFF);
               text_data += static_cast<char>((v2 >> 8) & 0xFF);
               advance();
