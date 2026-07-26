@@ -14,6 +14,149 @@ namespace rc
 
 bool generator::generate(const rc_file& file, const std::string& output_path)
 {
+  collect_global_data(file);
+
+  pugi::xml_document doc;
+
+  pugi::xml_node ui = doc.append_child("ui");
+  ui.append_attribute("version") = "4.0";
+  ui.append_child("class").text() = "Form";
+
+  pugi::xml_node root_widget;
+  for(const auto& res : file.resources)
+  {
+    if(std::holds_alternative<dialog_data>(res.data))
+    {
+      if(!root_widget)
+      {
+        write_dialog(ui, res);
+        root_widget = ui.child("widget");
+      }
+    }
+  }
+
+  if(!root_widget)
+  {
+    root_widget = ui.append_child("widget");
+    root_widget.append_attribute("class") = "QWidget";
+    root_widget.append_attribute("name") = "Form";
+  }
+
+  for(const auto& res : file.resources)
+  {
+    if(std::holds_alternative<menu_data>(res.data))
+      write_menu(root_widget, res);
+    if(std::holds_alternative<toolbar_data>(res.data))
+      write_toolbar(root_widget, res);
+  }
+
+  write_actions(root_widget, file);
+
+  return doc.save_file(output_path.c_str(), "  ");
+}
+
+bool generator::generate_all(const rc_file& file, const std::string& output_dir, const std::string& rc_basename)
+{
+  collect_global_data(file);
+
+  std::vector<std::string> generated_files;
+
+  for(const auto& res : file.resources)
+  {
+    if(!std::holds_alternative<dialog_data>(res.data))
+      continue;
+
+    const auto& dd = std::get<dialog_data>(res.data);
+
+    bool is_ds_control = false;
+    for(const auto& stmt : dd.statements)
+    {
+      std::string kw_upper = stmt.keyword;
+      std::transform(kw_upper.begin(), kw_upper.end(), kw_upper.begin(), ::toupper);
+      if(kw_upper == "STYLE" && has_style(stmt.value, "DS_CONTROL"))
+        is_ds_control = true;
+    }
+    if(is_ds_control)
+      continue;
+
+    std::string dialog_name = res.id;
+    std::string sanitized = dialog_name;
+    std::replace(sanitized.begin(), sanitized.end(), ' ', '_');
+
+    std::string filename = output_dir + "/" + rc_basename + " - " + sanitized + ".ui";
+
+    name_counts_.clear();
+
+    pugi::xml_document doc;
+    pugi::xml_node ui = doc.append_child("ui");
+    ui.append_attribute("version") = "4.0";
+    ui.append_child("class").text() = "Form";
+
+    write_dialog(ui, res);
+
+    pugi::xml_node root_widget = ui.child("widget");
+
+    for(const auto& menu_res : file.resources)
+    {
+      if(std::holds_alternative<menu_data>(menu_res.data))
+      {
+        const auto& md = std::get<menu_data>(menu_res.data);
+        bool found_menu_stmt = false;
+        for(const auto& stmt : dd.statements)
+        {
+          if(stmt.keyword == "MENU")
+            found_menu_stmt = true;
+        }
+        if(found_menu_stmt)
+          write_menu(root_widget, menu_res);
+      }
+    }
+
+    write_actions(root_widget, file);
+
+    if(doc.save_file(filename.c_str(), "  "))
+      generated_files.push_back(filename);
+  }
+
+  return !generated_files.empty();
+}
+
+bool generator::generate_single_dialog(const rc_file& file, const resource& res, const std::string& output_path)
+{
+  name_counts_.clear();
+
+  pugi::xml_document doc;
+  pugi::xml_node ui = doc.append_child("ui");
+  ui.append_attribute("version") = "4.0";
+  ui.append_child("class").text() = "Form";
+
+  write_dialog(ui, res);
+
+  pugi::xml_node root_widget = ui.child("widget");
+
+  const auto& dd = std::get<dialog_data>(res.data);
+  bool has_menu = false;
+  for(const auto& stmt : dd.statements)
+  {
+    if(stmt.keyword == "MENU")
+      has_menu = true;
+  }
+  if(has_menu)
+  {
+    for(const auto& menu_res : file.resources)
+    {
+      if(std::holds_alternative<menu_data>(menu_res.data))
+        write_menu(root_widget, menu_res);
+    }
+  }
+
+  write_actions(root_widget, file);
+
+  return doc.save_file(output_path.c_str(), "  ");
+}
+
+void generator::collect_global_data(const rc_file& file)
+{
   accelerator_map_.clear();
   string_table_map_.clear();
   menu_text_map_.clear();
@@ -21,6 +164,7 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
   menu_checked_map_.clear();
   dlginit_map_.clear();
   ds_control_dialogs_.clear();
+  name_counts_.clear();
   menubar_node_ = pugi::xml_node();
 
   for(const auto& res : file.resources)
@@ -143,47 +287,17 @@ bool generator::generate(const rc_file& file, const std::string& output_path)
         ds_control_dialogs_[res.id] = &dd;
     }
   }
-
-  pugi::xml_document doc;
-
-  pugi::xml_node ui = doc.append_child("ui");
-  ui.append_attribute("version") = "4.0";
-  ui.append_child("class").text() = "Form";
-
-  pugi::xml_node root_widget;
-  for(const auto& res : file.resources)
-  {
-    if(std::holds_alternative<dialog_data>(res.data))
-    {
-      if(!root_widget)
-      {
-        write_dialog(ui, res);
-        root_widget = ui.child("widget");
-      }
-    }
-  }
-
-  if(!root_widget)
-  {
-    root_widget = ui.append_child("widget");
-    root_widget.append_attribute("class") = "QWidget";
-    root_widget.append_attribute("name") = "Form";
-  }
-
-  for(const auto& res : file.resources)
-  {
-    if(std::holds_alternative<menu_data>(res.data))
-      write_menu(root_widget, res);
-    if(std::holds_alternative<toolbar_data>(res.data))
-      write_toolbar(root_widget, res);
-  }
-
-  write_actions(root_widget, file);
-
-  return doc.save_file(output_path.c_str(), "  ");
 }
 
 bool generator::generate_qrc(const rc_file& file, const std::string& output_path, const std::string& ui_path)
+{
+  std::vector<std::string> paths;
+  if(!ui_path.empty())
+    paths.push_back(ui_path);
+  return generate_qrc(file, output_path, paths);
+}
+
+bool generator::generate_qrc(const rc_file& file, const std::string& output_path, const std::vector<std::string>& ui_paths)
 {
   pugi::xml_document doc;
 
@@ -192,13 +306,16 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
 
   bool has_resources = false;
 
-  if(!ui_path.empty())
+  for(const auto& up : ui_paths)
   {
-    pugi::xml_node file_node = res_node.append_child("file");
-    std::string normalized = ui_path;
-    std::replace(normalized.begin(), normalized.end(), '\\', '/');
-    file_node.text() = std::filesystem::path(normalized).generic_string().c_str();
-    has_resources = true;
+    if(!up.empty())
+    {
+      pugi::xml_node file_node = res_node.append_child("file");
+      std::string normalized = up;
+      std::replace(normalized.begin(), normalized.end(), '\\', '/');
+      file_node.text() = std::filesystem::path(normalized).generic_string().c_str();
+      has_resources = true;
+    }
   }
 
   for(const auto& res : file.resources)

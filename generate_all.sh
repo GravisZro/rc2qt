@@ -4,6 +4,11 @@ set -e
 RC2QT="./build/rc2qt"
 OUTDIR="temporary_files"
 TESTDIR="test"
+ALL_DIALOGS=false
+
+if [ "$1" = "-a" ]; then
+  ALL_DIALOGS=true
+fi
 
 if [ ! -x "$RC2QT" ]; then
   echo "Error: $RC2QT not found. Run 'cmake --build build' first." >&2
@@ -23,11 +28,20 @@ for rc_file in "$TESTDIR"/*.rc; do
   ui_out="$OUTDIR/${name}.ui"
   qrc_out="$OUTDIR/${name}.qrc"
 
-  if "$RC2QT" "$rc_file" -o "$ui_out" -q "$qrc_out" >/dev/null 2>&1; then
-    success=$((success + 1))
+  if $ALL_DIALOGS; then
+    if "$RC2QT" "$rc_file" -a -o "$ui_out" -q "$qrc_out" >/dev/null 2>&1; then
+      success=$((success + 1))
+    else
+      echo "FAIL: $rc_file"
+      fail=$((fail + 1))
+    fi
   else
-    echo "FAIL: $rc_file"
-    fail=$((fail + 1))
+    if "$RC2QT" "$rc_file" -o "$ui_out" -q "$qrc_out" >/dev/null 2>&1; then
+      success=$((success + 1))
+    else
+      echo "FAIL: $rc_file"
+      fail=$((fail + 1))
+    fi
   fi
 done
 

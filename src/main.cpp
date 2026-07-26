@@ -49,6 +49,7 @@ int main(int argc, char** argv)
   std::string input_path;
   std::string output_path;
   std::string qrc_path;
+  bool all_dialogs = false;
 
   for(int i = 1; i < argc; ++i)
   {
@@ -61,11 +62,16 @@ int main(int argc, char** argv)
     {
       qrc_path = std::filesystem::path(argv[++i]).generic_string();
     }
+    else if(arg == "-a")
+    {
+      all_dialogs = true;
+    }
     else if(arg == "-h" || arg == "--help")
     {
       std::cerr << "Usage: " << argv[0] << " [options] <file.rc>" << std::endl;
       std::cerr << "  -o <file.ui>   Generate .ui file" << std::endl;
       std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
+      std::cerr << "  -a             Generate .ui for all dialogs" << std::endl;
       std::cerr << "  -h, --help     Show this help" << std::endl;
       return 0;
     }
@@ -80,6 +86,7 @@ int main(int argc, char** argv)
     std::cerr << "Usage: " << argv[0] << " [options] <file.rc>" << std::endl;
     std::cerr << "  -o <file.ui>   Generate .ui file" << std::endl;
     std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
+    std::cerr << "  -a             Generate .ui for all dialogs" << std::endl;
     std::cerr << "  -h, --help     Show this help" << std::endl;
     return 1;
   }
@@ -180,24 +187,60 @@ int main(int argc, char** argv)
     }
   }
 
-  if(!output_path.empty() || !qrc_path.empty())
+  if(!output_path.empty() || !qrc_path.empty() || all_dialogs)
   {
     rc::generator gen;
 
-    if(!output_path.empty())
+    if(all_dialogs)
     {
-      if(gen.generate(file, output_path))
-        std::cout << "Generated: " << output_path << std::endl;
-      else
-        std::cerr << "Error: failed to generate " << output_path << std::endl;
-    }
+      std::filesystem::path out_dir = std::filesystem::path(output_path).parent_path();
+      if(out_dir.empty())
+        out_dir = ".";
+      std::filesystem::path rc_stem = std::filesystem::path(input_path).stem();
+      std::string rc_basename = rc_stem.string();
 
-    if(!qrc_path.empty())
-    {
-      if(gen.generate_qrc(file, qrc_path, output_path))
-        std::cout << "Generated: " << qrc_path << std::endl;
+      if(gen.generate_all(file, out_dir.generic_string(), rc_basename))
+        std::cout << "Generated all dialogs in: " << out_dir.generic_string() << std::endl;
       else
-        std::cerr << "Error: failed to generate " << qrc_path << std::endl;
+        std::cerr << "Error: failed to generate dialogs" << std::endl;
+
+      if(!qrc_path.empty())
+      {
+        std::vector<std::string> ui_files;
+        for(const auto& entry : std::filesystem::directory_iterator(out_dir))
+        {
+          if(entry.path().extension() == ".ui")
+          {
+            std::string name = entry.path().stem().string();
+            if(name.find(rc_basename + " - ") == 0)
+              ui_files.push_back(entry.path().generic_string());
+          }
+        }
+        std::sort(ui_files.begin(), ui_files.end());
+
+        if(gen.generate_qrc(file, qrc_path, ui_files))
+          std::cout << "Generated: " << qrc_path << std::endl;
+        else
+          std::cerr << "Error: failed to generate " << qrc_path << std::endl;
+      }
+    }
+    else
+    {
+      if(!output_path.empty())
+      {
+        if(gen.generate(file, output_path))
+          std::cout << "Generated: " << output_path << std::endl;
+        else
+          std::cerr << "Error: failed to generate " << output_path << std::endl;
+      }
+
+      if(!qrc_path.empty())
+      {
+        if(gen.generate_qrc(file, qrc_path, output_path))
+          std::cout << "Generated: " << qrc_path << std::endl;
+        else
+          std::cerr << "Error: failed to generate " << qrc_path << std::endl;
+      }
     }
   }
 

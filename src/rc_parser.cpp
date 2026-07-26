@@ -245,36 +245,55 @@ control parser::parse_control()
   }
   else
   {
-    if(current().type == token_type::string_literal)
-      ctrl.text = advance().value;
-    if(match(token_type::comma))
+    std::string kw_upper = to_upper(ctrl.keyword);
+    bool keyword_has_text = (kw_upper == "PUSHBUTTON" || kw_upper == "DEFPUSHBUTTON" ||
+                             kw_upper == "CHECKBOX" || kw_upper == "AUTOCHECKBOX" ||
+                             kw_upper == "AUTO3STATE" || kw_upper == "STATE3" ||
+                             kw_upper == "RADIOBUTTON" || kw_upper == "AUTORADIOBUTTON" ||
+                             kw_upper == "LTEXT" || kw_upper == "CTEXT" || kw_upper == "RTEXT" ||
+                             kw_upper == "GROUPBOX" || kw_upper == "ICON" || kw_upper == "PUSHBOX");
+
+    if(keyword_has_text)
+    {
+      if(current().type == token_type::string_literal || current().type == token_type::identifier ||
+         current().type == token_type::integer_literal || current().type == token_type::hex_literal)
+        ctrl.text = advance().value;
+      if(match(token_type::comma))
+        ctrl.id = parse_resource_id();
+    }
+    else
     {
       ctrl.id = parse_resource_id();
-      if(match(token_type::comma))
-      {
-        skip_newlines();
-        ctrl.x = static_cast<int16_t>(std::stoi(advance().value));
-      }
-      if(match(token_type::comma))
-      {
-        skip_newlines();
-        ctrl.y = static_cast<int16_t>(std::stoi(advance().value));
-      }
-      if(match(token_type::comma))
-      {
-        skip_newlines();
-        ctrl.width = static_cast<uint16_t>(std::stoi(advance().value));
-      }
-      if(match(token_type::comma))
-      {
-        skip_newlines();
-        ctrl.height = static_cast<uint16_t>(std::stoi(advance().value));
-      }
-      if(match(token_type::comma))
-      {
-        skip_newlines();
-        ctrl.extra_styles.push_back(advance().value);
-      }
+    }
+    if(match(token_type::comma))
+    {
+      skip_newlines();
+      ctrl.x = static_cast<int16_t>(std::stoi(advance().value));
+    }
+    if(match(token_type::comma))
+    {
+      skip_newlines();
+      ctrl.y = static_cast<int16_t>(std::stoi(advance().value));
+    }
+    if(match(token_type::comma))
+    {
+      skip_newlines();
+      ctrl.width = static_cast<uint16_t>(std::stoi(advance().value));
+    }
+    if(match(token_type::comma))
+    {
+      skip_newlines();
+      ctrl.height = static_cast<uint16_t>(std::stoi(advance().value));
+    }
+    if(match(token_type::comma))
+    {
+      skip_newlines();
+      ctrl.style = parse_style_expr();
+    }
+    if(match(token_type::comma))
+    {
+      skip_newlines();
+      ctrl.ext_style = parse_style_expr();
     }
   }
 
@@ -827,11 +846,41 @@ void parser::parse_dlginit_resource(resource& res)
       skip_newlines();
 
       std::string text_data;
-      while(current().type != token_type::integer_literal && current().type != token_type::hex_literal &&
-            current().type != token_type::end && current().type != token_type::eof &&
+      while(current().type != token_type::end && current().type != token_type::eof &&
             current().type != token_type::identifier)
       {
-        if(current().type == token_type::string_literal)
+        if(current().type == token_type::hex_literal)
+        {
+          std::string hex = current().value;
+          unsigned val = std::stoul(hex, nullptr, 16);
+          text_data += static_cast<char>(val & 0xFF);
+          text_data += static_cast<char>((val >> 8) & 0xFF);
+          advance();
+          while(current().type == token_type::comma)
+          {
+            advance();
+            skip_newlines();
+            if(current().type == token_type::hex_literal)
+            {
+              std::string h2 = current().value;
+              unsigned v2 = std::stoul(h2, nullptr, 16);
+              text_data += static_cast<char>(v2 & 0xFF);
+              text_data += static_cast<char>((v2 >> 8) & 0xFF);
+              advance();
+            }
+            else if(current().type == token_type::string_literal)
+            {
+              std::string s2 = current().value;
+              s2.erase(std::remove(s2.begin(), s2.end(), '"'), s2.end());
+              for(size_t j = 0; j < s2.size(); ++j)
+                text_data += s2[j];
+              advance();
+            }
+            else
+              break;
+          }
+        }
+        else if(current().type == token_type::string_literal)
         {
           std::string s = current().value;
           s.erase(std::remove(s.begin(), s.end(), '"'), s.end());
@@ -839,16 +888,12 @@ void parser::parse_dlginit_resource(resource& res)
             text_data += s[i];
           advance();
         }
-        else if(current().type == token_type::hex_literal)
+        else if(current().type == token_type::comma)
         {
-          std::string hex = current().value;
-          unsigned val = std::stoul(hex, nullptr, 16);
-          text_data += static_cast<char>(val & 0xFF);
-          text_data += static_cast<char>((val >> 8) & 0xFF);
           advance();
         }
         else
-          advance();
+          break;
       }
 
       size_t last = text_data.find_last_not_of('\0');
