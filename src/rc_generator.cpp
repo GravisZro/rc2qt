@@ -909,6 +909,8 @@ std::string generator::map_class_to_widget(const std::string& class_name, const 
     return "QListWidget";
   if(lower == "combobox")
     return "QComboBox";
+  if(lower == "comboboxex32")
+    return "QComboBox";
   if(lower == "scrollbar")
     return "QScrollBar";
 
