@@ -226,7 +226,8 @@ void generator::collect_global_data(const rc_file& file)
       const auto& items = std::get<std::vector<dlginit_entry>>(res.data);
       for(const auto& item : items)
       {
-        if(item.message == 0x0403 || item.message == 0x0401)
+        if(item.message == 0x0401 || item.message == 0x0402 ||
+           item.message == 0x0403 || item.message == 0x0404)
           dlginit_map_[item.control_id].push_back(item.text);
       }
     }
