@@ -64,24 +64,6 @@ bool parser::match_id_ci(const std::string& value)
   return false;
 }
 
-bool parser::expect(token_type type)
-{
-  if(match(type))
-    return true;
-  std::cerr << "Line " << current().line << ": expected token type " << static_cast<int>(type)
-            << " but got '" << current().value << "'" << std::endl;
-  return false;
-}
-
-bool parser::expect_id(const std::string& value)
-{
-  if(match_id(value))
-    return true;
-  std::cerr << "Line " << current().line << ": expected '" << value
-            << "' but got '" << current().value << "'" << std::endl;
-  return false;
-}
-
 void parser::skip_newlines()
 {
   while(match(token_type::newline))
@@ -149,25 +131,6 @@ bool parser::is_dialog_statement(const std::string& s)
   std::string upper = to_upper(s);
   for(const auto& st : stmts)
     if(upper == st)
-      return true;
-  return false;
-}
-
-bool parser::is_known_id(const std::string& s)
-{
-  static const std::string known[] = {
-    "CHECKED", "GRAYED", "HELP", "INACTIVE", "MENUBARBREAK", "MENUBREAK",
-    "VIRTKEY", "ASCII", "ALT", "SHIFT", "CONTROL", "NOINVERT",
-    "SEPARATOR", "BUTTON", "POPUP", "MENUITEM",
-    "BEGIN", "END",
-    "MFS_GRAYED", "MFS_CHECKED", "MFS_ENABLED", "MFS_DEFAULT",
-    "MFS_BITMAP", "MFS_UNCHECKED", "MFS_UNHILITE", "MFS_HILITE",
-    "MFT_SEPARATOR", "MFT_MENUBARBREAK", "MFT_MENUBREAK",
-    "MFT_OWNERDRAW", "MFT_STRING", "MFT_BITMAP", "MFT_POPUP"
-  };
-  std::string upper = to_upper(s);
-  for(const auto& k : known)
-    if(upper == k)
       return true;
   return false;
 }
@@ -544,36 +507,6 @@ dialog_stmt parser::parse_dialog_statement()
   }
 
   return stmt;
-}
-
-void parser::parse_dialog_body(dialog_data& dd)
-{
-  while(current().type != token_type::end && current().type != token_type::eof)
-  {
-    skip_newlines();
-    if(current().type == token_type::end || current().type == token_type::eof)
-      break;
-
-    if(to_upper(current().value) == "MENUITEM" && peek().type == token_type::identifier &&
-       to_upper(peek().value) == "SEPARATOR")
-    {
-      advance();
-      advance();
-    }
-    else if(is_dialog_statement(current().value))
-    {
-      dd.statements.push_back(parse_dialog_statement());
-    }
-    else if(is_control_keyword(current().value))
-    {
-      dd.controls.push_back(parse_control());
-    }
-    else
-    {
-      advance();
-    }
-    skip_newlines();
-  }
 }
 
 void parser::skip_begin_end()

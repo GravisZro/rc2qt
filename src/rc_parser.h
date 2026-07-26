@@ -26,8 +26,6 @@ private:
   bool match(token_type type);
   bool match_id(const std::string& value);
   bool match_id_ci(const std::string& value);
-  bool expect(token_type type);
-  bool expect_id(const std::string& value);
   void skip_newlines();
   std::string to_upper(const std::string& s);
 
@@ -35,7 +33,6 @@ private:
   bool is_attribute(const std::string& s);
   bool is_control_keyword(const std::string& s);
   bool is_dialog_statement(const std::string& s);
-  bool is_known_id(const std::string& s);
 
   resource parse_resource();
   void parse_simple_resource(resource& res);
@@ -56,7 +53,6 @@ private:
   popup* parse_popup();
   menu_item parse_menu_item();
   dialog_stmt parse_dialog_statement();
-  void parse_dialog_body(dialog_data& dd);
   void skip_begin_end();
   std::string parse_resource_id();
 };
