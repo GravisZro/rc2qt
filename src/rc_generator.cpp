@@ -477,6 +477,7 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   int font_size = find_statement_numeric(dd, "FONT", 8);
   int font_weight = find_statement_numeric2(dd, "FONT", 0);
   bool font_bold = (font_weight >= 700);
+  bool font_italic = find_statement_italic(dd, "FONT");
   set_dlu_factors(font_family, font_size > 0 ? font_size : 8);
 
   int px = dlu_to_pixel_x(dd.x);
@@ -490,7 +491,7 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     add_property_string(widget, "windowTitle", caption);
 
   if(font_size > 0)
-    add_property_font(widget, font_family, font_size, font_bold, false);
+    add_property_font(widget, font_family, font_size, font_bold, font_italic);
 
   std::vector<std::string> flags;
 
@@ -1129,6 +1130,16 @@ int generator::find_statement_numeric2(const dialog_data& dd, const std::string&
     }
   }
   return default_value;
+}
+
+bool generator::find_statement_italic(const dialog_data& dd, const std::string& keyword) const
+{
+  for(const auto& s : dd.statements)
+  {
+    if(s.keyword == keyword)
+      return s.italic;
+  }
+  return false;
 }
 
 const style_expr* generator::find_statement_style(const dialog_data& dd, const std::string& keyword) const

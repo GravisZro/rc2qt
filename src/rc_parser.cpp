@@ -477,6 +477,14 @@ dialog_stmt parser::parse_dialog_statement()
       {
         if(current().type == token_type::identifier || current().type == token_type::integer_literal)
           stmt.numeric_value2 = static_cast<uint16_t>(safe_stoi(advance().value));
+        if(match(token_type::comma))
+        {
+          if(current().type == token_type::identifier || current().type == token_type::integer_literal)
+          {
+            int italic_val = safe_stoi(advance().value);
+            stmt.italic = (italic_val != 0);
+          }
+        }
       }
     }
   }
