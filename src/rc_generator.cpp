@@ -965,6 +965,12 @@ std::string generator::map_class_to_widget(const std::string& class_name, const 
 std::string generator::unique_name(const std::string& id)
 {
   std::string base = id.empty() ? "widget" : id;
+  bool is_numeric = !base.empty() &&
+    (std::all_of(base.begin(), base.end(), [](char c) {
+      return std::isdigit(static_cast<unsigned char>(c)) || c == '-';
+    }));
+  if(is_numeric)
+    base = "widget_" + base;
   int& count = name_counts_[base];
   if(count == 0)
   {
