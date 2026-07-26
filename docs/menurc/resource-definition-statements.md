@@ -104,7 +104,7 @@ For more information about predefined MFC resources, see [TN023](/cpp/mfc/tn023-
 
 
 
-For the numeric values of predefined Windows constants used in resource scripts (such as window styles, virtual key codes, and control messages), see [**Predefined Constants (WinUser.h / CommCtrl.h)**](winuserh-predefined-constants.md).
+For the numeric values of predefined Windows constants used in resource scripts (such as window styles, virtual key codes, and control messages), see [**Predefined Constants (WinUser.h / CommCtrl.h)**](predefined-constants.md).
 
 
  
