@@ -594,18 +594,10 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
 
   if(qt_class == "QLineEdit")
   {
-    if(has_style(ctrl.style, "ES_MULTILINE"))
-    {
-      widget.attribute("class") = "QTextEdit";
-      qt_class = "QTextEdit";
-    }
-    else
-    {
-      if(has_style(ctrl.style, "ES_READONLY"))
-        add_property_bool(widget, "readOnly", true);
-      if(has_style(ctrl.style, "ES_PASSWORD"))
-        add_property_enum(widget, "echoMode", "QLineEdit::Password");
-    }
+    if(has_style(ctrl.style, "ES_READONLY"))
+      add_property_bool(widget, "readOnly", true);
+    if(has_style(ctrl.style, "ES_PASSWORD"))
+      add_property_enum(widget, "echoMode", "QLineEdit::Password");
   }
 
   if(qt_class == "QTextEdit")
