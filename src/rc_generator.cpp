@@ -86,6 +86,8 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
     std::string filename = output_dir + "/" + rc_basename + " - " + sanitized + ".ui";
 
     name_counts_.clear();
+    action_counter_ = 0;
+
 
     pugi::xml_document doc;
     pugi::xml_node ui = doc.append_child("ui");
@@ -124,6 +126,8 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 bool generator::generate_single_dialog(const rc_file& file, const resource& res, const std::string& output_path)
 {
   name_counts_.clear();
+    action_counter_ = 0;
+
 
   pugi::xml_document doc;
   pugi::xml_node ui = doc.append_child("ui");
@@ -165,6 +169,8 @@ void generator::collect_global_data(const rc_file& file)
   dlginit_map_.clear();
   ds_control_dialogs_.clear();
   name_counts_.clear();
+    action_counter_ = 0;
+
   menubar_node_ = pugi::xml_node();
 
   for(const auto& res : file.resources)
@@ -1151,7 +1157,6 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
   if(!std::holds_alternative<menu_data>(res.data))
     return;
   const auto& md = std::get<menu_data>(res.data);
-  int action_counter = 0;
 
   if(!menubar_node_)
   {
@@ -1189,7 +1194,7 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
       title.append_attribute("name") = "title";
       title.append_child("string").text() = popup_ptr->text.c_str();
 
-      write_menu_entries(menu, popup_ptr->entries, action_counter);
+      write_menu_entries(menu, popup_ptr->entries);
 
       pugi::xml_node addaction = menubar_node_.append_child("addaction");
       addaction.append_attribute("name") = menu_name.c_str();
@@ -1197,7 +1202,7 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
   }
 }
 
-void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<menu_entry>& entries, int& action_counter)
+void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<menu_entry>& entries)
 {
   for(const auto& entry : entries)
   {
@@ -1213,7 +1218,7 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       }
 
       std::string action_name = mi.id.empty()
-        ? "action" + std::to_string(action_counter++)
+        ? "action" + std::to_string(action_counter_++)
         : mi.id;
 
       pugi::xml_node addaction = menu_node.append_child("addaction");
@@ -1238,7 +1243,7 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       title.append_attribute("name") = "title";
       title.append_child("string").text() = sub->text.c_str();
 
-      write_menu_entries(sub_menu, sub->entries, action_counter);
+      write_menu_entries(sub_menu, sub->entries);
 
       pugi::xml_node addaction = menu_node.append_child("addaction");
       addaction.append_attribute("name") = sub_name.c_str();

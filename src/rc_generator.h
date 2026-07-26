@@ -41,7 +41,7 @@ private:
   void write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd);
   void write_control(pugi::xml_node& parent, const control& ctrl);
   void write_menu(pugi::xml_node& parent, const resource& res);
-  void write_menu_entries(pugi::xml_node& menu_node, const std::vector<menu_entry>& entries, int& action_counter);
+  void write_menu_entries(pugi::xml_node& menu_node, const std::vector<menu_entry>& entries);
   void write_toolbar(pugi::xml_node& parent, const resource& res);
   void write_actions(pugi::xml_node& parent, const rc_file& file);
 
@@ -85,6 +85,7 @@ private:
   pugi::xml_node menubar_node_;
   double dlu_x_factor_ = 1.75;
   double dlu_y_factor_ = 1.75;
+  int action_counter_ = 0;
 };
 
 }
