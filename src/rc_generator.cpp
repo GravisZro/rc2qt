@@ -828,7 +828,16 @@ void generator::add_property_string(pugi::xml_node& widget, const std::string& n
 {
   pugi::xml_node prop = widget.append_child("property");
   prop.append_attribute("name") = name.c_str();
-  prop.append_child("string").text() = value.c_str();
+  pugi::xml_node str_node = prop.append_child("string");
+  std::string safe_value;
+  for(char c : value)
+  {
+    if(c == '\0')
+      safe_value += "\\0";
+    else
+      safe_value += c;
+  }
+  str_node.text() = safe_value.c_str();
 }
 
 void generator::add_property_bool(pugi::xml_node& widget, const std::string& name, bool value)
