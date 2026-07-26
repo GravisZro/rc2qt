@@ -585,9 +585,10 @@ void parser::skip_begin_end()
   {
     if(current().type == token_type::begin)
       ++depth;
-    if(current().type == token_type::end)
+    else if(current().type == token_type::end)
       --depth;
-    advance();
+    if(depth > 0)
+      advance();
   }
 }
 
