@@ -1,0 +1,3 @@
+[submodule "libpefile"]
+	path = libpefile
+	url = git@github.com:GravisZro/libpefile.git
