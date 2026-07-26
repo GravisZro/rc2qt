@@ -364,6 +364,8 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
 
 void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 {
+  if(!std::holds_alternative<dialog_data>(res.data))
+    return;
   const auto& dd = std::get<dialog_data>(res.data);
   std::string dialog_name = res.id;
 
@@ -1137,6 +1139,8 @@ bool generator::has_dialog_flag(const dialog_data& dd, const std::string& keywor
 
 void generator::write_menu(pugi::xml_node& parent, const resource& res)
 {
+  if(!std::holds_alternative<menu_data>(res.data))
+    return;
   const auto& md = std::get<menu_data>(res.data);
   int action_counter = 0;
 
