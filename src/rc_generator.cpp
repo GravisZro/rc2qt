@@ -61,6 +61,8 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
   std::vector<std::string> generated_files;
 
+  std::filesystem::create_directories(std::filesystem::path(output_dir) / rc_basename);
+
   for(const auto& res : file.resources)
   {
     if(!std::holds_alternative<dialog_data>(res.data))
@@ -79,11 +81,18 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
     if(is_ds_control)
       continue;
 
-    std::string dialog_name = res.id;
-    std::string sanitized = dialog_name;
-    std::replace(sanitized.begin(), sanitized.end(), ' ', '_');
+    std::string short_id = res.id;
+    if(short_id.size() > 4 && short_id.substr(0, 4) == "IDD_")
+      short_id = short_id.substr(4);
+    for(char& c : short_id)
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for(char& c : short_id)
+    {
+      if(!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-')
+        c = '_';
+    }
 
-    std::string filename = output_dir + "/" + rc_basename + " - " + sanitized + ".ui";
+    std::filesystem::path filename = std::filesystem::path(output_dir) / rc_basename / (short_id + ".ui");
 
     name_counts_.clear();
     action_counter_ = 0;
@@ -116,8 +125,8 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     write_actions(root_widget, file);
 
-    if(doc.save_file(filename.c_str(), "  "))
-      generated_files.push_back(filename);
+    if(doc.save_file(filename.generic_string().c_str(), "  "))
+      generated_files.push_back(filename.generic_string());
   }
 
   return !generated_files.empty();

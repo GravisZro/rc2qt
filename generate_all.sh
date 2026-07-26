@@ -29,7 +29,7 @@ for rc_file in "$TESTDIR"/*.rc; do
   qrc_out="$OUTDIR/${name}.qrc"
 
   if $ALL_DIALOGS; then
-    if "$RC2QT" "$rc_file" -a -o "$ui_out" -q "$qrc_out" >/dev/null 2>&1; then
+    if "$RC2QT" "$rc_file" -a -o "$OUTDIR/" -q "$qrc_out" >/dev/null 2>&1; then
       success=$((success + 1))
     else
       echo "FAIL: $rc_file"
