@@ -1350,14 +1350,9 @@ std::string generator::map_vk_to_qt(const std::string& vk_code)
     try
     {
       unsigned long val = std::stoul(hex_str, nullptr, 16);
-      if(val >= 0x20 && val < 0x7F)
+      if(val >= 0x20 && val <= 0x7E)
         return std::string(1, static_cast<char>(val));
-      if(val >= 0x30 && val <= 0x39)
-        return std::string(1, static_cast<char>(val));
-      if(val >= 0x41 && val <= 0x5A)
-        return std::string(1, static_cast<char>(val));
-      if(val >= 0x61 && val <= 0x7A)
-        return std::string(1, static_cast<char>(val - 0x20));
+      return "";
     }
     catch(...)
     {
