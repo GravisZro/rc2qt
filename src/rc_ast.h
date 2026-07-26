@@ -2,6 +2,7 @@
 #define RC_AST_H
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <variant>
@@ -105,8 +106,7 @@ struct string_table_entry
 
 struct version_info
 {
-  std::string keyword;
-  uint16_t values[4] = {};
+  std::map<std::string, std::string> values;
 };
 
 struct menu_data
@@ -138,7 +138,7 @@ struct resource
     menu_data,
     std::vector<accelerator_entry>,
     std::vector<string_table_entry>,
-    std::vector<version_info>,
+    version_info,
     std::vector<dlginit_entry>
   > data;
 };

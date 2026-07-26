@@ -774,13 +774,39 @@ void parser::parse_stringtable_resource(resource& res)
 
 void parser::parse_versioninfo_resource(resource& res)
 {
-  std::vector<version_info> vers;
+  version_info vi;
 
   while(current().type == token_type::identifier && is_attribute(current().value))
     res.attributes.push_back(advance().value);
 
   while(current().type != token_type::begin && current().type != token_type::eof)
-    advance();
+  {
+    if(current().type == token_type::identifier)
+    {
+      std::string key = to_upper(advance().value);
+      std::string val;
+      while(current().type != token_type::newline &&
+            current().type != token_type::eof &&
+            current().type != token_type::identifier)
+      {
+        if(!val.empty())
+          val += " ";
+        val += advance().value;
+        if(current().type == token_type::comma)
+        {
+          val += advance().value;
+          if(!val.empty())
+            val += " ";
+        }
+      }
+      if(!val.empty())
+        vi.values[key] = val;
+    }
+    else
+    {
+      advance();
+    }
+  }
 
   skip_newlines();
   if(match(token_type::begin))
@@ -792,18 +818,55 @@ void parser::parse_versioninfo_resource(resource& res)
         ++depth;
       if(current().type == token_type::end)
         --depth;
+
+      if(depth >= 2 && current().type == token_type::string_literal)
+      {
+        std::string block_name = advance().value;
+        (void)block_name;
+      }
+
+      if(depth >= 2 && current().type == token_type::identifier &&
+         to_upper(current().value) == "VALUE")
+      {
+        advance();
+        if(current().type == token_type::string_literal)
+        {
+          std::string key = advance().value;
+          std::string val;
+          if(match(token_type::comma))
+          {
+            skip_newlines();
+            while(current().type != token_type::newline &&
+                  current().type != token_type::eof)
+            {
+              if(!val.empty())
+                val += " ";
+              val += advance().value;
+              if(current().type == token_type::comma)
+              {
+                val += advance().value;
+                if(!val.empty())
+                  val += " ";
+              }
+            }
+          }
+          std::string full_key = key;
+          vi.values[full_key] = val;
+        }
+      }
+
       if(depth > 0)
         advance();
     }
     match(token_type::end);
   }
 
-  res.data = vers;
+  res.data = vi;
 }
 
 void parser::parse_rcdata_resource(resource& res)
 {
-  std::vector<version_info> vers;
+  version_info vi;
 
   while(current().type == token_type::identifier && is_attribute(current().value))
     res.attributes.push_back(advance().value);
@@ -821,7 +884,7 @@ void parser::parse_rcdata_resource(resource& res)
     match(token_type::end);
   }
 
-  res.data = vers;
+  res.data = vi;
 }
 
 void parser::parse_dlginit_resource(resource& res)
