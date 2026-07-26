@@ -850,8 +850,11 @@ void parser::parse_versioninfo_resource(resource& res)
   if(match(token_type::begin))
   {
     int depth = 1;
-    while(depth > 0 && current().type != token_type::eof)
+    size_t max_iters = tokens.size() * 4;
+    size_t iters = 0;
+    while(depth > 0 && current().type != token_type::eof && iters < max_iters)
     {
+      ++iters;
       if(current().type == token_type::begin)
         ++depth;
       if(current().type == token_type::end)
@@ -867,7 +870,8 @@ void parser::parse_versioninfo_resource(resource& res)
          to_upper(current().value) == "VALUE")
       {
         advance();
-        if(current().type == token_type::string_literal)
+        if(current().type == token_type::string_literal ||
+           current().type == token_type::identifier)
         {
           std::string key = advance().value;
           std::string val;
