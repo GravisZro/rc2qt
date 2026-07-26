@@ -615,7 +615,7 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
     if(has_style(ctrl.style, "ES_AUTOVSCROLL"))
       add_property_enum(widget, "verticalScrollBarPolicy", "Qt::ScrollBarAsNeeded");
     if(has_style(ctrl.style, "ES_AUTOHSCROLL"))
-      add_property_enum(widget, "horizontalScrollBarPolicy", "Qt::ScrollBarAlwaysOff");
+      add_property_enum(widget, "horizontalScrollBarPolicy", "Qt::ScrollBarAsNeeded");
   }
 
   if(qt_class == "QGroupBox")
@@ -665,8 +665,6 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
       add_property_enum(widget, "selectionBehavior", "QAbstractItemView::SelectRows");
     if(has_style(ctrl.style, "LVS_SINGLESEL"))
       add_property_enum(widget, "selectionMode", "QAbstractItemView::SingleSelection");
-    else if(has_style(ctrl.style, "LVS_SHOWSELALWAYS"))
-      add_property_enum(widget, "selectionMode", "QAbstractItemView::ContiguousSelection");
     if(has_style(ctrl.style, "LVS_SORTASCENDING"))
       add_property_bool(widget, "sortingEnabled", true);
   }
@@ -685,8 +683,6 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
       add_property_enum(widget, "orientation", "Qt::Vertical");
     else
       add_property_enum(widget, "orientation", "Qt::Horizontal");
-    if(has_style(ctrl.style, "PBS_SMOOTH"))
-      add_property_bool(widget, "textVisible", true);
     add_property_int(widget, "minimum", 0);
     add_property_int(widget, "maximum", 100);
     add_property_int(widget, "value", 0);
@@ -696,8 +692,6 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
   {
     if(has_style(ctrl.style, "UDS_WRAP"))
       add_property_bool(widget, "wrapping", true);
-    if(has_style(ctrl.style, "UDS_SETBUDDYINT"))
-      add_property_bool(widget, "accelerated", true);
     add_property_int(widget, "minimum", 0);
     add_property_int(widget, "maximum", 99);
     add_property_int(widget, "value", 0);
@@ -726,8 +720,6 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
   {
     if(has_style(ctrl.style, "TCS_BUTTONS"))
       add_property_enum(widget, "tabPosition", "QTabWidget::North");
-    if(has_style(ctrl.style, "TCS_FIXEDWIDTH"))
-      add_property_bool(widget, "usesScrollButtons", false);
 
     int tab_idx = 0;
     for(const auto& [dlg_id, dlg_ptr] : ds_control_dialogs_)
