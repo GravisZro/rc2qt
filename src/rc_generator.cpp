@@ -252,9 +252,11 @@ void generator::collect_global_data(const rc_file& file)
 
               for(const auto& f : mi.flags)
               {
-                if(f == "GRAYED" || f == "INACTIVE")
+                std::string f_upper = f;
+                std::transform(f_upper.begin(), f_upper.end(), f_upper.begin(), ::toupper);
+                if(f_upper == "GRAYED" || f_upper == "INACTIVE" || f_upper == "MFS_GRAYED" || f_upper == "MFS_UNHILITE")
                   menu_disabled_map_[mi.id] = true;
-                if(f == "CHECKED")
+                if(f_upper == "CHECKED" || f_upper == "MFS_CHECKED")
                   menu_checked_map_[mi.id] = true;
               }
             }
@@ -262,6 +264,13 @@ void generator::collect_global_data(const rc_file& file)
           else if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
           {
             auto sub = std::get<std::shared_ptr<popup>>(entry.item);
+            for(const auto& f : sub->flags)
+            {
+              std::string f_upper = f;
+              std::transform(f_upper.begin(), f_upper.end(), f_upper.begin(), ::toupper);
+              if(f_upper == "GRAYED" || f_upper == "INACTIVE" || f_upper == "MFS_GRAYED")
+                menu_disabled_map_[sub->text] = true;
+            }
             collect_texts(sub->entries);
           }
         }
@@ -515,8 +524,15 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
     add_property_string(widget, "text", ctrl.text);
 
   bool visible = !has_style(ctrl.style, "WS_HIDDEN");
+  for(const auto& nf : ctrl.style.not_flags)
+  {
+    if(nf == "WS_VISIBLE")
+      visible = false;
+  }
   if(visible)
     add_property_bool(widget, "visible", true);
+  else
+    add_property_bool(widget, "visible", false);
 
   bool enabled = !has_style(ctrl.style, "WS_DISABLED");
   add_property_bool(widget, "enabled", enabled);
@@ -662,6 +678,17 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
       add_property_enum(widget, "buttonSymbols", "QAbstractSpinBox::UpDownArrows");
     else
       add_property_enum(widget, "buttonSymbols", "QAbstractSpinBox::NoButtons");
+  }
+
+  if(qt_class == "QScrollBar")
+  {
+    if(has_style(ctrl.style, "SBS_VERT"))
+      add_property_enum(widget, "orientation", "Qt::Vertical");
+    else
+      add_property_enum(widget, "orientation", "Qt::Horizontal");
+    add_property_int(widget, "minimum", 0);
+    add_property_int(widget, "maximum", 100);
+    add_property_int(widget, "value", 0);
   }
 
   if(qt_class == "QTabWidget")
@@ -904,10 +931,12 @@ std::string generator::map_class_to_widget(const std::string& class_name, const 
     return "QToolBar";
   if(lower == "rebarwindow32")
     return "QToolBar";
-  if(lower == "tooltips_class32" || lower == "#32774")
-    return "QToolTip";
+  if(lower == "tooltips_class32")
+    return "QWidget";
+  if(lower == "#32774")
+    return "QPushButton";
   if(lower == "#32768")
-    return "QMenu";
+    return "QWidget";
   if(lower == "sysanimate32")
     return "QLabel";
   if(lower == "syspager")
@@ -951,6 +980,12 @@ int generator::dlu_to_pixel_y(int dlu) const
 
 bool generator::has_style(const style_expr& style, const std::string& flag) const
 {
+  for(const auto& nf : style.not_flags)
+  {
+    if(nf == flag)
+      return false;
+  }
+
   if(style.first == flag)
     return true;
 

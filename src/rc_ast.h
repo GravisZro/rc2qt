@@ -14,6 +14,7 @@ struct style_expr
 {
   std::string first;
   std::vector<std::pair<std::string, std::string>> ops;
+  std::vector<std::string> not_flags;
   int64_t resolved_value = -1;
 };
 

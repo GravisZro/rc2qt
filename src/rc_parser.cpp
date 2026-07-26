@@ -150,7 +150,11 @@ bool parser::is_known_id(const std::string& s)
     "CHECKED", "GRAYED", "HELP", "INACTIVE", "MENUBARBREAK", "MENUBREAK",
     "VIRTKEY", "ASCII", "ALT", "SHIFT", "CONTROL", "NOINVERT",
     "SEPARATOR", "BUTTON", "POPUP", "MENUITEM",
-    "BEGIN", "END"
+    "BEGIN", "END",
+    "MFS_GRAYED", "MFS_CHECKED", "MFS_ENABLED", "MFS_DEFAULT",
+    "MFS_BITMAP", "MFS_UNCHECKED", "MFS_UNHILITE", "MFS_HILITE",
+    "MFT_SEPARATOR", "MFT_MENUBARBREAK", "MFT_MENUBREAK",
+    "MFT_OWNERDRAW", "MFT_STRING", "MFT_BITMAP", "MFT_POPUP"
   };
   std::string upper = to_upper(s);
   for(const auto& k : known)
@@ -175,6 +179,21 @@ std::string parser::parse_resource_id()
 style_expr parser::parse_style_expr()
 {
   style_expr expr;
+
+  if(current().type == token_type::identifier && to_upper(current().value) == "NOT")
+  {
+    advance();
+    skip_newlines();
+    std::string flag;
+    if(current().type == token_type::identifier)
+      flag = advance().value;
+    else if(current().type == token_type::integer_literal || current().type == token_type::hex_literal)
+      flag = advance().value;
+    if(!flag.empty())
+      expr.not_flags.push_back(flag);
+    return expr;
+  }
+
   if(current().type == token_type::identifier)
     expr.first = advance().value;
   else if(current().type == token_type::integer_literal || current().type == token_type::hex_literal)
@@ -186,6 +205,22 @@ style_expr parser::parse_style_expr()
   {
     std::string op = advance().value;
     skip_newlines();
+
+    if(current().type == token_type::identifier && to_upper(current().value) == "NOT")
+    {
+      advance();
+      skip_newlines();
+      std::string flag;
+      if(current().type == token_type::identifier)
+        flag = advance().value;
+      else if(current().type == token_type::integer_literal || current().type == token_type::hex_literal)
+        flag = advance().value;
+      if(!flag.empty())
+        expr.not_flags.push_back(flag);
+      skip_newlines();
+      continue;
+    }
+
     std::string val;
     if(current().type == token_type::identifier)
       val = advance().value;
