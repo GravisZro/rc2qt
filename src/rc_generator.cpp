@@ -315,6 +315,9 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
   pugi::xml_node res_node = qresource.append_child("qresource");
 
   bool has_resources = false;
+  std::string qrc_dir = std::filesystem::path(output_path).parent_path().generic_string();
+  if(qrc_dir.empty())
+    qrc_dir = ".";
 
   for(const auto& up : ui_paths)
   {
@@ -323,7 +326,9 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
       pugi::xml_node file_node = res_node.append_child("file");
       std::string normalized = up;
       std::replace(normalized.begin(), normalized.end(), '\\', '/');
-      file_node.text() = std::filesystem::path(normalized).generic_string().c_str();
+      std::string abs_path = std::filesystem::absolute(normalized).generic_string();
+      std::string rel = std::filesystem::path(abs_path).lexically_relative(qrc_dir).generic_string();
+      file_node.text() = rel.c_str();
       has_resources = true;
     }
   }
@@ -341,7 +346,9 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
       file_node.append_attribute("alias") = res.id.c_str();
       std::string normalized = res.filename;
       std::replace(normalized.begin(), normalized.end(), '\\', '/');
-      file_node.text() = std::filesystem::path(normalized).generic_string().c_str();
+      std::string abs_path = std::filesystem::absolute(normalized).generic_string();
+      std::string rel = std::filesystem::path(abs_path).lexically_relative(qrc_dir).generic_string();
+      file_node.text() = rel.c_str();
       has_resources = true;
     }
   }
