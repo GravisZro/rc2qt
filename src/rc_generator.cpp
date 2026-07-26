@@ -445,6 +445,15 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
 void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd)
 {
+  std::string font_family = find_statement_text(dd, "FONT");
+  if(font_family.empty())
+    font_family = "MS Sans Serif";
+  else
+    font_family = map_ms_font(font_family);
+
+  int font_size = find_statement_numeric(dd, "FONT", 8);
+  set_dlu_factors(font_family, font_size > 0 ? font_size : 8);
+
   int px = dlu_to_pixel_x(dd.x);
   int py = dlu_to_pixel_y(dd.y);
   int pw = dlu_to_pixel_x(dd.width);
@@ -455,13 +464,6 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   if(!caption.empty())
     add_property_string(widget, "windowTitle", caption);
 
-  std::string font_family = find_statement_text(dd, "FONT");
-  if(font_family.empty())
-    font_family = "MS Sans Serif";
-  else
-    font_family = map_ms_font(font_family);
-
-  int font_size = find_statement_numeric(dd, "FONT", 8);
   if(font_size > 0)
     add_property_font(widget, font_family, font_size, false, false);
 
@@ -971,12 +973,52 @@ std::string generator::unique_name(const std::string& id)
 
 int generator::dlu_to_pixel_x(int dlu) const
 {
-  return static_cast<int>(dlu * 1.75);
+  return static_cast<int>(dlu * dlu_x_factor_);
 }
 
 int generator::dlu_to_pixel_y(int dlu) const
 {
-  return static_cast<int>(dlu * 1.75);
+  return static_cast<int>(dlu * dlu_y_factor_);
+}
+
+void generator::set_dlu_factors(const std::string& font_family, int font_size)
+{
+  struct font_metrics
+  {
+    double avg_width;
+    double avg_height;
+  };
+
+  static const std::map<std::string, font_metrics> known_fonts = {
+    {"MS Sans Serif", {6.5, 13.0}},
+    {"Liberation Sans", {6.5, 13.0}},
+    {"Arial", {6.5, 13.0}},
+    {"Tahoma", {6.0, 15.0}},
+    {"Segoe UI", {7.0, 15.0}},
+    {"MS Shell Dlg", {6.5, 13.0}},
+    {"MS Shell Dlg 2", {6.5, 13.0}},
+    {"Liberation Mono", {6.0, 13.0}},
+    {"Courier New", {6.0, 13.0}},
+    {"Liberation Serif", {6.5, 13.0}},
+    {"Times New Roman", {6.5, 13.0}},
+    {"Verdana", {6.5, 13.0}},
+    {"Carlito", {6.5, 13.0}},
+    {"Calibri", {7.0, 15.0}},
+    {"Georgia", {7.0, 13.0}},
+  };
+
+  auto it = known_fonts.find(font_family);
+  if(it != known_fonts.end())
+  {
+    double scale = static_cast<double>(font_size) / 8.0;
+    dlu_x_factor_ = (it->second.avg_width * scale) / 4.0;
+    dlu_y_factor_ = (it->second.avg_height * scale) / 8.0;
+  }
+  else
+  {
+    dlu_x_factor_ = 1.75;
+    dlu_y_factor_ = 1.75;
+  }
 }
 
 bool generator::has_style(const style_expr& style, const std::string& flag) const

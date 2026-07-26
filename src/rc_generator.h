@@ -61,6 +61,7 @@ private:
 
   int dlu_to_pixel_x(int dlu) const;
   int dlu_to_pixel_y(int dlu) const;
+  void set_dlu_factors(const std::string& font_family, int font_size);
 
   bool has_style(const style_expr& style, const std::string& flag) const;
 
@@ -81,6 +82,8 @@ private:
   std::map<std::string, std::vector<std::string>> dlginit_map_;
   std::map<std::string, const dialog_data*> ds_control_dialogs_;
   pugi::xml_node menubar_node_;
+  double dlu_x_factor_ = 1.75;
+  double dlu_y_factor_ = 1.75;
 };
 
 }
