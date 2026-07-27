@@ -132,8 +132,21 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
       if(!std::holds_alternative<menu_data>(menu_res.data))
         continue;
 
-      if(!menu_id.empty() && menu_res.id == menu_id)
+      if(menu_id.empty())
+        continue;
+
+      if(menu_res.id == menu_id)
+      {
         write_menu(root_widget, menu_res);
+      }
+      else
+      {
+        const auto& reg = constant_registry::instance();
+        int64_t dialog_menu_val = reg.resolve(menu_id);
+        int64_t menu_res_val = reg.resolve(menu_res.id);
+        if(dialog_menu_val >= 0 && menu_res_val >= 0 && dialog_menu_val == menu_res_val)
+          write_menu(root_widget, menu_res);
+      }
     }
 
     write_actions(root_widget, file);

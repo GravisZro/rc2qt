@@ -33,6 +33,21 @@ int64_t constant_registry::resolve(const std::string& name) const
   auto it = name_to_value_.find(name);
   if(it != name_to_value_.end())
     return it->second;
+
+  if(!name.empty())
+  {
+    try
+    {
+      size_t pos = 0;
+      long long val = std::stoll(name, &pos, 0);
+      if(pos == name.size())
+        return static_cast<int64_t>(val);
+    }
+    catch(...)
+    {
+    }
+  }
+
   return -1;
 }
 
