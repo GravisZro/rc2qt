@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstring>
 #include <array>
+#include <stdexcept>
 
 namespace rc
 {
@@ -174,9 +175,23 @@ std::vector<token> tokenize(const std::string& input)
   if(input.size() >= 2)
   {
     const auto* data = reinterpret_cast<const unsigned char*>(input.data());
-    bool is_utf16 = (data[0] == 0xFF && data[1] == 0xFE) ||
-                    (data[0] == 0xFE && data[1] == 0xFF);
-    if(!is_utf16)
+
+    if(input.size() >= 4)
+    {
+      bool is_utf32le = (data[0] == 0xFF && data[1] == 0xFE &&
+                         data[2] == 0x00 && data[3] == 0x00);
+      bool is_utf32be = (data[0] == 0x00 && data[1] == 0x00 &&
+                         data[2] == 0xFE && data[3] == 0xFF);
+      if(is_utf32le || is_utf32be)
+        throw std::runtime_error("UTF-32 encoded .rc files are not supported");
+    }
+
+    bool is_utf16be = (data[0] == 0xFE && data[1] == 0xFF);
+    if(is_utf16be)
+      throw std::runtime_error("UTF-16 BE encoded .rc files are not supported");
+
+    bool is_utf16le = (data[0] == 0xFF && data[1] == 0xFE);
+    if(!is_utf16le)
     {
       size_t nulls = 0;
       size_t check = std::min(input.size(), static_cast<size_t>(64));
@@ -184,9 +199,9 @@ std::vector<token> tokenize(const std::string& input)
         if(data[i] == 0)
           ++nulls;
       if(nulls > check / 4)
-        is_utf16 = true;
+        is_utf16le = true;
     }
-    if(is_utf16)
+    if(is_utf16le)
       converted = utf16le_to_utf8(input);
     else
       converted = cp1252_to_utf8(input);

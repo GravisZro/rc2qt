@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <type_traits>
 #include <map>
 #include <vector>
@@ -79,7 +80,16 @@ int main(int argc, char** argv)
 
   std::cout << "Read " << content.size() << " bytes from " << input_path << std::endl;
 
-  auto tokens = rc::tokenize(content);
+  std::vector<rc::token> tokens;
+  try
+  {
+    tokens = rc::tokenize(content);
+  }
+  catch(const std::runtime_error& e)
+  {
+    std::cerr << "Error: " << e.what() << std::endl;
+    return 1;
+  }
   std::cout << "Tokenized into " << tokens.size() << " tokens" << std::endl;
 
   rc::parser p(tokens);
