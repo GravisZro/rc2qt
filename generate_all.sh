@@ -21,10 +21,12 @@ for rc_file in "$TESTDIR"/*.rc; do
   total=$((total + 1))
   qrc_out="$OUTDIR/$(basename "$rc_file" .rc).qrc"
 
-  if "$RC2QT" "$rc_file" -o "$OUTDIR/" -q "$qrc_out" >/dev/null 2>&1; then
+  output=$("$RC2QT" "$rc_file" -o "$OUTDIR/" -q "$qrc_out" 2>&1) && rc=0 || rc=$?
+  if [ $rc -eq 0 ]; then
     success=$((success + 1))
   else
-    echo "FAIL: $rc_file"
+    echo "FAIL: $rc_file (exit $rc)"
+    echo "$output" | sed 's/^/  /'
     fail=$((fail + 1))
   fi
 done

@@ -54,12 +54,6 @@ static bool match_type(token_type needle, std::initializer_list<token_type> hays
   return std::ranges::any_of(haystack, [needle](auto token) { return token == needle; });
 }
 
-static bool match_string(const std::string& needle, std::initializer_list<std::string> haystack)
-{
-  auto upper = rc::to_upper(needle);
-  return std::ranges::any_of(haystack, [upper](auto str) { return rc::to_upper(str) == upper; });
-}
-
 bool parser::is_current_type(token_type token)
   { return current().type == token; }
 
@@ -68,13 +62,13 @@ bool parser::is_current_type(std::initializer_list<token_type> haystack)
   return match_type(current().type, haystack);
 }
 
-static constexpr std::initializer_list<token_type> tt_II = { token_type::identifier, token_type::integer_literal };
-static constexpr std::initializer_list<token_type> tt_IIH = { token_type::identifier, token_type::integer_literal,
-                                                         token_type::hex_literal };
-static constexpr std::initializer_list<token_type> tt_IIHS = { token_type::identifier, token_type::integer_literal,
-                                                               token_type::hex_literal, token_type::string_literal };
-static constexpr std::initializer_list<token_type> tt_NEB = { token_type::newline, token_type::eof, token_type::begin, };
-static constexpr std::initializer_list<token_type> tt_NEE = { token_type::newline, token_type::eof, token_type::end };
+static constexpr std::initializer_list<token_type> tt_II    = { token_type::identifier, token_type::integer_literal };
+static constexpr std::initializer_list<token_type> tt_IIH   = { token_type::identifier, token_type::integer_literal,
+                                                                token_type::hex_literal };
+static constexpr std::initializer_list<token_type> tt_IIHS  = { token_type::identifier, token_type::integer_literal,
+                                                                token_type::hex_literal, token_type::string_literal };
+static constexpr std::initializer_list<token_type> tt_NEB   = { token_type::newline, token_type::eof, token_type::begin, };
+static constexpr std::initializer_list<token_type> tt_NEE   = { token_type::newline, token_type::eof, token_type::end };
 
 
 bool parser::is_current_string(const std::string& str)
@@ -98,16 +92,6 @@ bool parser::match(token_type type)
 bool parser::match_id(const std::string& value)
 {
   if(is_current_type(token_type::identifier) && current().value == value)
-  {
-    ++m_pos;
-    return true;
-  }
-  return false;
-}
-
-bool parser::match_id_ci(const std::string& value)
-{
-  if(is_current_type(token_type::identifier) && is_current_string(value))
   {
     ++m_pos;
     return true;
@@ -330,7 +314,7 @@ popup* parser::parse_popup()
     pp->text = next_val();
   if(match(token_type::comma))
   {
-    if(is_current_type(tt_IIH) && ! is_current_string({ "GRAYED", "INACTIVE", "CHECKED", "MENUBARBREAK", "MENUBREAK", "RIGHTBREAK" }))
+    if(is_current_type(tt_IIH) && ! is_current_string({ "GRAYED", "INACTIVE", "CHECKED", "MENUBARBREAK", "MENUBREAK", "RIGHTBREAK", "MF_GRAYED", "MF_ENABLED", "MF_CHECKED", "MF_UNCHECKED", "MF_MENUBARBREAK", "MF_MENUBREAK", "MF_POPUP", "MF_SEPARATOR", "MF_STRING", "MF_HELP", "MF_END" }))
       pp->id = next_val();
 
     while(is_flag())
@@ -542,7 +526,7 @@ void parser::parse_menu_resource(resource& res)
 {
   menu_data md;
 
-  while(is_current_type(token_type::identifier) && is_attribute(current().value))
+  while(is_current_type(token_type::identifier) && (is_attribute(current().value) || to_upper(current().value) == "EX"))
     res.attributes.push_back(next_val());
 
   skip_newlines();
@@ -559,7 +543,7 @@ void parser::parse_toolbar_resource(resource& res)
 {
   toolbar_data td;
 
-  while(is_current_type(token_type::identifier) && is_attribute(current().value))
+  while(is_current_type(token_type::identifier) && (is_attribute(current().value) || to_upper(current().value) == "EX"))
     res.attributes.push_back(next_val());
 
   if(is_current_type({token_type::integer_literal, token_type::hex_literal}))
@@ -969,7 +953,6 @@ resource parser::parse_resource()
   if(auto name = rc::to_upper(res.type);
      funcmap.contains(name))
     std::bind_front(funcmap.at(name), this)(res);
-    //(this->*funcmap.at(name))(res);
   else
     parse_unknown_resource(res);
 

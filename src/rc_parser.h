@@ -32,7 +32,6 @@ private:
   bool is_current_type(std::initializer_list<token_type> haystack);
   bool match(token_type type);
   bool match_id(const std::string& value);
-  bool match_id_ci(const std::string& value);
   void skip_newlines();
 
   bool is_resource_type(const std::string& s);
