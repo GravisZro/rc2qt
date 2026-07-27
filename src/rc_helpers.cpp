@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <array>
+#include <ranges>
 
 namespace rc
 {
@@ -122,4 +123,9 @@ namespace rc
     return utf16le_to_utf8(result);
   }
 
+  bool match_string(const std::string& needle, std::initializer_list<std::string> haystack)
+  {
+    auto upper = to_upper(needle);
+    return std::ranges::any_of(haystack, [upper](auto str) { return rc::to_upper(str) == upper; });
+  }
 }

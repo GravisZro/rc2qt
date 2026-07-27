@@ -2,6 +2,7 @@
 #define RC_HELPERS_H
 
 #include <string>
+#include <initializer_list>
 
 namespace rc
 {
@@ -13,6 +14,8 @@ namespace rc
 
   std::string utf16le_to_utf8(const std::string& input);
   std::string cp1252_to_utf8(const std::string& input);
+
+  bool match_string(const std::string& needle, std::initializer_list<std::string> haystack);
 }
 
 #endif // RC_HELPERS_H

@@ -11,6 +11,7 @@
 #include <set>
 #include <sstream>
 #include <cstring>
+#include <format>
 
 namespace rc
 {
@@ -280,7 +281,6 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
   pugi::xml_node qresource = doc.append_child("RCC");
   pugi::xml_node res_node = qresource.append_child("qresource");
 
-  bool has_resources = false;
   std::filesystem::path qrc_path_full = std::filesystem::absolute(output_path);
   std::filesystem::path qrc_dir_fs;
   if(qrc_path_full.has_parent_path() && !qrc_path_full.parent_path().empty())
@@ -299,7 +299,6 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
       std::filesystem::path rel = abs_path.lexically_relative(qrc_dir_fs);
       std::string rel_str = rel.empty() ? normalized : rel.generic_string();
       file_node.text() = rel_str.c_str();
-      has_resources = true;
     }
   }
 
@@ -308,9 +307,7 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
     if(res.filename.empty())
       continue;
 
-    if(res.type == "BITMAP" || res.type == "ICON" || res.type == "CURSOR" ||
-       res.type == "RT_MANIFEST" || res.type == "REGISTRY" ||
-       res.type == "TYPELIB" || res.type == "DATA")
+    if(match_string(res.type, { "BITMAP", "ICON", "CURSOR", "RT_MANIFEST", "REGISTRY", "TYPELIB", "DATA"}))
     {
       pugi::xml_node file_node = res_node.append_child("file");
       file_node.append_attribute("alias") = res.id.c_str();
@@ -320,7 +317,6 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
       std::filesystem::path rel = abs_path.lexically_relative(qrc_dir_fs);
       std::string rel_str = rel.empty() ? normalized : rel.generic_string();
       file_node.text() = rel_str.c_str();
-      has_resources = true;
     }
   }
 
@@ -1475,40 +1471,99 @@ std::string generator::map_vk_to_qt(const std::string& vk_code)
     return "";
   }
 
-  if(key == "VK_CONTROL" || key == "VK_LCONTROL" || key == "VK_RCONTROL")
-    return "";
-  if(key == "VK_SHIFT" || key == "VK_LSHIFT" || key == "VK_RSHIFT")
-    return "";
-  if(key == "VK_MENU" || key == "VK_LMENU" || key == "VK_RMENU")
-    return "";
+  static const std::unordered_map<std::string, std::string> keyMap =
+  {
+    // Modifiers
+    {"VK_CONTROL", "Ctrl"},
+    {"VK_LCONTROL", "Ctrl"},
+    {"VK_RCONTROL", "Ctrl"},
+    {"VK_SHIFT", "Shift"},
+    {"VK_LSHIFT", "Shift"},
+    {"VK_RSHIFT", "Shift"},
+    {"VK_MENU", "Alt"},
+    {"VK_LMENU", "Alt"},
+    {"VK_RMENU", "Alt"},
 
-  if(key == "VK_RETURN")    return "Return";
-  if(key == "VK_ESCAPE")    return "Escape";
-  if(key == "VK_TAB")       return "Tab";
-  if(key == "VK_BACK")      return "Backspace";
-  if(key == "VK_DELETE")    return "Delete";
-  if(key == "VK_INSERT")    return "Insert";
-  if(key == "VK_HOME")      return "Home";
-  if(key == "VK_END")       return "End";
-  if(key == "VK_PRIOR")     return "PgUp";
-  if(key == "VK_NEXT")      return "PgDown";
-  if(key == "VK_LEFT")      return "Left";
-  if(key == "VK_RIGHT")     return "Right";
-  if(key == "VK_UP")        return "Up";
-  if(key == "VK_DOWN")      return "Down";
-  if(key == "VK_F1")        return "F1";
-  if(key == "VK_F2")        return "F2";
-  if(key == "VK_F3")        return "F3";
-  if(key == "VK_F4")        return "F4";
-  if(key == "VK_F5")        return "F5";
-  if(key == "VK_F6")        return "F6";
-  if(key == "VK_F7")        return "F7";
-  if(key == "VK_F8")        return "F8";
-  if(key == "VK_F9")        return "F9";
-  if(key == "VK_F10")       return "F10";
-  if(key == "VK_F11")       return "F11";
-  if(key == "VK_F12")       return "F12";
-  if(key == "VK_SPACE")     return "Space";
+    // --- Alphanumeric Keys ---
+    {"VK_BACK",     "Backspace"},
+    {"VK_TAB",      "Tab"},
+    {"VK_RETURN",   "Return"},
+    {"VK_ESCAPE",   "Esc"},
+    {"VK_SPACE",    "Space"},
+
+    // --- Navigation & Editing ---
+    {"VK_PRIOR",    "PgUp"},
+    {"VK_NEXT",     "PgDown"},
+    {"VK_END",      "End"},
+    {"VK_HOME",     "Home"},
+    {"VK_LEFT",     "Left"},
+    {"VK_UP",       "Up"},
+    {"VK_RIGHT",    "Right"},
+    {"VK_DOWN",     "Down"},
+    {"VK_SNAPSHOT", "Print"},
+    {"VK_INSERT",   "Ins"},
+    {"VK_DELETE",   "Del"},
+    {"VK_HELP",     "Help"},
+
+    // --- Letters (A-Z) ---
+    {"VK_A", "A"}, {"VK_B", "B"}, {"VK_C", "C"}, {"VK_D", "D"},
+    {"VK_E", "E"}, {"VK_F", "F"}, {"VK_G", "G"}, {"VK_H", "H"},
+    {"VK_I", "I"}, {"VK_J", "J"}, {"VK_K", "K"}, {"VK_L", "L"},
+    {"VK_M", "M"}, {"VK_N", "N"}, {"VK_O", "O"}, {"VK_P", "P"},
+    {"VK_Q", "Q"}, {"VK_R", "R"}, {"VK_S", "S"}, {"VK_T", "T"},
+    {"VK_U", "U"}, {"VK_V", "V"}, {"VK_W", "W"}, {"VK_X", "X"},
+    {"VK_Y", "Y"}, {"VK_Z", "Z"},
+
+    // --- Numbers (0-9) ---
+    {"VK_0", "0"}, {"VK_1", "1"}, {"VK_2", "2"}, {"VK_3", "3"},
+    {"VK_4", "4"}, {"VK_5", "5"}, {"VK_6", "6"}, {"VK_7", "7"},
+    {"VK_8", "8"}, {"VK_9", "9"},
+
+    // --- Function Keys (F1-F24) ---
+    {"VK_F1",  "F1"},  {"VK_F2",  "F2"},  {"VK_F3",  "F3"},  {"VK_F4",  "F4"},
+    {"VK_F5",  "F5"},  {"VK_F6",  "F6"},  {"VK_F7",  "F7"},  {"VK_F8",  "F8"},
+    {"VK_F9",  "F9"},  {"VK_F10", "F10"}, {"VK_F11", "F11"}, {"VK_F12", "F12"},
+    {"VK_F13", "F13"}, {"VK_F14", "F14"}, {"VK_F15", "F15"}, {"VK_F16", "F16"},
+    {"VK_F17", "F17"}, {"VK_F18", "F18"}, {"VK_F19", "F19"}, {"VK_F20", "F20"},
+    {"VK_F21", "F21"}, {"VK_F22", "F22"}, {"VK_F23", "F23"}, {"VK_F24", "F24"},
+
+    // --- Numpad Keys ---
+    {"VK_NUMPAD0", "Num+0"},
+    {"VK_NUMPAD1", "Num+1"},
+    {"VK_NUMPAD2", "Num+2"},
+    {"VK_NUMPAD3", "Num+3"},
+    {"VK_NUMPAD4", "Num+4"},
+    {"VK_NUMPAD5", "Num+5"},
+    {"VK_NUMPAD6", "Num+6"},
+    {"VK_NUMPAD7", "Num+7"},
+    {"VK_NUMPAD8", "Num+8"},
+    {"VK_NUMPAD9", "Num+9"},
+    {"VK_MULTIPLY", "*"},
+    {"VK_ADD",      "+"},
+    {"VK_SEPARATOR","."},
+    {"VK_SUBTRACT", "-"},
+    {"VK_DECIMAL",  "."},
+    {"VK_DIVIDE",   "/"},
+
+    // --- Punctuation / Symbols ---
+    {"VK_OEM_1",      ";"},    // OEM specific (usually ';:')
+    {"VK_OEM_PLUS",   "="},    // '+' any country
+    {"VK_OEM_COMMA",  ","},    // ',' any country
+    {"VK_OEM_MINUS",  "-"},    // '-' any country
+    {"VK_OEM_PERIOD", "."},    // '.' any country
+/*
+    {"VK_OEM_2",      "/"},    // OEM specific (usually '/?')
+    {"VK_OEM_3",      "`"},    // OEM specific (usually '`~')
+    {"VK_OEM_4",      "["},    // OEM specific (usually '[{')
+    {"VK_OEM_5",      "\\"},   // OEM specific (usually '\|')
+    {"VK_OEM_6",      "]"},    // OEM specific (usually ']}')
+    {"VK_OEM_7",      "'" }    // OEM specific (usually '"'')
+*/
+  };
+
+
+  if (auto it = keyMap.find(key); it != keyMap.end())
+    return it->second;
 
   if(key.size() == 1 && key[0] >= 'A' && key[0] <= 'Z')
     return key;
@@ -1516,6 +1571,7 @@ std::string generator::map_vk_to_qt(const std::string& vk_code)
   if(key.size() == 1 && key[0] >= '0' && key[0] <= '9')
     return key;
 
+  //throw std::runtime_error(std::format("Unsupported key: {}", key));
   return "";
 }
 

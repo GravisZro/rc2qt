@@ -14,6 +14,19 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
+# check for missing headers
+include(CheckIncludeFileCXX)
+check_include_file_cxx(format HAVE_STDFORMAT_HEADER)
+
+if(HAVE_STDFORMAT_HEADER)
+  set(EXTRA_DIRS "")
+  set(EXTRA_LIBS "")
+else()
+  find_package(fmt)
+  set(EXTRA_DIRS polyfill)
+  set(EXTRA_LIBS fmt::fmt)
+endif()
+
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
@@ -44,5 +57,22 @@ set(SOURCES
 
 add_executable(${TARGET_NAME} ${HEADERS} ${SOURCES})
 
-target_include_directories(${TARGET_NAME} PRIVATE src)
-target_link_libraries(${TARGET_NAME} PRIVATE Qt5::Widgets pugixml::pugixml)
+target_include_directories(${TARGET_NAME} PRIVATE src ${EXTRA_DIRS})
+target_link_libraries(${TARGET_NAME} PRIVATE Qt5::Widgets pugixml::pugixml ${EXTRA_LIBS})
+
+# Parser unit tests
+set(TEST_SOURCES
+  src/rc_tokenizer.cpp
+  src/rc_constants.cpp
+  src/rc_resolver.cpp
+  src/rc_helpers.cpp
+  src/rc_parser.cpp
+  tests/test_parser.cpp
+)
+
+add_executable(test_parser ${TEST_SOURCES})
+target_include_directories(test_parser PRIVATE src ${EXTRA_DIRS})
+target_link_libraries(test_parser PRIVATE pugixml::pugixml ${EXTRA_LIBS})
+
+enable_testing()
+add_test(NAME parser_tests COMMAND test_parser)
