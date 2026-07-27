@@ -23,11 +23,17 @@ private:
   const token& current() const;
   const token& peek(size_t offset = 1) const;
   token advance();
+  std::string next_val(void) { return advance().value; }
+  int16_t next16(void);
+  uint16_t nextu16(void);
+  bool is_current_string(const std::string& str);
+  bool is_current_string(std::initializer_list<std::string> haystack);
+  bool is_current_type(token_type token);
+  bool is_current_type(std::initializer_list<token_type> haystack);
   bool match(token_type type);
   bool match_id(const std::string& value);
   bool match_id_ci(const std::string& value);
   void skip_newlines();
-  std::string to_upper(const std::string& s);
 
   bool is_resource_type(const std::string& s);
   bool is_attribute(const std::string& s);

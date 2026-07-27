@@ -23,6 +23,7 @@ find_package(pugixml)
 
 
 set(HEADERS
+  src/rc_helpers.h
   src/rc_ast.h
   src/rc_constants.h
   src/rc_generator.h
@@ -32,6 +33,7 @@ set(HEADERS
 )
 
 set(SOURCES
+  src/rc_helpers.cpp
   src/rc_constants.cpp
   src/rc_generator.cpp
   src/rc_parser.cpp

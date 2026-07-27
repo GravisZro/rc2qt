@@ -1,6 +1,7 @@
 #include "rc_generator.h"
 #include "rc_ast.h"
 #include "rc_constants.h"
+#include "rc_helpers.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -1513,7 +1514,6 @@ std::string generator::map_ms_font(const std::string& ms_font)
     {"Tahoma", "Liberation Sans"},
     {"Segoe UI", "Liberation Sans"},
     {"Verdana", "Liberation Sans"},
-    {"Tahoma", "Liberation Sans"},
     {"Times New Roman", "Liberation Serif"},
     {"Courier New", "Liberation Mono"},
     {"Courier", "Liberation Mono"},

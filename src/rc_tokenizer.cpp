@@ -1,4 +1,5 @@
 #include "rc_tokenizer.h"
+#include "rc_helpers.h"
 
 #include <algorithm>
 #include <cctype>
@@ -322,10 +323,7 @@ std::vector<token> tokenize(const std::string& input)
     if(is_id_start(c))
     {
       std::string value = read_identifier(src, pos);
-
-      std::string upper = value;
-      std::transform(upper.begin(), upper.end(), upper.begin(),
-                     [](unsigned char c) { return std::toupper(c); });
+      std::string upper = rc::to_upper(value);
 
       if(upper == "BEGIN")
         tokens.push_back({token_type::begin, value, line});
