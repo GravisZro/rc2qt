@@ -7,6 +7,7 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <set>
 #include <sstream>
 
 namespace rc
@@ -60,8 +61,11 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
   collect_global_data(file);
 
   std::vector<std::string> generated_files;
+  std::set<std::string> used_short_ids;
 
   std::filesystem::create_directories(std::filesystem::path(output_dir) / rc_basename);
+
+  int dialog_index = 0;
 
   for(const auto& res : file.resources)
   {
@@ -92,10 +96,24 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
         c = '_';
     }
 
-    std::filesystem::path filename = std::filesystem::path(output_dir) / rc_basename / (short_id + ".ui");
+    if(short_id.empty())
+    {
+      short_id = "dialog_" + std::to_string(dialog_index);
+    }
+
+    ++dialog_index;
+
+    std::string unique_short_id = short_id;
+    int suffix = 2;
+    while(used_short_ids.count(unique_short_id))
+      unique_short_id = short_id + "_" + std::to_string(suffix++);
+    used_short_ids.insert(unique_short_id);
+
+    std::filesystem::path filename = std::filesystem::path(output_dir) / rc_basename / (unique_short_id + ".ui");
 
     name_counts_.clear();
     action_counter_ = 0;
+    menubar_node_ = pugi::xml_node();
 
 
     pugi::xml_document doc;
@@ -107,20 +125,15 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     pugi::xml_node root_widget = ui.child("widget");
 
+    std::string menu_id = find_statement_id(dd, "MENU");
+
     for(const auto& menu_res : file.resources)
     {
-      if(std::holds_alternative<menu_data>(menu_res.data))
-      {
-        const auto& md = std::get<menu_data>(menu_res.data);
-        bool found_menu_stmt = false;
-        for(const auto& stmt : dd.statements)
-        {
-          if(stmt.keyword == "MENU")
-            found_menu_stmt = true;
-        }
-        if(found_menu_stmt)
-          write_menu(root_widget, menu_res);
-      }
+      if(!std::holds_alternative<menu_data>(menu_res.data))
+        continue;
+
+      if(!menu_id.empty() && menu_res.id == menu_id)
+        write_menu(root_widget, menu_res);
     }
 
     write_actions(root_widget, file);
@@ -136,7 +149,7 @@ bool generator::generate_single_dialog(const rc_file& file, const resource& res,
 {
   name_counts_.clear();
     action_counter_ = 0;
-
+    menubar_node_ = pugi::xml_node();
 
   pugi::xml_document doc;
   pugi::xml_node ui = doc.append_child("ui");
@@ -1098,6 +1111,16 @@ std::string generator::find_statement_text(const dialog_data& dd, const std::str
   {
     if(s.keyword == keyword)
       return s.text_value;
+  }
+  return "";
+}
+
+std::string generator::find_statement_id(const dialog_data& dd, const std::string& keyword) const
+{
+  for(const auto& s : dd.statements)
+  {
+    if(s.keyword == keyword)
+      return s.id_value;
   }
   return "";
 }

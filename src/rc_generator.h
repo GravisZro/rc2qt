@@ -66,6 +66,7 @@ private:
   bool has_style(const style_expr& style, const std::string& flag) const;
 
   std::string find_statement_text(const dialog_data& dd, const std::string& keyword) const;
+  std::string find_statement_id(const dialog_data& dd, const std::string& keyword) const;
   int find_statement_numeric(const dialog_data& dd, const std::string& keyword, int default_value = 0) const;
   int find_statement_numeric2(const dialog_data& dd, const std::string& keyword, int default_value = 0) const;
   bool find_statement_italic(const dialog_data& dd, const std::string& keyword) const;
