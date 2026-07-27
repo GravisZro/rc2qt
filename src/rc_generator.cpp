@@ -809,6 +809,10 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
 
       pugi::xml_node tab_widget = add_widget(widget, "QWidget", tab_name);
 
+      pugi::xml_node tab_attr = tab_widget.append_child("attribute");
+      tab_attr.append_attribute("name") = "title";
+      tab_attr.append_child("string").text() = tab_title.c_str();
+
       pugi::xml_node tab_prop = tab_widget.append_child("property");
       tab_prop.append_attribute("name") = "geometry";
       pugi::xml_node tab_rect = tab_prop.append_child("rect");
