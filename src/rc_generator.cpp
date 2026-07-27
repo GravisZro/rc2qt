@@ -14,49 +14,6 @@
 namespace rc
 {
 
-bool generator::generate(const rc_file& file, const std::string& output_path)
-{
-  collect_global_data(file);
-
-  pugi::xml_document doc;
-
-  pugi::xml_node ui = doc.append_child("ui");
-  ui.append_attribute("version") = "4.0";
-  ui.append_child("class").text() = "Form";
-
-  pugi::xml_node root_widget;
-  for(const auto& res : file.resources)
-  {
-    if(std::holds_alternative<dialog_data>(res.data))
-    {
-      if(!root_widget)
-      {
-        write_dialog(ui, res);
-        root_widget = ui.child("widget");
-      }
-    }
-  }
-
-  if(!root_widget)
-  {
-    root_widget = ui.append_child("widget");
-    root_widget.append_attribute("class") = "QWidget";
-    root_widget.append_attribute("name") = "Form";
-  }
-
-  for(const auto& res : file.resources)
-  {
-    if(std::holds_alternative<menu_data>(res.data))
-      write_menu(root_widget, res);
-    if(std::holds_alternative<toolbar_data>(res.data))
-      write_toolbar(root_widget, res);
-  }
-
-  write_actions(root_widget, file);
-
-  return doc.save_file(output_path.c_str(), "  ");
-}
-
 bool generator::generate_all(const rc_file& file, const std::string& output_dir, const std::string& rc_basename)
 {
   collect_global_data(file);
@@ -157,42 +114,6 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
   }
 
   return !generated_files.empty();
-}
-
-bool generator::generate_single_dialog(const rc_file& file, const resource& res, const std::string& output_path)
-{
-  name_counts_.clear();
-    action_counter_ = 0;
-    menubar_node_ = pugi::xml_node();
-
-  pugi::xml_document doc;
-  pugi::xml_node ui = doc.append_child("ui");
-  ui.append_attribute("version") = "4.0";
-  ui.append_child("class").text() = "Form";
-
-  write_dialog(ui, res);
-
-  pugi::xml_node root_widget = ui.child("widget");
-
-  const auto& dd = std::get<dialog_data>(res.data);
-  bool has_menu = false;
-  for(const auto& stmt : dd.statements)
-  {
-    if(stmt.keyword == "MENU")
-      has_menu = true;
-  }
-  if(has_menu)
-  {
-    for(const auto& menu_res : file.resources)
-    {
-      if(std::holds_alternative<menu_data>(menu_res.data))
-        write_menu(root_widget, menu_res);
-    }
-  }
-
-  write_actions(root_widget, file);
-
-  return doc.save_file(output_path.c_str(), "  ");
 }
 
 void generator::collect_global_data(const rc_file& file)

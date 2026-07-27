@@ -29,14 +29,12 @@ struct string_table_entry;
 class generator
 {
 public:
-  bool generate(const rc_file& file, const std::string& output_path);
   bool generate_all(const rc_file& file, const std::string& output_dir, const std::string& rc_basename);
   bool generate_qrc(const rc_file& file, const std::string& output_path, const std::vector<std::string>& ui_paths = {});
   bool generate_qrc(const rc_file& file, const std::string& output_path, const std::string& ui_path = "");
 
 private:
   void collect_global_data(const rc_file& file);
-  bool generate_single_dialog(const rc_file& file, const resource& res, const std::string& output_path);
 
   void write_dialog(pugi::xml_node& parent, const resource& res);
   void write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd);
