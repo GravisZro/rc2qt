@@ -442,10 +442,15 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     add_property_font(widget, font_family, font_size, font_bold, font_italic);
 
   std::vector<std::string> flags;
+  bool is_fixed_size = false;
 
   if(has_dialog_flag(dd, "STYLE", "DS_MODALFRAME") ||
      has_dialog_flag(dd, "EXSTYLE", "WS_EX_DLGMODALFRAME"))
-    flags.push_back("Qt::MSWindowsFixedSizeDialogHint");
+  {
+    flags.push_back("Qt::Dialog");
+    flags.push_back("Qt::WindowCloseButtonHint");
+    is_fixed_size = true;
+  }
 
   if(has_dialog_flag(dd, "STYLE", "WS_MINIMIZEBOX"))
     flags.push_back("Qt::WindowMinimizeButtonHint");
@@ -468,6 +473,14 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     for(size_t i = 1; i < flags.size(); ++i)
       combined += "|" + flags[i];
     add_property_set(widget, "windowFlags", combined);
+  }
+
+  if(is_fixed_size)
+  {
+    int pw = dlu_to_pixel_x(dd.width);
+    int ph = dlu_to_pixel_y(dd.height);
+    add_property_size(widget, "minimumSize", pw, ph);
+    add_property_size(widget, "maximumSize", pw, ph);
   }
 
   bool visible = has_dialog_flag(dd, "STYLE", "WS_VISIBLE");
@@ -892,6 +905,15 @@ void generator::add_property_int(pugi::xml_node& widget, const std::string& name
   pugi::xml_node prop = widget.append_child("property");
   prop.append_attribute("name") = name.c_str();
   prop.append_child("number").text() = value;
+}
+
+void generator::add_property_size(pugi::xml_node& widget, const std::string& name, int width, int height)
+{
+  pugi::xml_node prop = widget.append_child("property");
+  prop.append_attribute("name") = name.c_str();
+  pugi::xml_node size = prop.append_child("size");
+  size.append_child("width").text() = width;
+  size.append_child("height").text() = height;
 }
 
 void generator::add_property_set(pugi::xml_node& widget, const std::string& name, const std::string& value)

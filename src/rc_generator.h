@@ -52,6 +52,7 @@ private:
   void add_property_string(pugi::xml_node& widget, const std::string& name, const std::string& value);
   void add_property_bool(pugi::xml_node& widget, const std::string& name, bool value);
   void add_property_int(pugi::xml_node& widget, const std::string& name, int value);
+  void add_property_size(pugi::xml_node& widget, const std::string& name, int width, int height);
   void add_property_set(pugi::xml_node& widget, const std::string& name, const std::string& value);
   void add_property_enum(pugi::xml_node& widget, const std::string& name, const std::string& value);
   void add_property_font(pugi::xml_node& widget, const std::string& family, int pointsize, bool bold, bool italic);
