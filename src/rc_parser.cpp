@@ -232,9 +232,15 @@ control parser::parse_control()
           ctrl.class_name = next_val();
       }
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.style = parse_style_expr();
+      }
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.x = next16();
+      }
       if(match(token_type::comma))
         ctrl.y = next16();
       if(match(token_type::comma))
@@ -242,7 +248,10 @@ control parser::parse_control()
       if(match(token_type::comma))
         ctrl.height = next16();
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.ext_style = parse_style_expr();
+      }
     }
   }
   else
@@ -959,7 +968,8 @@ resource parser::parse_resource()
 
   if(auto name = rc::to_upper(res.type);
      funcmap.contains(name))
-    (this->*funcmap.at(name))(res);
+    std::bind_front(funcmap.at(name), this)(res);
+    //(this->*funcmap.at(name))(res);
   else
     parse_unknown_resource(res);
 
