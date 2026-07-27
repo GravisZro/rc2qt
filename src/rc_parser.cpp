@@ -959,7 +959,7 @@ resource parser::parse_resource()
 
   if(auto name = rc::to_upper(res.type);
      funcmap.contains(name))
-    std::bind_front(funcmap.at(name), this, res);
+    (this->*funcmap.at(name))(res);
   else
     parse_unknown_resource(res);
 
