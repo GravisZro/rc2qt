@@ -96,8 +96,8 @@ private:
   constant_registry();
   void register_all();
 
-  std::unordered_map<std::string, int64_t> name_to_value_;
-  std::vector<constant_entry> entries_;
+  std::unordered_map<std::string, int64_t> m_name_to_value;
+  std::vector<constant_entry> m_entries;
 };
 
 }

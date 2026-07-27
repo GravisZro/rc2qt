@@ -19,19 +19,19 @@ constant_registry::constant_registry()
 void constant_registry::add(const std::string& name, int64_t value,
                             constant_category cat, const std::string& desc)
 {
-  name_to_value_[name] = value;
-  entries_.push_back({name, value, cat, desc});
+  m_name_to_value[name] = value;
+  m_entries.push_back({name, value, cat, desc});
 }
 
 bool constant_registry::has_name(const std::string& name) const
 {
-  return name_to_value_.count(name) > 0;
+  return m_name_to_value.count(name) > 0;
 }
 
 int64_t constant_registry::resolve(const std::string& name) const
 {
-  auto it = name_to_value_.find(name);
-  if(it != name_to_value_.end())
+  auto it = m_name_to_value.find(name);
+  if(it != m_name_to_value.end())
     return it->second;
 
   if(!name.empty())
@@ -53,7 +53,7 @@ int64_t constant_registry::resolve(const std::string& name) const
 
 std::string constant_registry::resolve(int64_t value, constant_category cat) const
 {
-  for(const auto& e : entries_)
+  for(const auto& e : m_entries)
   {
     if(e.value == value)
     {
@@ -68,7 +68,7 @@ std::vector<constant_entry> constant_registry::entries_by_category(
   constant_category cat) const
 {
   std::vector<constant_entry> result;
-  for(const auto& e : entries_)
+  for(const auto& e : m_entries)
     if(e.category == cat)
       result.push_back(e);
   return result;
@@ -76,16 +76,23 @@ std::vector<constant_entry> constant_registry::entries_by_category(
 
 std::vector<constant_entry> constant_registry::all_entries() const
 {
-  return entries_;
+  return m_entries;
 }
 
 size_t constant_registry::size() const
 {
-  return entries_.size();
+  return m_entries.size();
 }
 
 void constant_registry::register_all()
 {
+/* These are purely descriptive for the purpose of mapping values to Qt attributes/options/etc.
+add("LB_ADDSTRING", 0x00000401, constant_category::dialog_args?, "Sends the accompanying string or data to a List Box control (CListBox), adding it as a new list item."
+add("LB_INSERTSTRING", 0x00000402, constant_category::dialog_args?, "Used in internal structures for insertion tasks or specialized list box initialization commands."
+add("CB_ADDSTRING", 0x00000403, constant_category::dialog_args?, "Sends the accompanying string data to a Combo Box control (CComboBox), adding it as an entry in the drop-down list."
+add("CB_INSERTSTRING", 0x00000404, constant_category::dialog_args?, "Used for inserting items at specific indices rather than appending them to the end of a combo box list."
+*/
+
   /* ── WS_* Window Styles ───────────────────────────────────────── */
   add("WS_BORDER", 0x00800000, constant_category::window_style, "Creates a window that has a thin-line border.");
   add("WS_CAPTION", 0x00C00000, constant_category::window_style, "Creates a window that has a title bar (includes the WS_BORDER style).");

@@ -17,8 +17,8 @@ public:
   rc_file parse();
 
 private:
-  const std::vector<token>& tokens;
-  size_t pos = 0;
+  const std::vector<token>& m_tokens;
+  size_t m_pos = 0;
 
   const token& current() const;
   const token& peek(size_t offset = 1) const;

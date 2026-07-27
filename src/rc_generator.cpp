@@ -70,9 +70,9 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     std::filesystem::path filename = std::filesystem::path(output_dir) / rc_basename / (unique_short_id + ".ui");
 
-    name_counts_.clear();
-    action_counter_ = 0;
-    menubar_node_ = pugi::xml_node();
+    m_name_counts.clear();
+    m_action_counter = 0;
+    m_menubar_node = pugi::xml_node();
 
 
     pugi::xml_document doc;
@@ -119,17 +119,17 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
 void generator::collect_global_data(const rc_file& file)
 {
-  accelerator_map_.clear();
-  string_table_map_.clear();
-  menu_text_map_.clear();
-  menu_disabled_map_.clear();
-  menu_checked_map_.clear();
-  dlginit_map_.clear();
-  ds_control_dialogs_.clear();
-  name_counts_.clear();
-    action_counter_ = 0;
+  m_accelerator_map.clear();
+  m_string_table_map.clear();
+  m_menu_text_map.clear();
+  m_menu_disabled_map.clear();
+  m_menu_checked_map.clear();
+  m_dlginit_map.clear();
+  m_ds_control_dialogs.clear();
+  m_name_counts.clear();
+    m_action_counter = 0;
 
-  menubar_node_ = pugi::xml_node();
+  m_menubar_node = pugi::xml_node();
 
   for(const auto& res : file.resources)
   {
@@ -168,7 +168,7 @@ void generator::collect_global_data(const rc_file& file)
 
           qt_key += map_vk_to_qt(a.event);
 
-          accelerator_map_[a.id] = qt_key;
+          m_accelerator_map[a.id] = qt_key;
         }
       }
     }
@@ -180,7 +180,7 @@ void generator::collect_global_data(const rc_file& file)
       for(const auto& s : strings)
       {
         if(!s.id.empty())
-          string_table_map_[s.id] = s.value;
+          m_string_table_map[s.id] = s.value;
       }
     }
 
@@ -190,9 +190,11 @@ void generator::collect_global_data(const rc_file& file)
       const auto& items = std::get<std::vector<dlginit_entry>>(res.data);
       for(const auto& item : items)
       {
-        if(item.message == 0x0401 || item.message == 0x0402 ||
-           item.message == 0x0403 || item.message == 0x0404)
-          dlginit_map_[item.control_id].push_back(item.text);
+        if(item.message == 0x0401 || // LB_ADDSTRING
+           item.message == 0x0402 || // LB_INSERTSTRING
+           item.message == 0x0403 || // CB_ADDSTRING
+           item.message == 0x0404)   // CB_INSERTSTRING
+          m_dlginit_map[item.control_id].push_back(item.text);
       }
     }
   }
@@ -213,16 +215,16 @@ void generator::collect_global_data(const rc_file& file)
             {
               std::string display_text = strip_accelerator(mi.text);
               if(!display_text.empty())
-                menu_text_map_[mi.id] = display_text;
+                m_menu_text_map[mi.id] = display_text;
 
               for(const auto& f : mi.flags)
               {
                 std::string f_upper = f;
                 std::transform(f_upper.begin(), f_upper.end(), f_upper.begin(), ::toupper);
                 if(f_upper == "GRAYED" || f_upper == "INACTIVE" || f_upper == "MFS_GRAYED" || f_upper == "MFS_UNHILITE")
-                  menu_disabled_map_[mi.id] = true;
+                  m_menu_disabled_map[mi.id] = true;
                 if(f_upper == "CHECKED" || f_upper == "MFS_CHECKED")
-                  menu_checked_map_[mi.id] = true;
+                  m_menu_checked_map[mi.id] = true;
               }
             }
           }
@@ -234,7 +236,7 @@ void generator::collect_global_data(const rc_file& file)
               std::string f_upper = f;
               std::transform(f_upper.begin(), f_upper.end(), f_upper.begin(), ::toupper);
               if(f_upper == "GRAYED" || f_upper == "INACTIVE" || f_upper == "MFS_GRAYED")
-                menu_disabled_map_[sub->text] = true;
+                m_menu_disabled_map[sub->text] = true;
             }
             collect_texts(sub->entries);
           }
@@ -258,7 +260,7 @@ void generator::collect_global_data(const rc_file& file)
           is_ds_control = true;
       }
       if(is_ds_control)
-        ds_control_dialogs_[res.id] = &dd;
+        m_ds_control_dialogs[res.id] = &dd;
     }
   }
 }
@@ -681,8 +683,8 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
     else if(has_style(ctrl.style, "CBS_DROPDOWN"))
       add_property_bool(widget, "editable", true);
 
-    auto it = dlginit_map_.find(ctrl.id);
-    if(it != dlginit_map_.end())
+    auto it = m_dlginit_map.find(ctrl.id);
+    if(it != m_dlginit_map.end())
     {
       for(const auto& item_text : it->second)
       {
@@ -775,7 +777,7 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
       add_property_enum(widget, "tabPosition", "QTabWidget::North");
 
     int tab_idx = 0;
-    for(const auto& [dlg_id, dlg_ptr] : ds_control_dialogs_)
+    for(const auto& [dlg_id, dlg_ptr] : m_ds_control_dialogs)
     {
       if(!dlg_ptr)
         continue;
@@ -847,8 +849,8 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
     else
       add_property_enum(widget, "selectionMode", "QAbstractItemView::SingleSelection");
 
-    auto it = dlginit_map_.find(ctrl.id);
-    if(it != dlginit_map_.end())
+    auto it = m_dlginit_map.find(ctrl.id);
+    if(it != m_dlginit_map.end())
     {
       for(const auto& item_text : it->second)
       {
@@ -1060,7 +1062,7 @@ std::string generator::unique_name(const std::string& id)
     }));
   if(is_numeric)
     base = "widget_" + base;
-  int& count = name_counts_[base];
+  int& count = m_name_counts[base];
   if(count == 0)
   {
     count = 1;
@@ -1072,12 +1074,12 @@ std::string generator::unique_name(const std::string& id)
 
 int generator::dlu_to_pixel_x(int dlu) const
 {
-  return static_cast<int>(dlu * dlu_x_factor_);
+  return static_cast<int>(dlu * m_dlu_x_factor);
 }
 
 int generator::dlu_to_pixel_y(int dlu) const
 {
-  return static_cast<int>(dlu * dlu_y_factor_);
+  return static_cast<int>(dlu * m_dlu_y_factor);
 }
 
 void generator::set_dlu_factors(const std::string& font_family, int font_size)
@@ -1110,13 +1112,13 @@ void generator::set_dlu_factors(const std::string& font_family, int font_size)
   if(it != known_fonts.end())
   {
     double scale = static_cast<double>(font_size) / 8.0;
-    dlu_x_factor_ = (it->second.avg_width * scale) / 4.0;
-    dlu_y_factor_ = (it->second.avg_height * scale) / 8.0;
+    m_dlu_x_factor = (it->second.avg_width * scale) / 4.0;
+    m_dlu_y_factor = (it->second.avg_height * scale) / 8.0;
   }
   else
   {
-    dlu_x_factor_ = 1.75;
-    dlu_y_factor_ = 1.75;
+    m_dlu_x_factor = 1.75;
+    m_dlu_y_factor = 1.75;
   }
 }
 
@@ -1232,13 +1234,13 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
     return;
   const auto& md = std::get<menu_data>(res.data);
 
-  if(!menubar_node_)
+  if(!m_menubar_node)
   {
-    menubar_node_ = parent.append_child("widget");
-    menubar_node_.append_attribute("class") = "QMenuBar";
-    menubar_node_.append_attribute("name") = "menubar";
+    m_menubar_node = parent.append_child("widget");
+    m_menubar_node.append_attribute("class") = "QMenuBar";
+    m_menubar_node.append_attribute("name") = "menubar";
 
-    pugi::xml_node geom = menubar_node_.append_child("property");
+    pugi::xml_node geom = m_menubar_node.append_child("property");
     geom.append_attribute("name") = "geometry";
     pugi::xml_node rect = geom.append_child("rect");
     rect.append_child("x").text() = 0;
@@ -1260,7 +1262,7 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
         cleaned = "m" + cleaned;
       menu_name = unique_name(cleaned);
 
-      pugi::xml_node menu = menubar_node_.append_child("widget");
+      pugi::xml_node menu = m_menubar_node.append_child("widget");
       menu.append_attribute("class") = "QMenu";
       menu.append_attribute("name") = menu_name.c_str();
 
@@ -1270,7 +1272,7 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
 
       write_menu_entries(menu, popup_ptr->entries);
 
-      pugi::xml_node addaction = menubar_node_.append_child("addaction");
+      pugi::xml_node addaction = m_menubar_node.append_child("addaction");
       addaction.append_attribute("name") = menu_name.c_str();
     }
   }
@@ -1292,7 +1294,7 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       }
 
       std::string action_name = mi.id.empty()
-        ? "action" + std::to_string(action_counter_++)
+        ? "action" + std::to_string(m_action_counter++)
         : mi.id;
 
       pugi::xml_node addaction = menu_node.append_child("addaction");
@@ -1397,36 +1399,36 @@ void generator::write_actions(pugi::xml_node& parent, const rc_file& file)
     action.append_attribute("name") = id.c_str();
 
     std::string display_text = id;
-    auto text_it = menu_text_map_.find(id);
-    if(text_it != menu_text_map_.end())
+    auto text_it = m_menu_text_map.find(id);
+    if(text_it != m_menu_text_map.end())
       display_text = text_it->second;
 
     pugi::xml_node text = action.append_child("property");
     text.append_attribute("name") = "text";
     text.append_child("string").text() = display_text.c_str();
 
-    auto acc_it = accelerator_map_.find(id);
-    if(acc_it != accelerator_map_.end() && !acc_it->second.empty())
+    auto acc_it = m_accelerator_map.find(id);
+    if(acc_it != m_accelerator_map.end() && !acc_it->second.empty())
     {
       pugi::xml_node shortcut = action.append_child("property");
       shortcut.append_attribute("name") = "shortcut";
       shortcut.append_child("string").text() = acc_it->second.c_str();
     }
 
-    auto str_it = string_table_map_.find(id);
-    if(str_it != string_table_map_.end() && !str_it->second.empty())
+    auto str_it = m_string_table_map.find(id);
+    if(str_it != m_string_table_map.end() && !str_it->second.empty())
     {
       pugi::xml_node tooltip = action.append_child("property");
       tooltip.append_attribute("name") = "toolTip";
       tooltip.append_child("string").text() = str_it->second.c_str();
     }
 
-    auto dis_it = menu_disabled_map_.find(id);
-    if(dis_it != menu_disabled_map_.end() && dis_it->second)
+    auto dis_it = m_menu_disabled_map.find(id);
+    if(dis_it != m_menu_disabled_map.end() && dis_it->second)
       add_property_bool(action, "enabled", false);
 
-    auto chk_it = menu_checked_map_.find(id);
-    if(chk_it != menu_checked_map_.end() && chk_it->second)
+    auto chk_it = m_menu_checked_map.find(id);
+    if(chk_it != m_menu_checked_map.end() && chk_it->second)
       add_property_bool(action, "checkable", true);
   }
 }

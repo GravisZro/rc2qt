@@ -11,31 +11,31 @@
 namespace rc
 {
 
-parser::parser(const std::vector<token>& t) : tokens(t) {}
+parser::parser(const std::vector<token>& t) : m_tokens(t) {}
 
 const token& parser::current() const
 {
-  if(pos >= tokens.size())
-    return tokens.back();
-  return tokens[pos];
+  if(m_pos >= m_tokens.size())
+    return m_tokens.back();
+  return m_tokens[m_pos];
 }
 
 const token& parser::peek(size_t offset) const
 {
-  size_t idx = pos + offset;
-  if(idx < tokens.size())
-    return tokens[idx];
-  if(!tokens.empty())
-    return tokens.back();
+  size_t idx = m_pos + offset;
+  if(idx < m_tokens.size())
+    return m_tokens[idx];
+  if(!m_tokens.empty())
+    return m_tokens.back();
   static const token eof_token{token_type::eof, "", 0};
   return eof_token;
 }
 
 token parser::advance()
 {
-  if(pos >= tokens.size())
+  if(m_pos >= m_tokens.size())
     return {token_type::eof, "", 0};
-  return tokens[pos++];
+  return m_tokens[m_pos++];
 }
 
 int16_t parser::next16(void)
@@ -89,7 +89,7 @@ bool parser::match(token_type type)
 {
   if(current().type == type)
   {
-    ++pos;
+    ++m_pos;
     return true;
   }
   return false;
@@ -99,7 +99,7 @@ bool parser::match_id(const std::string& value)
 {
   if(is_current_type(token_type::identifier) && current().value == value)
   {
-    ++pos;
+    ++m_pos;
     return true;
   }
   return false;
@@ -109,7 +109,7 @@ bool parser::match_id_ci(const std::string& value)
 {
   if(is_current_type(token_type::identifier) && is_current_string(value))
   {
-    ++pos;
+    ++m_pos;
     return true;
   }
   return false;
@@ -704,7 +704,7 @@ void parser::parse_versioninfo_resource(resource& res)
   if(match(token_type::begin))
   {
     int depth = 1;
-    size_t max_iters = tokens.size() * 4;
+    size_t max_iters = m_tokens.size() * 4;
     size_t iters = 0;
     while(depth > 0 && !is_current_type(token_type::eof) && iters < max_iters)
     {

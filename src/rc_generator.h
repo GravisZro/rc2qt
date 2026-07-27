@@ -79,18 +79,18 @@ private:
   std::string strip_accelerator(const std::string& text) const;
   std::string map_ms_font(const std::string& ms_font);
 
-  std::map<std::string, int> name_counts_;
-  std::map<std::string, std::string> accelerator_map_;
-  std::map<std::string, std::string> string_table_map_;
-  std::map<std::string, std::string> menu_text_map_;
-  std::map<std::string, bool> menu_disabled_map_;
-  std::map<std::string, bool> menu_checked_map_;
-  std::map<std::string, std::vector<std::string>> dlginit_map_;
-  std::map<std::string, const dialog_data*> ds_control_dialogs_;
-  pugi::xml_node menubar_node_;
-  double dlu_x_factor_ = 1.75;
-  double dlu_y_factor_ = 1.75;
-  int action_counter_ = 0;
+  std::map<std::string, int> m_name_counts;
+  std::map<std::string, std::string> m_accelerator_map;
+  std::map<std::string, std::string> m_string_table_map;
+  std::map<std::string, std::string> m_menu_text_map;
+  std::map<std::string, bool> m_menu_disabled_map;
+  std::map<std::string, bool> m_menu_checked_map;
+  std::map<std::string, std::vector<std::string>> m_dlginit_map;
+  std::map<std::string, const dialog_data*> m_ds_control_dialogs;
+  pugi::xml_node m_menubar_node;
+  double m_dlu_x_factor = 1.75;
+  double m_dlu_y_factor = 1.75;
+  int m_action_counter = 0;
 };
 
 }
