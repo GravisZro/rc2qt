@@ -802,7 +802,24 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         }
       }
       if(tab_title.empty())
+      {
         tab_title = dlg_id;
+        for(const auto& prefix : {"IDD_", "DLG_", "IDC_"})
+        {
+          if(tab_title.size() > strlen(prefix) && tab_title.substr(0, strlen(prefix)) == prefix)
+          {
+            tab_title = tab_title.substr(strlen(prefix));
+            break;
+          }
+        }
+        for(char& c : tab_title)
+          c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for(char& c : tab_title)
+        {
+          if(c == '_')
+            c = ' ';
+        }
+      }
 
       std::string tab_name = "tabPage";
       tab_name += std::to_string(tab_idx);
