@@ -9,6 +9,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <cstring>
 
 namespace rc
 {
@@ -458,7 +459,7 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
   for(int gi : groupbox_indices)
   {
-    write_control(widget, dd.controls[gi]);
+    write_control(widget, dd.controls[gi], dialog_name);
     written[gi] = true;
 
     pugi::xml_node gb_widget = widget.last_child();
@@ -477,7 +478,7 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
       relative.x = ctrl.x - gb.x;
       relative.y = ctrl.y - gb.y - 4;
 
-      write_control(gb_widget, relative);
+      write_control(gb_widget, relative, dialog_name);
       written[i] = true;
     }
   }
@@ -486,7 +487,7 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   {
     if(!written[i])
     {
-      write_control(widget, dd.controls[i]);
+      write_control(widget, dd.controls[i], dialog_name);
       written[i] = true;
     }
   }
@@ -556,7 +557,89 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   add_property_bool(widget, "enabled", enabled);
 }
 
-void generator::write_control(pugi::xml_node& parent, const control& ctrl)
+std::set<std::string> generator::id_words(const std::string& id) const
+{
+  std::set<std::string> words;
+  std::string upper = id;
+  std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+
+  for(const auto& prefix : {"IDD_", "DLG_", "IDC_", "IDM_"})
+  {
+    if(upper.size() > strlen(prefix) && upper.substr(0, strlen(prefix)) == prefix)
+    {
+      upper = upper.substr(strlen(prefix));
+      break;
+    }
+  }
+
+  std::string word;
+  for(char c : upper)
+  {
+    if(c == '_')
+    {
+      if(word.size() >= 3)
+        words.insert(word);
+      word.clear();
+    }
+    else
+    {
+      word += c;
+    }
+  }
+  if(word.size() >= 3)
+    words.insert(word);
+
+  return words;
+}
+
+bool generator::share_common_word(const std::string& id1, const std::string& id2) const
+{
+  auto words1 = id_words(id1);
+  auto words2 = id_words(id2);
+
+  for(const auto& w : words1)
+  {
+    if(words2.count(w))
+      return true;
+  }
+
+  std::string upper1 = id1;
+  std::transform(upper1.begin(), upper1.end(), upper1.begin(), ::toupper);
+  std::string upper2 = id2;
+  std::transform(upper2.begin(), upper2.end(), upper2.begin(), ::toupper);
+
+  for(const auto& prefix : {"IDD_", "DLG_", "IDC_", "IDM_"})
+  {
+    if(upper1.size() > strlen(prefix) && upper1.substr(0, strlen(prefix)) == prefix)
+    {
+      upper1 = upper1.substr(strlen(prefix));
+      break;
+    }
+  }
+  for(const auto& prefix : {"IDD_", "DLG_", "IDC_", "IDM_"})
+  {
+    if(upper2.size() > strlen(prefix) && upper2.substr(0, strlen(prefix)) == prefix)
+    {
+      upper2 = upper2.substr(strlen(prefix));
+      break;
+    }
+  }
+
+  for(const auto& w : words1)
+  {
+    if(upper2.find(w) != std::string::npos)
+      return true;
+  }
+  for(const auto& w : words2)
+  {
+    if(upper1.find(w) != std::string::npos)
+      return true;
+  }
+
+  return false;
+}
+
+void generator::write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name)
 {
   std::string qt_class = map_keyword_to_widget(ctrl.keyword);
 
@@ -760,6 +843,9 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl)
     for(const auto& [dlg_id, dlg_ptr] : ds_control_dialogs_)
     {
       if(!dlg_ptr)
+        continue;
+
+      if(!dialog_name.empty() && !share_common_word(dialog_name, dlg_id))
         continue;
 
       const auto& dd = *dlg_ptr;
@@ -1507,3 +1593,5 @@ std::string generator::map_ms_font(const std::string& ms_font)
 }
 
 }
+
+

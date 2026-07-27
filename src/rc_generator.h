@@ -2,8 +2,9 @@
 #define RC_GENERATOR_H
 
 #include <cstdint>
-#include <string>
 #include <map>
+#include <set>
+#include <string>
 #include <vector>
 
 #include <pugixml.hpp>
@@ -39,7 +40,10 @@ private:
 
   void write_dialog(pugi::xml_node& parent, const resource& res);
   void write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd);
-  void write_control(pugi::xml_node& parent, const control& ctrl);
+  void write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name);
+
+  std::set<std::string> id_words(const std::string& id) const;
+  bool share_common_word(const std::string& id1, const std::string& id2) const;
   void write_menu(pugi::xml_node& parent, const resource& res);
   void write_menu_entries(pugi::xml_node& menu_node, const std::vector<menu_entry>& entries);
   void write_toolbar(pugi::xml_node& parent, const resource& res);
