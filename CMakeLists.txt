@@ -67,7 +67,7 @@ set(TEST_SOURCES
   src/rc_resolver.cpp
   src/rc_helpers.cpp
   src/rc_parser.cpp
-  tests/test_parser.cpp
+  src/test_parser.cpp
 )
 
 add_executable(test_parser ${TEST_SOURCES})
