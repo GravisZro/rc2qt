@@ -1582,6 +1582,8 @@ std::string generator::map_vk_to_qt(const std::string& vk_code)
 
   std::set<std::string> unmappable =
   {
+    "VK_RWIN",
+    "VK_LWIN",
     "VK_STARTKEY",
     "VK_CONTEXTKEY",
     "VK_OEM_PLUS",

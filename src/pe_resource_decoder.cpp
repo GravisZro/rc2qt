@@ -11,6 +11,7 @@
 #include <cstring>
 #include <fstream>
 #include <format>
+#include <unordered_map>
 
 
 namespace
@@ -889,108 +890,62 @@ std::string decode_menu(
   return out.str();
 }
 
-static const std::string* vk_name(uint8_t code)
+
+static const std::unordered_map<uint16_t, std::string> keyMap =
 {
-  static const std::string* names = []()
-  {
-    auto* arr = new std::string[256];
-    arr[0x01] = "VK_LBUTTON"; arr[0x02] = "VK_RBUTTON";
-    arr[0x03] = "VK_CANCEL"; arr[0x04] = "VK_MBUTTON";
-    arr[0x05] = "VK_XBUTTON1"; arr[0x06] = "VK_XBUTTON2";
-    arr[0x08] = "VK_BACK"; arr[0x09] = "VK_TAB";
-    arr[0x0C] = "VK_CLEAR"; arr[0x0D] = "VK_RETURN";
-    arr[0x10] = "VK_SHIFT"; arr[0x11] = "VK_CONTROL";
-    arr[0x12] = "VK_MENU"; arr[0x13] = "VK_PAUSE";
-    arr[0x14] = "VK_CAPITAL"; arr[0x15] = "VK_KANA";
-    arr[0x17] = "VK_JUNJA"; arr[0x18] = "VK_FINAL";
-    arr[0x19] = "VK_HANJA"; arr[0x1B] = "VK_ESCAPE";
-    arr[0x1C] = "VK_CONVERT"; arr[0x1D] = "VK_NONCONVERT";
-    arr[0x1E] = "VK_ACCEPT"; arr[0x1F] = "VK_MODECHANGE";
-    arr[0x20] = "VK_SPACE"; arr[0x21] = "VK_PRIOR";
-    arr[0x22] = "VK_NEXT"; arr[0x23] = "VK_END";
-    arr[0x24] = "VK_HOME"; arr[0x25] = "VK_LEFT";
-    arr[0x26] = "VK_UP"; arr[0x27] = "VK_RIGHT";
-    arr[0x28] = "VK_DOWN"; arr[0x29] = "VK_SELECT";
-    arr[0x2A] = "VK_PRINT"; arr[0x2B] = "VK_EXECUTE";
-    arr[0x2C] = "VK_SNAPSHOT"; arr[0x2D] = "VK_INSERT";
-    arr[0x2E] = "VK_DELETE"; arr[0x2F] = "VK_HELP";
-    for (uint16_t i = 0; i <= 9; i++)
-      arr[0x30 + i] = std::format("VK_{}", i);
-    for (uint16_t i = 0; i < 26; i++)
-      arr[0x41 + i] = std::format("VK_{}", static_cast<char>('A' + i));
-    arr[0x5B] = "VK_LWIN"; arr[0x5C] = "VK_RWIN";
-    arr[0x5D] = "VK_APPS"; arr[0x5F] = "VK_SLEEP";
-    for (uint16_t i = 0; i <= 9; i++)
-      arr[0x60 + i] = std::format("VK_NUMPAD{}", i);
-    arr[0x6A] = "VK_MULTIPLY"; arr[0x6B] = "VK_ADD";
-    arr[0x6C] = "VK_SEPARATOR"; arr[0x6D] = "VK_SUBTRACT";
-    arr[0x6E] = "VK_DECIMAL"; arr[0x6F] = "VK_DIVIDE";
-    for (uint16_t i = 1; i <= 24; i++)
-      arr[0x6F + i] = std::format("VK_F{}", i);
-    arr[0x90] = "VK_NUMLOCK"; arr[0x91] = "VK_SCROLL";
-    arr[0x92] = "VK_OEM_NEC_EQUAL";
-    arr[0x93] = "VK_OEM_FJ_MASSHOU"; arr[0x94] = "VK_OEM_FJ_TOUROKU";
-    arr[0x95] = "VK_OEM_FJ_LOYA"; arr[0x96] = "VK_OEM_FJ_ROYA";
-    arr[0xA0] = "VK_LSHIFT"; arr[0xA1] = "VK_RSHIFT";
-    arr[0xA2] = "VK_LCONTROL"; arr[0xA3] = "VK_RCONTROL";
-    arr[0xA4] = "VK_LMENU"; arr[0xA5] = "VK_RMENU";
-    arr[0xA6] = "VK_BROWSER_BACK"; arr[0xA7] = "VK_BROWSER_FORWARD";
-    arr[0xA8] = "VK_BROWSER_REFRESH"; arr[0xA9] = "VK_BROWSER_STOP";
-    arr[0xAA] = "VK_BROWSER_SEARCH"; arr[0xAB] = "VK_BROWSER_FAVORITES";
-    arr[0xAC] = "VK_BROWSER_HOME";
-    arr[0xAD] = "VK_VOLUME_MUTE"; arr[0xAE] = "VK_VOLUME_DOWN";
-    arr[0xAF] = "VK_VOLUME_UP";
-    arr[0xB0] = "VK_MEDIA_NEXT_TRACK"; arr[0xB1] = "VK_MEDIA_PREV_TRACK";
-    arr[0xB2] = "VK_MEDIA_STOP"; arr[0xB3] = "VK_MEDIA_PLAY_PAUSE";
-    arr[0xB4] = "VK_LAUNCH_MAIL"; arr[0xB5] = "VK_LAUNCH_MEDIA_SELECT";
-    arr[0xB6] = "VK_LAUNCH_APP1"; arr[0xB7] = "VK_LAUNCH_APP2";
-    arr[0xBA] = "VK_OEM_1"; arr[0xBB] = "VK_OEM_PLUS";
-    arr[0xBC] = "VK_OEM_COMMA"; arr[0xBD] = "VK_OEM_MINUS";
-    arr[0xBE] = "VK_OEM_PERIOD"; arr[0xBF] = "VK_OEM_2";
-    arr[0xC0] = "VK_OEM_3";
-    arr[0xC3] = "VK_GAMEPAD_A"; arr[0xC4] = "VK_GAMEPAD_B";
-    arr[0xC5] = "VK_GAMEPAD_X"; arr[0xC6] = "VK_GAMEPAD_Y";
-    arr[0xC7] = "VK_GAMEPAD_RIGHT_SHOULDER";
-    arr[0xC8] = "VK_GAMEPAD_LEFT_SHOULDER";
-    arr[0xC9] = "VK_GAMEPAD_LEFT_TRIGGER";
-    arr[0xCA] = "VK_GAMEPAD_RIGHT_TRIGGER";
-    arr[0xCB] = "VK_GAMEPAD_DPAD_UP"; arr[0xCC] = "VK_GAMEPAD_DPAD_DOWN";
-    arr[0xCD] = "VK_GAMEPAD_DPAD_LEFT"; arr[0xCE] = "VK_GAMEPAD_DPAD_RIGHT";
-    arr[0xCF] = "VK_GAMEPAD_MENU"; arr[0xD0] = "VK_GAMEPAD_VIEW";
-    arr[0xD1] = "VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON";
-    arr[0xD2] = "VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON";
-    arr[0xD3] = "VK_GAMEPAD_LEFT_THUMBSTICK_UP";
-    arr[0xD4] = "VK_GAMEPAD_LEFT_THUMBSTICK_DOWN";
-    arr[0xD5] = "VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT";
-    arr[0xD6] = "VK_GAMEPAD_LEFT_THUMBSTICK_LEFT";
-    arr[0xD7] = "VK_GAMEPAD_RIGHT_THUMBSTICK_UP";
-    arr[0xD8] = "VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN";
-    arr[0xD9] = "VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT";
-    arr[0xDA] = "VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT";
-    arr[0xDB] = "VK_OEM_4"; arr[0xDC] = "VK_OEM_5";
-    arr[0xDD] = "VK_OEM_6"; arr[0xDE] = "VK_OEM_7";
-    arr[0xDF] = "VK_OEM_8";
-    arr[0xE1] = "VK_OEM_AX"; arr[0xE2] = "VK_OEM_102";
-    arr[0xE3] = "VK_ICO_HELP"; arr[0xE4] = "VK_ICO_00";
-    arr[0xE5] = "VK_PROCESSKEY"; arr[0xE6] = "VK_ICO_CLEAR";
-    arr[0xE7] = "VK_PACKET";
-    arr[0xE9] = "VK_OEM_RESET"; arr[0xEA] = "VK_OEM_JUMP";
-    arr[0xEB] = "VK_OEM_PA1"; arr[0xEC] = "VK_OEM_PA2";
-    arr[0xED] = "VK_OEM_PA3";
-    arr[0xEE] = "VK_OEM_WSCTRL"; arr[0xEF] = "VK_OEM_CUSEL";
-    arr[0xF0] = "VK_OEM_ATTN";
-    arr[0xF1] = "VK_OEM_FINISH"; arr[0xF2] = "VK_OEM_COPY";
-    arr[0xF3] = "VK_OEM_AUTO"; arr[0xF4] = "VK_OEM_ENLW";
-    arr[0xF5] = "VK_OEM_BACKTAB";
-    arr[0xF6] = "VK_ATTN"; arr[0xF7] = "VK_CRSEL";
-    arr[0xF8] = "VK_EXSEL"; arr[0xF9] = "VK_EREOF";
-    arr[0xFA] = "VK_PLAY"; arr[0xFB] = "VK_ZOOM";
-    arr[0xFC] = "VK_NONAME"; arr[0xFD] = "VK_PA1";
-    arr[0xFE] = "VK_OEM_CLEAR";
-    return arr;
-  }();
-  return &names[code];
-}
+  { 0x10, "VK_SHIFT" },
+  { 0x11, "VK_CONTROL" },
+  { 0x12, "VK_MENU" },
+  { 0x13, "VK_PAUSE" },
+  { 0x14, "VK_CAPITAL" },
+  { 0x08, "VK_BACK" },
+  { 0x09, "VK_TAB" },
+  { 0x0D, "VK_RETURN" },
+  { 0x1B, "VK_ESCAPE" },
+  { 0x20, "VK_SPACE" },
+  { 0x21, "VK_PRIOR" },
+  { 0x22, "VK_NEXT" },
+  { 0x23, "VK_END" },
+  { 0x24, "VK_HOME" },
+  { 0x25, "VK_LEFT" },
+  { 0x26, "VK_UP" },
+  { 0x27, "VK_RIGHT" },
+  { 0x28, "VK_DOWN" },
+  { 0x2C, "VK_SNAPSHOT" },
+  { 0x2D, "VK_INSERT" },
+  { 0x2E, "VK_DELETE" },
+  { 0x2F, "VK_HELP" },
+  { 0xA0, "VK_LSHIFT" },
+  { 0xA1, "VK_RSHIFT" },
+  { 0xA2, "VK_LCONTROL" },
+  { 0xA3, "VK_RCONTROL" },
+  { 0xA4, "VK_LMENU" },
+  { 0xA5, "VK_RMENU" },
+  { 0x30, "VK_0" }, { 0x31, "VK_1" }, { 0x32, "VK_2" }, { 0x33, "VK_3" },
+  { 0x34, "VK_4" }, { 0x35, "VK_5" }, { 0x36, "VK_6" }, { 0x37, "VK_7" },
+  { 0x38, "VK_8" }, { 0x39, "VK_9" },
+  { 0x41, "VK_A" }, { 0x42, "VK_B" }, { 0x43, "VK_C" }, { 0x44, "VK_D" },
+  { 0x45, "VK_E" }, { 0x46, "VK_F" }, { 0x47, "VK_G" }, { 0x48, "VK_H" },
+  { 0x49, "VK_I" }, { 0x4A, "VK_J" }, { 0x4B, "VK_K" }, { 0x4C, "VK_L" },
+  { 0x4D, "VK_M" }, { 0x4E, "VK_N" }, { 0x4F, "VK_O" }, { 0x50, "VK_P" },
+  { 0x51, "VK_Q" }, { 0x52, "VK_R" }, { 0x53, "VK_S" }, { 0x54, "VK_T" },
+  { 0x55, "VK_U" }, { 0x56, "VK_V" }, { 0x57, "VK_W" }, { 0x58, "VK_X" },
+  { 0x59, "VK_Y" }, { 0x5A, "VK_Z" },
+  { 0x70, "VK_F1" },  { 0x71, "VK_F2" },  { 0x72, "VK_F3" },  { 0x73, "VK_F4" },
+  { 0x74, "VK_F5" },  { 0x75, "VK_F6" },  { 0x76, "VK_F7" },  { 0x77, "VK_F8" },
+  { 0x78, "VK_F9" },  { 0x79, "VK_F10" }, { 0x7A, "VK_F11" }, { 0x7B, "VK_F12" },
+  { 0x7C, "VK_F13" }, { 0x7D, "VK_F14" }, { 0x7E, "VK_F15" }, { 0x7F, "VK_F16" },
+  { 0x80, "VK_F17" }, { 0x81, "VK_F18" }, { 0x82, "VK_F19" }, { 0x83, "VK_F20" },
+  { 0x84, "VK_F21" }, { 0x85, "VK_F22" }, { 0x86, "VK_F23" }, { 0x87, "VK_F24" },
+  { 0x60, "VK_NUMPAD0" }, { 0x61, "VK_NUMPAD1" },
+  { 0x62, "VK_NUMPAD2" }, { 0x63, "VK_NUMPAD3" },
+  { 0x64, "VK_NUMPAD4" }, { 0x65, "VK_NUMPAD5" },
+  { 0x66, "VK_NUMPAD6" }, { 0x67, "VK_NUMPAD7" },
+  { 0x68, "VK_NUMPAD8" }, { 0x69, "VK_NUMPAD9" },
+  { 0x6A, "VK_MULTIPLY" }, { 0x6B, "VK_ADD" },
+  { 0x6C, "VK_SEPARATOR" }, { 0x6D, "VK_SUBTRACT" },
+  { 0x6E, "VK_DECIMAL" }, { 0x6F, "VK_DIVIDE" },
+};
 
 std::string decode_accelerators(
   std::span<const uint8_t> data,
@@ -1012,8 +967,9 @@ std::string decode_accelerators(
     std::string key_str;
     if (flags & 0x01)
     {
-      if (event < 256 && !vk_name(static_cast<uint8_t>(event))->empty())
-        key_str = *vk_name(static_cast<uint8_t>(event));
+      auto it = keyMap.find(event);
+      if (it != keyMap.end())
+        key_str = it->second;
       else if (event >= 0x21 && event <= 0x7E)
         key_str = "\"" + std::string(1, static_cast<char>(event)) + "\"";
       else
