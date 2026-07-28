@@ -1,4 +1,5 @@
 #include "pe_resource_decoder.h"
+#include "imageio.h"
 #include "pefile.hpp"
 #include "pe_constants.hpp"
 #include "pe_containers.hpp"
@@ -7,6 +8,9 @@
 #include <stdexcept>
 #include <algorithm>
 #include <functional>
+#include <cstring>
+#include <fstream>
+
 
 namespace
 {
@@ -694,10 +698,10 @@ std::string decode_menu(
     help_id = reader.read_u32();
 
   std::ostringstream out;
-  out << resource_id << " MENU";
-
   if (version == 1)
-    out << " EX";
+    out << resource_id << " MENUEX";
+  else
+    out << resource_id << " MENU";
 
   out << "\nBEGIN\n";
 
@@ -1095,8 +1099,11 @@ std::string decode_versioninfo(
   return out.str();
 }
 
+// ─── Main resource decoder ────────────────────────────────────────────
+
 std::vector<decoded_resource> decode_pe_resources(
-  const std::string& pe_path)
+  const std::string& pe_path,
+  const std::filesystem::path& output_dir)
 {
   std::vector<decoded_resource> results;
 
@@ -1104,6 +1111,31 @@ std::vector<decoded_resource> decode_pe_resources(
 
   for (const auto& root_dir : pe.resources())
   {
+    // Pre-scan: collect all RT_ICON IDs referenced by GROUP_ICON entries
+    std::set<uint32_t> grouped_icon_ids;
+    for (const auto& te : root_dir.entries)
+    {
+      if (te.id != 14 || !te.directory)
+        continue;
+      for (const auto& ie : te.directory->entries)
+      {
+        std::span<const uint8_t> gd;
+        if (ie.data_entry)
+          gd = pe.get_data(ie.data_entry->data_rva, ie.data_entry->size);
+        else if (ie.directory)
+          for (const auto& le : ie.directory->entries)
+            if (le.data_entry) { gd = pe.get_data(le.data_entry->data_rva, le.data_entry->size); break; }
+        if (gd.empty()) continue;
+        byte_reader gr(gd);
+        gr.skip(2); gr.read_u16(); uint16_t cnt = gr.read_u16();
+        for (uint16_t k = 0; k < cnt && gr.remaining() >= 14; k++)
+        {
+          gr.skip(8); gr.read_u16(); gr.read_u32(); uint16_t nid = gr.read_u16();
+          grouped_icon_ids.insert(nid);
+        }
+      }
+    }
+
     for (const auto& type_entry : root_dir.entries)
     {
       uint32_t type_id = type_entry.id;
@@ -1140,43 +1172,139 @@ std::vector<decoded_resource> decode_pe_resources(
         else
           res_id = resource_id_string(id_entry.id);
 
-        std::string rc_text;
+        decoded_resource dr;
+        dr.id = res_id;
 
         switch (type_id)
         {
+          case 2:
+          {
+            dr.type = "BITMAP";
+            dr.image_data = dib_to_bmp(raw_data);
+            dr.filename = "bitmap_" + std::to_string(id_entry.id) + ".bmp";
+            break;
+          }
+          case 3:
+          {
+            // Skip RT_ICON entries that are part of a GROUP_ICON
+            if (grouped_icon_ids.count(id_entry.id))
+              continue;
+            dr.type = "ICON";
+            dr.image_data = ico_to_bmp(raw_data);
+            dr.filename = "icon_" + std::to_string(id_entry.id) + ".bmp";
+            break;
+          }
           case 4:
-            rc_text = decode_menu(raw_data, res_id);
+            dr.type = "MENU";
+            dr.rc_text = decode_menu(raw_data, res_id);
             break;
           case 5:
-            rc_text = decode_dialog(raw_data, res_id);
+            dr.type = "DIALOG";
+            dr.rc_text = decode_dialog(raw_data, res_id);
             break;
           case 6:
-            rc_text = decode_stringtable(raw_data, id_entry.id);
+            dr.type = "STRINGTABLE";
+            dr.rc_text = decode_stringtable(raw_data, id_entry.id);
             break;
           case 9:
-            rc_text = decode_accelerators(raw_data, res_id);
+            dr.type = "ACCELERATORS";
+            dr.rc_text = decode_accelerators(raw_data, res_id);
             break;
+          case 14:
+          {
+            byte_reader grp_reader(raw_data);
+            grp_reader.skip(2); // reserved
+            uint16_t icon_type = grp_reader.read_u16();
+            uint16_t count = grp_reader.read_u16();
+            (void)icon_type;
+
+            for (uint16_t i = 0; i < count; i++)
+            {
+              if (grp_reader.remaining() < 14)
+                break;
+              uint8_t  w = grp_reader.read_u8();
+              uint8_t  h = grp_reader.read_u8();
+              /*uint8_t  colors = */ grp_reader.read_u8();
+              /*uint8_t  reserved = */ grp_reader.read_u8();
+              uint16_t planes = grp_reader.read_u16();
+              uint16_t bpp = grp_reader.read_u16();
+              uint32_t size = grp_reader.read_u32();
+              uint16_t nid = grp_reader.read_u16();
+              (void)planes;
+              (void)size;
+
+              for (const auto& type_entry2 : root_dir.entries)
+              {
+                if (type_entry2.id != 3)
+                  continue;
+                if (!type_entry2.directory)
+                  continue;
+                for (const auto& id_entry2 : type_entry2.directory->entries)
+                {
+                  if (id_entry2.id != nid)
+                    continue;
+
+                  std::span<const uint8_t> ico_data;
+                  if (id_entry2.data_entry)
+                    ico_data = pe.get_data(id_entry2.data_entry->data_rva, id_entry2.data_entry->size);
+                  else if (id_entry2.directory)
+                  {
+                    for (const auto& lang_entry2 : id_entry2.directory->entries)
+                    {
+                      if (lang_entry2.data_entry)
+                      {
+                        ico_data = pe.get_data(lang_entry2.data_entry->data_rva, lang_entry2.data_entry->size);
+                        break;
+                      }
+                    }
+                  }
+
+                  if (!ico_data.empty())
+                  {
+                    decoded_resource icon_dr;
+                    icon_dr.type = "ICON";
+                    icon_dr.id = dr.id;
+                    icon_dr.image_data = ico_to_bmp(ico_data);
+                    icon_dr.filename = "icon_"
+                      + std::to_string(id_entry.id)
+                      + (w > 0 ? "_" + std::to_string(w) + "x" + std::to_string(h) : "")
+                      + (bpp > 0 ? "_" + std::to_string(bpp) + "bpp" : "")
+                      + ".bmp";
+                    results.push_back(std::move(icon_dr));
+                  }
+                  break;
+                }
+              }
+            }
+            continue;
+          }
           case 16:
-            rc_text = decode_versioninfo(raw_data, res_id);
+            dr.type = "VERSIONINFO";
+            dr.rc_text = decode_versioninfo(raw_data, res_id);
             break;
           default:
             break;
         }
 
-        if (!rc_text.empty())
+        bool has_rc = !dr.rc_text.empty();
+        bool has_img = !dr.image_data.empty();
+
+        if (has_rc || has_img)
         {
-          decoded_resource dr;
-          dr.id = res_id;
-          switch (type_id)
+          if (dr.type.empty())
           {
-            case 4: dr.type = "MENU"; break;
-            case 5: dr.type = "DIALOG"; break;
-            case 6: dr.type = "STRINGTABLE"; break;
-            case 9: dr.type = "ACCELERATORS"; break;
-            case 16: dr.type = "VERSIONINFO"; break;
-            default: dr.type = "UNKNOWN"; break;
+            switch (type_id)
+            {
+              case 2: dr.type = "BITMAP"; break;
+              case 3: dr.type = "ICON"; break;
+              case 4: dr.type = "MENU"; break;
+              case 5: dr.type = "DIALOG"; break;
+              case 6: dr.type = "STRINGTABLE"; break;
+              case 9: dr.type = "ACCELERATORS"; break;
+              case 16: dr.type = "VERSIONINFO"; break;
+              default: dr.type = "UNKNOWN"; break;
+            }
           }
-          dr.rc_text = rc_text;
           results.push_back(std::move(dr));
         }
       }

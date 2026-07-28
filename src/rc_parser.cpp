@@ -616,7 +616,7 @@ void parser::parse_accelerator_resource(resource& res)
       if(match(token_type::comma))
         ae.id = parse_resource_id();
 
-      while(match(token_type::comma))
+      while(match(token_type::comma) || match(token_type::pipe))
       {
         if(is_current_type(token_type::identifier))
           ae.modifiers.push_back(next_val());

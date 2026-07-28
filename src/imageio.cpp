@@ -1,0 +1,217 @@
+#include "imageio.h"
+
+#include <cstring>
+#include <fstream>
+
+
+struct [[gnu::packed]] bmp_file_header
+{
+  uint16_t bfType = 0x4D42;
+  uint32_t bfSize = 0;
+  uint16_t bfReserved1 = 0;
+  uint16_t bfReserved2 = 0;
+  uint32_t bfOffBits = 0;
+};
+
+namespace
+{
+
+struct [[gnu::packed]] dib_info
+{
+  uint32_t header_size = 0;
+  int32_t width = 0;
+  int32_t height = 0;
+  uint16_t bit_count = 0;
+  uint32_t compression = 0;
+  uint32_t palette_entries = 0;
+  size_t pixel_offset = 0;
+  size_t row_stride = 0;
+};
+
+dib_info parse_dib(std::span<const uint8_t> data)
+{
+  dib_info di;
+  if (data.size() < 40)
+    return di;
+
+  std::memcpy(&di.header_size, data.data(), 4);
+  std::memcpy(&di.width, data.data() + 4, 4);
+  std::memcpy(&di.height, data.data() + 8, 4);
+  std::memcpy(&di.bit_count, data.data() + 14, 2);
+  std::memcpy(&di.compression, data.data() + 16, 4);
+
+  if (di.header_size < 40 || di.header_size > data.size())
+  {
+    di.header_size = 0;
+    return di;
+  }
+
+  if (di.compression != 0 || di.width <= 0 || di.height == 0)
+  {
+    di.width = 0;
+    return di;
+  }
+
+  if (di.bit_count != 1 && di.bit_count != 4 && di.bit_count != 8 &&
+      di.bit_count != 16 && di.bit_count != 24 && di.bit_count != 32)
+  {
+    di.width = 0;
+    return di;
+  }
+
+  if (di.bit_count <= 8)
+  {
+    uint32_t clr_used = 0;
+    std::memcpy(&clr_used, data.data() + 32, 4);
+    di.palette_entries = (clr_used > 0) ? clr_used : (1u << di.bit_count);
+  }
+
+  di.pixel_offset = di.header_size + di.palette_entries * 4;
+  di.row_stride = ((static_cast<size_t>(di.width) * di.bit_count + 31) / 32) * 4;
+
+  if (di.pixel_offset > data.size())
+  {
+    di.width = 0;
+    return di;
+  }
+
+  return di;
+}
+
+std::vector<uint8_t> build_bmp(
+  const dib_info& di,
+  std::span<const uint8_t> data,
+  int actual_h)
+{
+  size_t pixel_array_size = static_cast<size_t>(actual_h) * di.row_stride;
+  size_t bmp_size = 14 + di.pixel_offset + pixel_array_size;
+
+  std::vector<uint8_t> result(bmp_size);
+
+  bmp_file_header bfh;
+  bfh.bfOffBits = 14 + static_cast<uint32_t>(di.pixel_offset);
+  bfh.bfSize = static_cast<uint32_t>(bmp_size);
+  std::memcpy(result.data(), &bfh, 14);
+
+  std::memcpy(result.data() + 14, data.data(), di.header_size);
+
+  if (di.palette_entries > 0)
+    std::memcpy(result.data() + 14 + di.header_size,
+                data.data() + di.header_size,
+                di.palette_entries * 4);
+
+  std::memcpy(result.data() + 14 + di.pixel_offset,
+              data.data() + di.pixel_offset,
+              pixel_array_size);
+
+  return result;
+}
+
+}
+
+namespace pe_decoder
+{
+
+std::vector<uint8_t> dib_to_bmp(std::span<const uint8_t> data)
+{
+  dib_info di = parse_dib(data);
+  if (di.width <= 0)
+    return {};
+
+  return build_bmp(di, data, di.height);
+}
+
+std::vector<uint8_t> ico_to_bmp(std::span<const uint8_t> data)
+{
+  dib_info di = parse_dib(data);
+  if (di.width <= 0)
+    return {};
+
+  int actual_h = di.height;
+  if (actual_h > 0)
+    actual_h /= 2;
+  if (actual_h <= 0)
+    return {};
+
+  size_t and_stride = ((static_cast<size_t>(di.width) + 31) / 32) * 4;
+  size_t and_offset = di.pixel_offset + static_cast<size_t>(actual_h) * di.row_stride;
+
+  std::vector<uint8_t> result = build_bmp(di, data, actual_h);
+
+  // Fix height in header
+  std::memcpy(result.data() + 14 + 8, &actual_h, 4);
+
+  size_t xor_row_base = 14 + di.pixel_offset;
+
+  if (and_offset + static_cast<size_t>(actual_h) * and_stride <= data.size())
+  {
+    if (di.bit_count == 32)
+    {
+      for (int y = 0; y < actual_h; y++)
+      {
+        size_t and_row = and_offset + static_cast<size_t>(y) * and_stride;
+        size_t xor_row = xor_row_base + static_cast<size_t>(y) * di.row_stride;
+        for (int x = 0; x < di.width; x++)
+        {
+          size_t ab = and_row + x / 8;
+          if (ab >= data.size())
+            break;
+          if ((data[ab] >> (7 - (x & 7))) & 1)
+            result[xor_row + x * 4 + 3] = 0;
+        }
+      }
+    }
+    else if (di.bit_count <= 8)
+    {
+      for (int y = 0; y < actual_h; y++)
+      {
+        size_t and_row = and_offset + static_cast<size_t>(y) * and_stride;
+        size_t xor_row = xor_row_base + static_cast<size_t>(y) * di.row_stride;
+        for (int x = 0; x < di.width; x++)
+        {
+          size_t ab = and_row + x / 8;
+          if (ab >= data.size())
+            break;
+          if ((data[ab] >> (7 - (x & 7))) & 1)
+          {
+            if (di.bit_count == 8)
+              result[xor_row + x] = 0;
+            else if (di.bit_count == 4)
+            {
+              size_t off = xor_row + x / 2;
+              if (x & 1)
+                result[off] &= 0xF0u;
+              else
+                result[off] &= 0x0Fu;
+            }
+            else if (di.bit_count == 1)
+            {
+              size_t off = xor_row + x / 8;
+              result[off] &= static_cast<uint8_t>(~(1u << (7 - (x & 7))));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+bool save_image(
+  const std::string& filename,
+  const std::vector<uint8_t>& image_data,
+  const std::filesystem::path& output_dir)
+{
+  if (image_data.empty())
+    return false;
+  std::filesystem::path out_path = output_dir / filename;
+  std::ofstream f(out_path, std::ios::binary);
+  if (!f.is_open())
+    return false;
+  f.write(reinterpret_cast<const char*>(image_data.data()),
+    static_cast<std::streamsize>(image_data.size()));
+  return f.good();
+}
+
+}

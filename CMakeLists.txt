@@ -48,6 +48,7 @@ set(HEADERS
   src/rc_resolver.h
   src/rc_tokenizer.h
   src/pe_resource_decoder.h
+  src/imageio.h
 )
 
 set(SOURCES
@@ -58,6 +59,7 @@ set(SOURCES
   src/rc_resolver.cpp
   src/rc_tokenizer.cpp
   src/pe_resource_decoder.cpp
+  src/imageio.cpp
   src/main.cpp
 )
 

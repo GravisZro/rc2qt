@@ -19,6 +19,7 @@
 #include "rc_constants.h"
 #include "rc_generator.h"
 #include "pe_resource_decoder.h"
+#include "imageio.h"
 
 static bool is_pe_file(const std::string& path)
 {
@@ -64,7 +65,7 @@ int main(int argc, char** argv)
     }
     else if(arg == "-h" || arg == "--help")
     {
-      std::cerr << "Usage: " << argv[0] << " [options] <file.rc>" << std::endl;
+      std::cerr << "Usage: " << argv[0] << " [options] <file.rc|file.exe>" << std::endl;
       std::cerr << "  -o <dir>       Output directory (default: input file directory)" << std::endl;
       std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
       std::cerr << "  -h, --help     Show this help" << std::endl;
@@ -90,22 +91,6 @@ int main(int argc, char** argv)
     std::cout << "PE file detected: " << input_path << std::endl;
 
     std::vector<pe_decoder::decoded_resource> pe_resources;
-    try
-    {
-      pe_resources = pe_decoder::decode_pe_resources(input_path);
-    }
-    catch(const std::exception& e)
-    {
-      std::cerr << "Error reading PE resources: " << e.what() << std::endl;
-      return 1;
-    }
-
-    std::cout << "Decoded " << pe_resources.size() << " resources from PE file:" << std::endl;
-
-    rc::resolver res;
-    rc::constant_registry::instance();
-
-    rc::generator gen;
     std::filesystem::path out_dir;
     if(!output_path.empty())
     {
@@ -122,28 +107,70 @@ int main(int argc, char** argv)
     std::filesystem::path rc_stem = std::filesystem::path(input_path).stem();
     std::string rc_basename = rc_stem.string();
     std::filesystem::create_directories(out_dir);
+    std::filesystem::path img_dir = out_dir / rc_basename;
+    std::filesystem::create_directories(img_dir);
+
+    try
+    {
+      pe_resources = pe_decoder::decode_pe_resources(input_path, img_dir);
+    }
+    catch(const std::exception& e)
+    {
+      std::cerr << "Error reading PE resources: " << e.what() << std::endl;
+      return 1;
+    }
+
+    std::cout << "Decoded " << pe_resources.size() << " resources from PE file:" << std::endl;
+
+    rc::resolver res;
+    rc::constant_registry::instance();
+
+    rc::generator gen;
 
     rc::rc_file file;
 
     for(const auto& decoded : pe_resources)
     {
-      std::cout << "  " << decoded.id << " " << decoded.type << std::endl;
-      std::cout << "--- Decoded RC text ---" << std::endl;
-      std::cout << decoded.rc_text << std::endl;
-      std::cout << "---" << std::endl;
+      std::cout << "  " << decoded.id << " " << decoded.type;
+      if (!decoded.filename.empty())
+        std::cout << " -> " << decoded.filename;
+      std::cout << std::endl;
 
-      try
+      // Save BMP images
+      if (!decoded.image_data.empty())
       {
-        std::vector<rc::token> tokens = rc::tokenize(decoded.rc_text);
-        rc::parser p(tokens);
-        rc::rc_file chunk = p.parse();
+        pe_decoder::save_image(decoded.filename, decoded.image_data, img_dir);
 
-        for(auto& r : chunk.resources)
-          file.resources.push_back(std::move(r));
+        // Add image resource entry to rc_file for .qrc generation
+        rc::resource img_res;
+        img_res.id = decoded.id;
+        img_res.type = decoded.type;
+        img_res.filename = (std::filesystem::path(rc_basename) / decoded.filename).generic_string();
+        img_res.data = rc::empty_data{};
+        file.resources.push_back(std::move(img_res));
+        continue;
       }
-      catch(const std::exception& e)
+
+      // Parse RC text
+      if (!decoded.rc_text.empty())
       {
-        std::cerr << "Error parsing decoded resource " << decoded.id << ": " << e.what() << std::endl;
+        std::cout << "--- Decoded RC text ---" << std::endl;
+        std::cout << decoded.rc_text << std::endl;
+        std::cout << "---" << std::endl;
+
+        try
+        {
+          std::vector<rc::token> tokens = rc::tokenize(decoded.rc_text);
+          rc::parser p(tokens);
+          rc::rc_file chunk = p.parse();
+
+          for(auto& r : chunk.resources)
+            file.resources.push_back(std::move(r));
+        }
+        catch(const std::exception& e)
+        {
+          std::cerr << "Error parsing decoded resource " << decoded.id << ": " << e.what() << std::endl;
+        }
       }
     }
 
