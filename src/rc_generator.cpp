@@ -1455,6 +1455,22 @@ std::string generator::map_vk_to_qt(const std::string& vk_code)
   std::string key = vk_code;
   std::transform(key.begin(), key.end(), key.begin(), ::toupper);
 
+  if(key.size() >= 3 && key[0] == '0' && key[1] == 'X')
+  {
+    std::string hex_str = key.substr(2);
+    try
+    {
+      unsigned long val = std::stoul(hex_str, nullptr, 16);
+      if(val >= 0x20 && val <= 0x7E)
+        return std::string(1, static_cast<char>(val));
+      return "";
+    }
+    catch(...)
+    {
+    }
+    return "";
+  }
+
   static const std::unordered_map<std::string, std::string> keyMap =
   {
     // Modifiers
@@ -1556,44 +1572,6 @@ std::string generator::map_vk_to_qt(const std::string& vk_code)
 
   if (auto it = keyMap.find(key); it != keyMap.end())
     return it->second;
-
-  // hex numeric VK codes: "0x4F" -> resolve VK name -> keyMap
-  if(key.size() >= 2 && key[0] == '0' && key[1] == 'X')
-  {
-    try
-    {
-      unsigned long val = std::stoul(key.substr(2), nullptr, 16);
-      std::string vk_name = constant_registry::instance().resolve(
-        static_cast<int64_t>(val), constant_category::virtual_key);
-      if(!vk_name.empty())
-      {
-        std::transform(vk_name.begin(), vk_name.end(), vk_name.begin(), ::toupper);
-        auto it = keyMap.find(vk_name);
-        if(it != keyMap.end())
-          return it->second;
-      }
-      if(val >= 0x20 && val <= 0x7E)
-        return std::string(1, static_cast<char>(val));
-    }
-    catch(...)
-    {
-    }
-    return {};
-  }
-
-  // decimal numeric VK codes: "115" -> convert to hex -> recursive
-  if(!key.empty() && std::all_of(key.begin(), key.end(), ::isdigit))
-  {
-    try
-    {
-      unsigned long val = std::stoul(key, nullptr, 10);
-      return map_vk_to_qt(std::format("0x{:X}", val));
-    }
-    catch(...)
-    {
-    }
-    return {};
-  }
 
   // directly mapped ASCII characters
   if(key.size() == 1 && key[0] >= 0x21 && key[0] <= 0x7E)
