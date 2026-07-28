@@ -10,6 +10,7 @@
 #include <functional>
 #include <cstring>
 #include <fstream>
+#include <format>
 
 
 namespace
@@ -888,6 +889,109 @@ std::string decode_menu(
   return out.str();
 }
 
+static const std::string* vk_name(uint8_t code)
+{
+  static const std::string* names = []()
+  {
+    auto* arr = new std::string[256];
+    arr[0x01] = "VK_LBUTTON"; arr[0x02] = "VK_RBUTTON";
+    arr[0x03] = "VK_CANCEL"; arr[0x04] = "VK_MBUTTON";
+    arr[0x05] = "VK_XBUTTON1"; arr[0x06] = "VK_XBUTTON2";
+    arr[0x08] = "VK_BACK"; arr[0x09] = "VK_TAB";
+    arr[0x0C] = "VK_CLEAR"; arr[0x0D] = "VK_RETURN";
+    arr[0x10] = "VK_SHIFT"; arr[0x11] = "VK_CONTROL";
+    arr[0x12] = "VK_MENU"; arr[0x13] = "VK_PAUSE";
+    arr[0x14] = "VK_CAPITAL"; arr[0x15] = "VK_KANA";
+    arr[0x17] = "VK_JUNJA"; arr[0x18] = "VK_FINAL";
+    arr[0x19] = "VK_HANJA"; arr[0x1B] = "VK_ESCAPE";
+    arr[0x1C] = "VK_CONVERT"; arr[0x1D] = "VK_NONCONVERT";
+    arr[0x1E] = "VK_ACCEPT"; arr[0x1F] = "VK_MODECHANGE";
+    arr[0x20] = "VK_SPACE"; arr[0x21] = "VK_PRIOR";
+    arr[0x22] = "VK_NEXT"; arr[0x23] = "VK_END";
+    arr[0x24] = "VK_HOME"; arr[0x25] = "VK_LEFT";
+    arr[0x26] = "VK_UP"; arr[0x27] = "VK_RIGHT";
+    arr[0x28] = "VK_DOWN"; arr[0x29] = "VK_SELECT";
+    arr[0x2A] = "VK_PRINT"; arr[0x2B] = "VK_EXECUTE";
+    arr[0x2C] = "VK_SNAPSHOT"; arr[0x2D] = "VK_INSERT";
+    arr[0x2E] = "VK_DELETE"; arr[0x2F] = "VK_HELP";
+    for (uint16_t i = 0; i <= 9; i++)
+      arr[0x30 + i] = std::format("VK_{}", i);
+    for (uint16_t i = 0; i < 26; i++)
+      arr[0x41 + i] = std::format("VK_{}", static_cast<char>('A' + i));
+    arr[0x5B] = "VK_LWIN"; arr[0x5C] = "VK_RWIN";
+    arr[0x5D] = "VK_APPS"; arr[0x5F] = "VK_SLEEP";
+    for (uint16_t i = 0; i <= 9; i++)
+      arr[0x60 + i] = std::format("VK_NUMPAD{}", i);
+    arr[0x6A] = "VK_MULTIPLY"; arr[0x6B] = "VK_ADD";
+    arr[0x6C] = "VK_SEPARATOR"; arr[0x6D] = "VK_SUBTRACT";
+    arr[0x6E] = "VK_DECIMAL"; arr[0x6F] = "VK_DIVIDE";
+    for (uint16_t i = 1; i <= 24; i++)
+      arr[0x6F + i] = std::format("VK_F{}", i);
+    arr[0x90] = "VK_NUMLOCK"; arr[0x91] = "VK_SCROLL";
+    arr[0x92] = "VK_OEM_NEC_EQUAL";
+    arr[0x93] = "VK_OEM_FJ_MASSHOU"; arr[0x94] = "VK_OEM_FJ_TOUROKU";
+    arr[0x95] = "VK_OEM_FJ_LOYA"; arr[0x96] = "VK_OEM_FJ_ROYA";
+    arr[0xA0] = "VK_LSHIFT"; arr[0xA1] = "VK_RSHIFT";
+    arr[0xA2] = "VK_LCONTROL"; arr[0xA3] = "VK_RCONTROL";
+    arr[0xA4] = "VK_LMENU"; arr[0xA5] = "VK_RMENU";
+    arr[0xA6] = "VK_BROWSER_BACK"; arr[0xA7] = "VK_BROWSER_FORWARD";
+    arr[0xA8] = "VK_BROWSER_REFRESH"; arr[0xA9] = "VK_BROWSER_STOP";
+    arr[0xAA] = "VK_BROWSER_SEARCH"; arr[0xAB] = "VK_BROWSER_FAVORITES";
+    arr[0xAC] = "VK_BROWSER_HOME";
+    arr[0xAD] = "VK_VOLUME_MUTE"; arr[0xAE] = "VK_VOLUME_DOWN";
+    arr[0xAF] = "VK_VOLUME_UP";
+    arr[0xB0] = "VK_MEDIA_NEXT_TRACK"; arr[0xB1] = "VK_MEDIA_PREV_TRACK";
+    arr[0xB2] = "VK_MEDIA_STOP"; arr[0xB3] = "VK_MEDIA_PLAY_PAUSE";
+    arr[0xB4] = "VK_LAUNCH_MAIL"; arr[0xB5] = "VK_LAUNCH_MEDIA_SELECT";
+    arr[0xB6] = "VK_LAUNCH_APP1"; arr[0xB7] = "VK_LAUNCH_APP2";
+    arr[0xBA] = "VK_OEM_1"; arr[0xBB] = "VK_OEM_PLUS";
+    arr[0xBC] = "VK_OEM_COMMA"; arr[0xBD] = "VK_OEM_MINUS";
+    arr[0xBE] = "VK_OEM_PERIOD"; arr[0xBF] = "VK_OEM_2";
+    arr[0xC0] = "VK_OEM_3";
+    arr[0xC3] = "VK_GAMEPAD_A"; arr[0xC4] = "VK_GAMEPAD_B";
+    arr[0xC5] = "VK_GAMEPAD_X"; arr[0xC6] = "VK_GAMEPAD_Y";
+    arr[0xC7] = "VK_GAMEPAD_RIGHT_SHOULDER";
+    arr[0xC8] = "VK_GAMEPAD_LEFT_SHOULDER";
+    arr[0xC9] = "VK_GAMEPAD_LEFT_TRIGGER";
+    arr[0xCA] = "VK_GAMEPAD_RIGHT_TRIGGER";
+    arr[0xCB] = "VK_GAMEPAD_DPAD_UP"; arr[0xCC] = "VK_GAMEPAD_DPAD_DOWN";
+    arr[0xCD] = "VK_GAMEPAD_DPAD_LEFT"; arr[0xCE] = "VK_GAMEPAD_DPAD_RIGHT";
+    arr[0xCF] = "VK_GAMEPAD_MENU"; arr[0xD0] = "VK_GAMEPAD_VIEW";
+    arr[0xD1] = "VK_GAMEPAD_LEFT_THUMBSTICK_BUTTON";
+    arr[0xD2] = "VK_GAMEPAD_RIGHT_THUMBSTICK_BUTTON";
+    arr[0xD3] = "VK_GAMEPAD_LEFT_THUMBSTICK_UP";
+    arr[0xD4] = "VK_GAMEPAD_LEFT_THUMBSTICK_DOWN";
+    arr[0xD5] = "VK_GAMEPAD_LEFT_THUMBSTICK_RIGHT";
+    arr[0xD6] = "VK_GAMEPAD_LEFT_THUMBSTICK_LEFT";
+    arr[0xD7] = "VK_GAMEPAD_RIGHT_THUMBSTICK_UP";
+    arr[0xD8] = "VK_GAMEPAD_RIGHT_THUMBSTICK_DOWN";
+    arr[0xD9] = "VK_GAMEPAD_RIGHT_THUMBSTICK_RIGHT";
+    arr[0xDA] = "VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT";
+    arr[0xDB] = "VK_OEM_4"; arr[0xDC] = "VK_OEM_5";
+    arr[0xDD] = "VK_OEM_6"; arr[0xDE] = "VK_OEM_7";
+    arr[0xDF] = "VK_OEM_8";
+    arr[0xE1] = "VK_OEM_AX"; arr[0xE2] = "VK_OEM_102";
+    arr[0xE3] = "VK_ICO_HELP"; arr[0xE4] = "VK_ICO_00";
+    arr[0xE5] = "VK_PROCESSKEY"; arr[0xE6] = "VK_ICO_CLEAR";
+    arr[0xE7] = "VK_PACKET";
+    arr[0xE9] = "VK_OEM_RESET"; arr[0xEA] = "VK_OEM_JUMP";
+    arr[0xEB] = "VK_OEM_PA1"; arr[0xEC] = "VK_OEM_PA2";
+    arr[0xED] = "VK_OEM_PA3";
+    arr[0xEE] = "VK_OEM_WSCTRL"; arr[0xEF] = "VK_OEM_CUSEL";
+    arr[0xF0] = "VK_OEM_ATTN";
+    arr[0xF1] = "VK_OEM_FINISH"; arr[0xF2] = "VK_OEM_COPY";
+    arr[0xF3] = "VK_OEM_AUTO"; arr[0xF4] = "VK_OEM_ENLW";
+    arr[0xF5] = "VK_OEM_BACKTAB";
+    arr[0xF6] = "VK_ATTN"; arr[0xF7] = "VK_CRSEL";
+    arr[0xF8] = "VK_EXSEL"; arr[0xF9] = "VK_EREOF";
+    arr[0xFA] = "VK_PLAY"; arr[0xFB] = "VK_ZOOM";
+    arr[0xFC] = "VK_NONAME"; arr[0xFD] = "VK_PA1";
+    arr[0xFE] = "VK_OEM_CLEAR";
+    return arr;
+  }();
+  return &names[code];
+}
+
 std::string decode_accelerators(
   std::span<const uint8_t> data,
   const std::string& resource_id)
@@ -907,7 +1011,14 @@ std::string decode_accelerators(
 
     std::string key_str;
     if (flags & 0x01)
-      key_str = std::to_string(event);
+    {
+      if (event < 256 && !vk_name(static_cast<uint8_t>(event))->empty())
+        key_str = *vk_name(static_cast<uint8_t>(event));
+      else if (event >= 0x21 && event <= 0x7E)
+        key_str = "\"" + std::string(1, static_cast<char>(event)) + "\"";
+      else
+        key_str = std::format("0x{:X}", event);
+    }
     else if (flags & 0x02)
       key_str = "\"" + std::string(1, static_cast<char>(event)) + "\"";
     else
