@@ -1578,7 +1578,7 @@ std::string generator::map_vk_to_qt(const std::string& vk_code)
     catch(...)
     {
     }
-    throw std::runtime_error(std::format("Unsupported key: {}", key));
+    return {};
   }
 
   // decimal numeric VK codes: "115" -> convert to hex -> recursive
@@ -1592,7 +1592,7 @@ std::string generator::map_vk_to_qt(const std::string& vk_code)
     catch(...)
     {
     }
-    throw std::runtime_error(std::format("Unsupported key: {}", key));
+    return {};
   }
 
   // directly mapped ASCII characters
