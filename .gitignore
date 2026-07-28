@@ -30,5 +30,6 @@ docs/menurc/*
 !docs/menurc/textinclude-resource.md
 !docs/menurc/toc.yml
 !docs/menurc/predefined-constants.md
+!docs/resfmt.txt
 VC-LTL/
 *.pdf
