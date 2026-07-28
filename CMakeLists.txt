@@ -34,6 +34,10 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0")
 find_package(pugixml)
 
+set(BUILD_SHARED_LIBS OFF)
+add_subdirectory(libpefile)
+set(BUILD_SHARED_LIBS ON)
+
 
 set(HEADERS
   src/rc_helpers.h
@@ -43,6 +47,7 @@ set(HEADERS
   src/rc_parser.h
   src/rc_resolver.h
   src/rc_tokenizer.h
+  src/pe_resource_decoder.h
 )
 
 set(SOURCES
@@ -52,13 +57,14 @@ set(SOURCES
   src/rc_parser.cpp
   src/rc_resolver.cpp
   src/rc_tokenizer.cpp
+  src/pe_resource_decoder.cpp
   src/main.cpp
 )
 
 add_executable(${TARGET_NAME} ${HEADERS} ${SOURCES})
 
 target_include_directories(${TARGET_NAME} PRIVATE src ${EXTRA_DIRS})
-target_link_libraries(${TARGET_NAME} PRIVATE Qt5::Widgets pugixml::pugixml ${EXTRA_LIBS})
+target_link_libraries(${TARGET_NAME} PRIVATE Qt5::Widgets pugixml::pugixml pefile ${EXTRA_LIBS})
 
 # Parser unit tests
 set(TEST_SOURCES
@@ -76,3 +82,9 @@ target_link_libraries(test_parser PRIVATE pugixml::pugixml ${EXTRA_LIBS})
 
 enable_testing()
 add_test(NAME parser_tests COMMAND test_parser)
+
+add_executable(pe_dump tests/pe_dump.cpp)
+target_link_libraries(pe_dump PRIVATE pefile)
+
+add_executable(menu_debug tests/menu_debug.cpp)
+target_link_libraries(menu_debug PRIVATE pefile)

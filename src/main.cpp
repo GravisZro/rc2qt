@@ -18,6 +18,17 @@
 #include "rc_resolver.h"
 #include "rc_constants.h"
 #include "rc_generator.h"
+#include "pe_resource_decoder.h"
+
+static bool is_pe_file(const std::string& path)
+{
+  std::ifstream f(path, std::ios::binary);
+  if (!f.is_open())
+    return false;
+  char magic[2] = {};
+  f.read(magic, 2);
+  return magic[0] == 'M' && magic[1] == 'Z';
+}
 
 
 
@@ -67,11 +78,112 @@ int main(int argc, char** argv)
 
   if(input_path.empty())
   {
-    std::cerr << "Usage: " << argv[0] << " [options] <file.rc>" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [options] <file.rc|file.exe>" << std::endl;
     std::cerr << "  -o <dir>       Output directory (default: input file directory)" << std::endl;
     std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
     std::cerr << "  -h, --help     Show this help" << std::endl;
     return 1;
+  }
+
+  if(is_pe_file(input_path))
+  {
+    std::cout << "PE file detected: " << input_path << std::endl;
+
+    std::vector<pe_decoder::decoded_resource> pe_resources;
+    try
+    {
+      pe_resources = pe_decoder::decode_pe_resources(input_path);
+    }
+    catch(const std::exception& e)
+    {
+      std::cerr << "Error reading PE resources: " << e.what() << std::endl;
+      return 1;
+    }
+
+    std::cout << "Decoded " << pe_resources.size() << " resources from PE file:" << std::endl;
+
+    rc::resolver res;
+    rc::constant_registry::instance();
+
+    rc::generator gen;
+    std::filesystem::path out_dir;
+    if(!output_path.empty())
+    {
+      std::filesystem::path p = std::filesystem::path(output_path);
+      if(std::filesystem::path(p).extension().empty())
+        out_dir = p;
+      else
+        out_dir = p.parent_path();
+    }
+    if(out_dir.empty())
+      out_dir = std::filesystem::path(input_path).parent_path();
+    if(out_dir.empty())
+      out_dir = ".";
+    std::filesystem::path rc_stem = std::filesystem::path(input_path).stem();
+    std::string rc_basename = rc_stem.string();
+    std::filesystem::create_directories(out_dir);
+
+    rc::rc_file file;
+
+    for(const auto& decoded : pe_resources)
+    {
+      std::cout << "  " << decoded.id << " " << decoded.type << std::endl;
+      std::cout << "--- Decoded RC text ---" << std::endl;
+      std::cout << decoded.rc_text << std::endl;
+      std::cout << "---" << std::endl;
+
+      try
+      {
+        std::vector<rc::token> tokens = rc::tokenize(decoded.rc_text);
+        rc::parser p(tokens);
+        rc::rc_file chunk = p.parse();
+
+        for(auto& r : chunk.resources)
+          file.resources.push_back(std::move(r));
+      }
+      catch(const std::exception& e)
+      {
+        std::cerr << "Error parsing decoded resource " << decoded.id << ": " << e.what() << std::endl;
+      }
+    }
+
+    std::cout << "\nTotal parsed resources: " << file.resources.size() << std::endl;
+
+    res.resolve_file(file);
+
+    if(gen.generate_all(file, out_dir.generic_string(), rc_basename))
+      std::cout << "Generated all dialogs in: "
+                << (out_dir / rc_basename).generic_string() << std::endl;
+    else
+      std::cerr << "Error: failed to generate dialogs" << std::endl;
+
+    std::filesystem::path qrc_path_fs;
+    if(!qrc_path.empty())
+      qrc_path_fs = qrc_path;
+    else
+      qrc_path_fs = out_dir / (rc_basename + ".qrc");
+
+    std::vector<std::string> ui_files;
+    std::filesystem::path sub_dir = out_dir / rc_basename;
+    if(std::filesystem::exists(sub_dir))
+    {
+      for(const auto& entry : std::filesystem::directory_iterator(sub_dir))
+      {
+        if(entry.path().extension() == ".ui")
+          ui_files.push_back(entry.path().generic_string());
+      }
+      std::sort(ui_files.begin(), ui_files.end());
+    }
+
+    if(!ui_files.empty())
+    {
+      if(gen.generate_qrc(file, qrc_path_fs.generic_string(), ui_files))
+        std::cout << "Generated: " << qrc_path_fs.generic_string() << std::endl;
+      else
+        std::cerr << "Error: failed to generate " << qrc_path_fs.generic_string() << std::endl;
+    }
+
+    return 0;
   }
 
   std::string content = read_file(input_path);
