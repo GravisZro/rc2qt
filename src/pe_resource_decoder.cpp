@@ -708,70 +708,109 @@ std::string decode_menu(
   std::vector<menu_stack_entry> stack;
   int current_depth = 0;
 
-  auto close_popups_to_depth = [&](int target_depth)
-  {
-    while (!stack.empty() && current_depth > target_depth)
-    {
-      out << "  END\n";
-      stack.pop_back();
-      current_depth = stack.empty() ? 0 : stack.back().depth;
-    }
-  };
-
   if (version == 1)
   {
-    while (!reader.eof())
+    // Per MS docs, MENUEX_TEMPLATE_HEADER is:
+    //   wVersion(WORD=1) + wOffset(WORD=4) + dwHelpId(DWORD) = 8 bytes.
+    // wOffset is relative to end of wOffset field (byte 4), so items start at 4+4=8.
+    // The reader is already positioned at byte 8 after reading the header above.
+    //
+    // MENUEX_TEMPLATE_ITEM (ALL items, same format):
+    //   dwType(DWORD) + dwState(DWORD) + uId(UINT=DWORD) + wFlags(WORD) + szText(WCHAR[])
+    //   = 14 bytes fixed + variable null-terminated text.
+    // For popup items: dwHelpId appears at the first DWORD boundary after szText.
+    // All items are DWORD-aligned.
+    // wFlags bit 0x01 = popup (opens submenu)
+    // wFlags bit 0x80 = last item in this menu/submenu
+    // Submenu terminator: all-zero fields + empty text
+
+    auto align_dword = [](size_t p) -> size_t
     {
-      if (reader.remaining() < 14)
-        break;
+      return (p + 3) & ~static_cast<size_t>(3);
+    };
 
-      uint32_t dw_type = reader.read_u32();
-      uint32_t dw_state = reader.read_u32();
-      uint32_t u_id = reader.read_u32();
-      uint16_t w_flags = reader.read_u16();
-      std::string text = read_unicode_string(reader);
+    // Recursive lambda to parse items at a given depth.
+    // Uses r.pos() as a cursor; returns position past all consumed data.
+    std::function<size_t(byte_reader&, int)> parse_level;
+    parse_level = [&](byte_reader& r, int depth) -> size_t
+    {
+      std::string indent(depth * 2, ' ');
 
-      bool is_last = (w_flags & 0x80) != 0;
-      bool is_popup = (w_flags & 0x01) != 0;
-      bool is_separator = (dw_type & 0x0800) != 0;
-
-      std::string indent(current_depth * 2, ' ');
-
-      if (is_separator)
+      while (r.remaining() >= 14)
       {
-        out << indent << "MENUITEM SEPARATOR\n";
-      }
-      else if (is_popup)
-      {
-        out << indent << "POPUP \"" << escape_rc_string(text) << "\"";
-        if (u_id != 0)
-          out << ", " << u_id;
-        if (dw_state & 0x0003)
-          out << ", GRAYED";
-        if (dw_state & 0x1000)
-          out << ", INACTIVE";
-        out << "\n";
-        out << indent << "BEGIN\n";
-        stack.push_back({current_depth + 1});
-        current_depth++;
-      }
-      else
-      {
-        out << indent << "MENUITEM \"" << escape_rc_string(text) << "\", " << u_id;
-        if (dw_state & 0x0003) out << ", GRAYED";
-        if (dw_state & 0x0008) out << ", CHECKED";
-        if (dw_state & 0x1000) out << ", DEFAULT";
-        if (dw_type & 0x0040) out << ", MENUBARBREAK";
-        if (dw_type & 0x0080) out << ", MENUBREAK";
-        out << "\n";
+        // Read 14-byte fixed portion
+        uint32_t dw_type = r.read_u32();
+        uint32_t dw_state = r.read_u32();
+        uint32_t u_id = r.read_u32();
+        uint16_t w_flags = r.read_u16();
+
+        std::string text = read_unicode_string(r);
+        // r.pos() is now past null terminator
+
+        // Check terminator: all-zero fields + empty text
+        if (dw_type == 0 && dw_state == 0 && u_id == 0 && w_flags == 0 && text.empty())
+        {
+          r.pos() = align_dword(r.pos());
+          return r.pos();
+        }
+
+        bool is_popup = (w_flags & 0x01) != 0;
+        bool is_last  = (w_flags & 0x80) != 0;
+        bool is_separator = (!is_popup) && (dw_type & 0x0800) != 0;
+
+        // DWORD-align past text. For popup items, dwHelpId sits here.
+        r.pos() = align_dword(r.pos());
+
+        if (is_popup)
+        {
+          // Skip the 4-byte dwHelpId that follows popup text
+          uint32_t dh = 0;
+          if (r.remaining() >= 4)
+            dh = r.read_u32();
+          (void)dh;
+        }
+
+        // Emit the item
+        if (is_separator)
+        {
+          out << indent << "MENUITEM SEPARATOR\n";
+        }
+        else if (is_popup)
+        {
+          out << indent << "POPUP \"" << escape_rc_string(text) << "\"";
+          if (u_id != 0)
+            out << ", " << u_id;
+          if (dw_state & 0x0003)
+            out << ", GRAYED";
+          if (dw_state & 0x1000)
+            out << ", INACTIVE";
+          out << "\n";
+          out << indent << "BEGIN\n";
+
+          // Recursively parse children
+          r.pos() = parse_level(r, depth + 1);
+
+          out << indent << "END\n";
+        }
+        else
+        {
+          out << indent << "MENUITEM \"" << escape_rc_string(text) << "\", " << u_id;
+          if (dw_state & 0x0003) out << ", GRAYED";
+          if (dw_state & 0x0008) out << ", CHECKED";
+          if (dw_state & 0x1000) out << ", DEFAULT";
+          if (dw_type & 0x0040) out << ", MENUBARBREAK";
+          if (dw_type & 0x0080) out << ", MENUBREAK";
+          out << "\n";
+        }
+
+        if (is_last)
+          return r.pos();
       }
 
-      if (is_last)
-      {
-        close_popups_to_depth(0);
-        break;
-      }
-    }
+      return r.pos();
+    };
+
+    parse_level(reader, 0);
   }
   else
   {
@@ -1000,7 +1039,6 @@ std::string decode_versioninfo(
       if (r.pos() % 4 != 0)
         r.skip((4 - (r.pos() % 4)) % 4);
 
-      size_t block_start = r.pos();
       std::string key = read_unicode_string(r);
 
       if (r.pos() % 4 != 0)

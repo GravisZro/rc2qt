@@ -88,3 +88,6 @@ target_link_libraries(pe_dump PRIVATE pefile)
 
 add_executable(menu_debug tests/menu_debug.cpp)
 target_link_libraries(menu_debug PRIVATE pefile)
+
+add_executable(menuex_debug tests/menuex_debug.cpp)
+target_link_libraries(menuex_debug PRIVATE pefile)
