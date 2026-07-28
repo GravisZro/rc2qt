@@ -12,6 +12,8 @@ struct [[gnu::packed]] bmp_file_header
   uint32_t bfOffBits = 0;
 };
 
+static constexpr uint8_t png_magic[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+
 namespace
 {
 
@@ -125,8 +127,16 @@ std::vector<uint8_t> build_bmp(
 namespace pe_decoder
 {
 
+bool is_png_data(std::span<const uint8_t> data)
+{
+  return data.size() >= 8 && std::memcmp(data.data(), png_magic, 8) == 0;
+}
+
 std::vector<uint8_t> dib_to_bmp(std::span<const uint8_t> data)
 {
+  if (is_png_data(data))
+    return std::vector<uint8_t>(data.begin(), data.end());
+
   dib_info di = parse_dib(data);
   if (di.width <= 0)
     return {};
@@ -136,6 +146,9 @@ std::vector<uint8_t> dib_to_bmp(std::span<const uint8_t> data)
 
 std::vector<uint8_t> ico_to_bmp(std::span<const uint8_t> data)
 {
+  if (is_png_data(data))
+    return std::vector<uint8_t>(data.begin(), data.end());
+
   dib_info di = parse_dib(data);
   if (di.width <= 0)
     return {};

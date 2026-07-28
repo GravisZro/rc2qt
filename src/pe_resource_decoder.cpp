@@ -1181,7 +1181,8 @@ std::vector<decoded_resource> decode_pe_resources(
           {
             dr.type = "BITMAP";
             dr.image_data = dib_to_bmp(raw_data);
-            dr.filename = "bitmap_" + std::to_string(id_entry.id) + ".bmp";
+            dr.filename = "bitmap_" + std::to_string(id_entry.id)
+              + (is_png_data(raw_data) ? ".png" : ".bmp");
             break;
           }
           case 3:
@@ -1191,7 +1192,8 @@ std::vector<decoded_resource> decode_pe_resources(
               continue;
             dr.type = "ICON";
             dr.image_data = ico_to_bmp(raw_data);
-            dr.filename = "icon_" + std::to_string(id_entry.id) + ".bmp";
+            dr.filename = "icon_" + std::to_string(id_entry.id)
+              + (is_png_data(raw_data) ? ".png" : ".bmp");
             break;
           }
           case 4:
@@ -1269,7 +1271,7 @@ std::vector<decoded_resource> decode_pe_resources(
                       + std::to_string(id_entry.id)
                       + (w > 0 ? "_" + std::to_string(w) + "x" + std::to_string(h) : "")
                       + (bpp > 0 ? "_" + std::to_string(bpp) + "bpp" : "")
-                      + ".bmp";
+                      + (is_png_data(ico_data) ? ".png" : ".bmp");
                     results.push_back(std::move(icon_dr));
                   }
                   break;
