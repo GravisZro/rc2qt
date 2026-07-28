@@ -145,7 +145,7 @@ int main(int argc, char** argv)
         rc::resource img_res;
         img_res.id = decoded.id;
         img_res.type = decoded.type;
-        img_res.filename = (std::filesystem::path(rc_basename) / decoded.filename).generic_string();
+        img_res.filename = (out_dir / rc_basename / decoded.filename).generic_string();
         img_res.data = rc::empty_data{};
         file.resources.push_back(std::move(img_res));
         continue;

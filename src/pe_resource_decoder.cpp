@@ -1255,6 +1255,9 @@ std::vector<decoded_resource> decode_pe_resources(
         else
           res_id = resource_id_string(id_entry.id);
 
+        static int s_bitmap_idx = 0;
+        static int s_icon_idx = 0;
+
         decoded_resource dr;
         dr.id = res_id;
 
@@ -1264,8 +1267,10 @@ std::vector<decoded_resource> decode_pe_resources(
           {
             dr.type = "BITMAP";
             dr.image_data = dib_to_bmp(raw_data);
-            dr.filename = "bitmap_" + std::to_string(id_entry.id)
+            dr.filename = "image" + std::to_string(s_bitmap_idx)
               + (is_png_data(raw_data) ? ".png" : ".bmp");
+            dr.id = "image" + std::to_string(s_bitmap_idx);
+            s_bitmap_idx++;
             break;
           }
           case 3:
@@ -1275,8 +1280,10 @@ std::vector<decoded_resource> decode_pe_resources(
               continue;
             dr.type = "ICON";
             dr.image_data = ico_to_bmp(raw_data);
-            dr.filename = "icon_" + std::to_string(id_entry.id)
+            dr.filename = "icon" + std::to_string(s_icon_idx)
               + (is_png_data(raw_data) ? ".png" : ".bmp");
+            dr.id = "icon" + std::to_string(s_icon_idx);
+            s_icon_idx++;
             break;
           }
           case 4:
@@ -1348,13 +1355,13 @@ std::vector<decoded_resource> decode_pe_resources(
                   {
                     decoded_resource icon_dr;
                     icon_dr.type = "ICON";
-                    icon_dr.id = dr.id;
+                    icon_dr.id = "icon" + std::to_string(s_icon_idx);
                     icon_dr.image_data = ico_to_bmp(ico_data);
-                    icon_dr.filename = "icon_"
-                      + std::to_string(id_entry.id)
+                    icon_dr.filename = "icon" + std::to_string(s_icon_idx)
                       + (w > 0 ? "_" + std::to_string(w) + "x" + std::to_string(h) : "")
                       + (bpp > 0 ? "_" + std::to_string(bpp) + "bpp" : "")
                       + (is_png_data(ico_data) ? ".png" : ".bmp");
+                    s_icon_idx++;
                     results.push_back(std::move(icon_dr));
                   }
                   break;
