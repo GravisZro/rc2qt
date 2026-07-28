@@ -34,17 +34,6 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     const auto& dd = std::get<dialog_data>(res.data);
 
-    bool is_ds_control = false;
-    for(const auto& stmt : dd.statements)
-    {
-      std::string kw_upper = stmt.keyword;
-      std::transform(kw_upper.begin(), kw_upper.end(), kw_upper.begin(), ::toupper);
-      if(kw_upper == "STYLE" && has_style(stmt.value, "DS_CONTROL"))
-        is_ds_control = true;
-    }
-    if(is_ds_control)
-      continue;
-
     std::string short_id = res.id;
     if(short_id.size() > 4 && short_id.substr(0, 4) == "IDD_")
       short_id = short_id.substr(4);
