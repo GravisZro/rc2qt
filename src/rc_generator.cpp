@@ -1037,6 +1037,18 @@ std::string generator::map_class_to_widget(const std::string& class_name, const 
     return "QToolBar";
   if(lower == "tooltips_class32")
     return "QWidget";
+  if(lower == "#128")
+    return map_class_to_widget("BUTTON", style);
+  if(lower == "#129")
+    return map_class_to_widget("EDIT", style);
+  if(lower == "#130")
+    return "QLabel";
+  if(lower == "#131")
+    return "QListWidget";
+  if(lower == "#132")
+    return "QScrollBar";
+  if(lower == "#133")
+    return "QComboBox";
   if(lower == "#32774")
     return "QPushButton";
   if(lower == "#32768")

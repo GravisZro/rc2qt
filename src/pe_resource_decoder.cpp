@@ -469,6 +469,22 @@ namespace
       ctrl.class_name = "SysTabControl32";
     else if (class_str == "#32772")
       ctrl.class_name = "SysProgressBar";
+    else if (class_str.size() > 1 && class_str[0] == '#')
+    {
+      char* end = nullptr;
+      long ordinal = std::strtol(class_str.c_str() + 1, &end, 10);
+      if (end && *end == '\0' && ordinal > 0)
+      {
+        const char* ordinal_name = class_from_ordinal(
+          static_cast<uint16_t>(ordinal));
+        if (strcmp(ordinal_name, "UNKNOWN") != 0)
+          ctrl.class_name = ordinal_name;
+        else
+          ctrl.class_name = class_str;
+      }
+      else
+        ctrl.class_name = class_str;
+    }
     else
       ctrl.class_name = class_str;
 
