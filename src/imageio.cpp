@@ -3,7 +3,6 @@
 #include <cstring>
 #include <fstream>
 
-
 struct [[gnu::packed]] bmp_file_header
 {
   uint16_t bfType = 0x4D42;
@@ -16,7 +15,22 @@ struct [[gnu::packed]] bmp_file_header
 namespace
 {
 
-struct [[gnu::packed]] dib_info
+struct [[gnu::packed]] bitmap_info_header
+{
+  uint32_t header_size;
+  int32_t width;
+  int32_t height;
+  uint16_t planes;
+  uint16_t bit_count;
+  uint32_t compression;
+  uint32_t image_size;
+  int32_t x_pels_per_meter;
+  int32_t y_pels_per_meter;
+  uint32_t clr_used;
+  uint32_t clr_important;
+};
+
+struct dib_info
 {
   uint32_t header_size = 0;
   int32_t width = 0;
@@ -34,11 +48,14 @@ dib_info parse_dib(std::span<const uint8_t> data)
   if (data.size() < 40)
     return di;
 
-  std::memcpy(&di.header_size, data.data(), 4);
-  std::memcpy(&di.width, data.data() + 4, 4);
-  std::memcpy(&di.height, data.data() + 8, 4);
-  std::memcpy(&di.bit_count, data.data() + 14, 2);
-  std::memcpy(&di.compression, data.data() + 16, 4);
+  bitmap_info_header bih;
+  std::memcpy(&bih, data.data(), 40);
+
+  di.header_size = bih.header_size;
+  di.width = bih.width;
+  di.height = bih.height;
+  di.bit_count = bih.bit_count;
+  di.compression = bih.compression;
 
   if (di.header_size < 40 || di.header_size > data.size())
   {
@@ -60,11 +77,7 @@ dib_info parse_dib(std::span<const uint8_t> data)
   }
 
   if (di.bit_count <= 8)
-  {
-    uint32_t clr_used = 0;
-    std::memcpy(&clr_used, data.data() + 32, 4);
-    di.palette_entries = (clr_used > 0) ? clr_used : (1u << di.bit_count);
-  }
+    di.palette_entries = (bih.clr_used > 0) ? bih.clr_used : (1u << di.bit_count);
 
   di.pixel_offset = di.header_size + di.palette_entries * 4;
   di.row_stride = ((static_cast<size_t>(di.width) * di.bit_count + 31) / 32) * 4;
@@ -138,7 +151,6 @@ std::vector<uint8_t> ico_to_bmp(std::span<const uint8_t> data)
 
   std::vector<uint8_t> result = build_bmp(di, data, actual_h);
 
-  // Fix height in header
   std::memcpy(result.data() + 14 + 8, &actual_h, 4);
 
   size_t xor_row_base = 14 + di.pixel_offset;

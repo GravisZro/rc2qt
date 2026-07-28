@@ -6,8 +6,9 @@
 #include <cstdio>
 #include <string>
 
-using pefile::uint32_t;
-using pefile::uint8_t;
+using std::uint32_t;
+using std::uint8_t;
+using std::size_t;
 
 static const char* resource_type_name(uint32_t type_id)
 {
