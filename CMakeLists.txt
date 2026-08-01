@@ -84,12 +84,3 @@ target_link_libraries(test_parser PRIVATE pugixml::pugixml ${EXTRA_LIBS})
 
 enable_testing()
 add_test(NAME parser_tests COMMAND test_parser)
-
-add_executable(pe_dump tests/pe_dump.cpp)
-target_link_libraries(pe_dump PRIVATE pefile)
-
-add_executable(menu_debug tests/menu_debug.cpp)
-target_link_libraries(menu_debug PRIVATE pefile)
-
-add_executable(menuex_debug tests/menuex_debug.cpp)
-target_link_libraries(menuex_debug PRIVATE pefile)
