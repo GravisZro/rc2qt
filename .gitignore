@@ -21,6 +21,9 @@ build*/
 test/
 temporary_files/
 
+# generated resource output
+res/
+
 # documentation
 docs/qt*/
 docs/menurc/*

@@ -124,7 +124,7 @@ std::vector<uint8_t> build_bmp(
 
 }
 
-namespace pe_decoder
+namespace imageio
 {
 
 bool is_png_data(std::span<const uint8_t> data)

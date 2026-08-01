@@ -51,6 +51,7 @@ int main(int argc, char** argv)
   std::string input_path;
   std::string output_path;
   std::string qrc_path;
+  std::string res_dir_name = "res";
 
   for(int i = 1; i < argc; ++i)
   {
@@ -58,6 +59,10 @@ int main(int argc, char** argv)
     if(arg == "-o" && i + 1 < argc)
     {
       output_path = std::filesystem::path(argv[++i]).generic_string();
+    }
+    else if(arg == "-r" && i + 1 < argc)
+    {
+      res_dir_name = std::filesystem::path(argv[++i]).generic_string();
     }
     else if(arg == "-q" && i + 1 < argc)
     {
@@ -67,6 +72,7 @@ int main(int argc, char** argv)
     {
       std::cerr << "Usage: " << argv[0] << " [options] <file.rc|file.exe>" << std::endl;
       std::cerr << "  -o <dir>       Output directory (default: input file directory)" << std::endl;
+      std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
       std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
       std::cerr << "  -h, --help     Show this help" << std::endl;
       return 0;
@@ -81,6 +87,7 @@ int main(int argc, char** argv)
   {
     std::cerr << "Usage: " << argv[0] << " [options] <file.rc|file.exe>" << std::endl;
     std::cerr << "  -o <dir>       Output directory (default: input file directory)" << std::endl;
+    std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
     std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
     std::cerr << "  -h, --help     Show this help" << std::endl;
     return 1;
@@ -107,7 +114,7 @@ int main(int argc, char** argv)
     std::filesystem::path rc_stem = std::filesystem::path(input_path).stem();
     std::string rc_basename = rc_stem.string();
     std::filesystem::create_directories(out_dir);
-    std::filesystem::path img_dir = out_dir / rc_basename;
+    std::filesystem::path img_dir = out_dir / res_dir_name;
     std::filesystem::create_directories(img_dir);
 
     try
@@ -139,13 +146,13 @@ int main(int argc, char** argv)
       // Save BMP images
       if (!decoded.image_data.empty())
       {
-        pe_decoder::save_image(decoded.filename, decoded.image_data, img_dir);
+        imageio::save_image(decoded.filename, decoded.image_data, img_dir);
 
         // Add image resource entry to rc_file for .qrc generation
         rc::resource img_res;
         img_res.id = decoded.id;
         img_res.type = decoded.type;
-        img_res.filename = (out_dir / rc_basename / decoded.filename).generic_string();
+        img_res.filename = (out_dir / res_dir_name / decoded.filename).generic_string();
         img_res.data = rc::empty_data{};
         file.resources.push_back(std::move(img_res));
         continue;
@@ -178,9 +185,9 @@ int main(int argc, char** argv)
 
     res.resolve_file(file);
 
-    if(gen.generate_all(file, out_dir.generic_string(), rc_basename))
+    if(gen.generate_all(file, out_dir.generic_string(), res_dir_name))
       std::cout << "Generated all dialogs in: "
-                << (out_dir / rc_basename).generic_string() << std::endl;
+                << (out_dir / res_dir_name).generic_string() << std::endl;
     else
       std::cerr << "Error: failed to generate dialogs" << std::endl;
 
@@ -191,7 +198,7 @@ int main(int argc, char** argv)
       qrc_path_fs = out_dir / (rc_basename + ".qrc");
 
     std::vector<std::string> ui_files;
-    std::filesystem::path sub_dir = out_dir / rc_basename;
+    std::filesystem::path sub_dir = out_dir / res_dir_name;
     if(std::filesystem::exists(sub_dir))
     {
       for(const auto& entry : std::filesystem::directory_iterator(sub_dir))
@@ -340,9 +347,9 @@ int main(int argc, char** argv)
 
     std::filesystem::create_directories(out_dir);
 
-    if(gen.generate_all(file, out_dir.generic_string(), rc_basename))
+    if(gen.generate_all(file, out_dir.generic_string(), res_dir_name))
       std::cout << "Generated all dialogs in: "
-                << (out_dir / rc_basename).generic_string() << std::endl;
+                << (out_dir / res_dir_name).generic_string() << std::endl;
     else
       std::cerr << "Error: failed to generate dialogs" << std::endl;
 
@@ -353,7 +360,7 @@ int main(int argc, char** argv)
       qrc_path_fs = out_dir / (rc_basename + ".qrc");
 
     std::vector<std::string> ui_files;
-    std::filesystem::path sub_dir = out_dir / rc_basename;
+    std::filesystem::path sub_dir = out_dir / res_dir_name;
     if(std::filesystem::exists(sub_dir))
     {
       for(const auto& entry : std::filesystem::directory_iterator(sub_dir))

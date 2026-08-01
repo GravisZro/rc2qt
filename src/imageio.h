@@ -6,7 +6,7 @@
 #include <span>
 #include <filesystem>
 
-namespace pe_decoder
+namespace imageio
 {
   bool is_png_data(std::span<const uint8_t> data);
   std::vector<uint8_t> dib_to_bmp(std::span<const uint8_t> data);
