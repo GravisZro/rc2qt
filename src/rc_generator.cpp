@@ -47,7 +47,7 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     if(short_id.empty())
     {
-      short_id = "dialog_" + std::to_string(dialog_index);
+      short_id = std::format("dialog_{}", dialog_index);
     }
 
     ++dialog_index;
@@ -55,7 +55,7 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
     std::string unique_short_id = short_id;
     int suffix = 2;
     while(used_short_ids.count(unique_short_id))
-      unique_short_id = short_id + "_" + std::to_string(suffix++);
+      unique_short_id = std::format("{}_{}", short_id, suffix++);
     used_short_ids.insert(unique_short_id);
 
     std::filesystem::path filename = std::filesystem::path(output_dir) / rc_basename / (unique_short_id + ".ui");
@@ -407,8 +407,8 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   std::string font_family = find_statement_text(dd, "FONT");
   if(font_family.empty())
     font_family = "MS Sans Serif";
-  else
-    font_family = map_ms_font(font_family);
+
+  font_family = map_ms_font(font_family);
 
   int font_size = find_statement_numeric(dd, "FONT", 8);
   int font_weight = find_statement_numeric2(dd, "FONT", 0);
@@ -806,8 +806,7 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         }
       }
 
-      std::string tab_name = "tabPage";
-      tab_name += std::to_string(tab_idx);
+      std::string tab_name = std::format("tabPage{}", tab_idx);
 
       pugi::xml_node tab_widget = add_widget(widget, "QWidget", tab_name);
 
@@ -1087,7 +1086,7 @@ std::string generator::unique_name(const std::string& id)
     return base;
   }
   count++;
-  return base + "_" + std::to_string(count);
+  return std::format("{}_{}", base, count);
 }
 
 int generator::dlu_to_pixel_x(int dlu) const
@@ -1312,7 +1311,7 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       }
 
       std::string action_name = mi.id.empty()
-        ? "action" + std::to_string(m_action_counter++)
+        ? std::format("action{}", m_action_counter++)
         : mi.id;
 
       pugi::xml_node addaction = menu_node.append_child("addaction");

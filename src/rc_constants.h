@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <vector>
 
 namespace rc
@@ -26,8 +27,9 @@ namespace rc
    IDR_ — Generic resource identifier
 */
 
-enum class constant_category
+enum class category_t : uint32_t
 {
+  bad_category = 0,
   window_style,       // WS_*
   extended_style,     // WS_EX_*
   dialog_style,       // DS_*
@@ -70,7 +72,7 @@ struct constant_entry
 {
   std::string name;
   int64_t value;
-  constant_category category;
+  category_t category;
   std::string description;
 };
 
@@ -79,15 +81,18 @@ class constant_registry
 public:
   static constant_registry& instance();
 
-  void add(const std::string& name, int64_t value, constant_category cat,
+  void add(category_t cat,
+           int64_t value,
+           const std::string& name,
            const std::string& desc = "");
 
   bool has_name(const std::string& name) const;
 
+  static rc::category_t resolve_category(const std::string& name);
   int64_t resolve(const std::string& name) const;
-  std::string resolve(int64_t value, constant_category cat = {}) const;
+  std::string resolve(category_t cat, int64_t value) const;
 
-  std::vector<constant_entry> entries_by_category(constant_category cat) const;
+  std::vector<constant_entry> entries_by_category(category_t cat) const;
   std::vector<constant_entry> all_entries() const;
 
   size_t size() const;
@@ -96,7 +101,22 @@ private:
   constant_registry();
   void register_all();
 
+  struct catval_t
+  {
+    category_t cat = category_t::window_style;
+    int64_t value = 0;
+    bool operator ==(const catval_t& other) const
+      { return int(cat) == int(other.cat) && value == other.value; }
+
+    bool operator <(const catval_t& other) const
+    {
+      return int(cat) < int(other.cat) ||
+             value < other.value;
+    }
+  };
+
   std::unordered_map<std::string, int64_t> m_name_to_value;
+  std::map<catval_t, std::string> m_value_to_name;
   std::vector<constant_entry> m_entries;
 };
 

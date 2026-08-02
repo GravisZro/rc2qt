@@ -3,6 +3,7 @@
 #include "rc_tokenizer.h"
 
 #include <cassert>
+#include <format>
 #include <functional>
 #include <iostream>
 #include <string>
@@ -41,7 +42,7 @@ static rc::resource parse_single_resource(const std::string& input)
   rc::parser p(tokens);
   auto file = p.parse();
   if (file.resources.size() != 1)
-    throw std::runtime_error("Expected 1 resource, got " + std::to_string(file.resources.size()));
+    throw std::runtime_error(std::format("Expected 1 resource, got {}", file.resources.size()));
   return file.resources[0];
 }
 

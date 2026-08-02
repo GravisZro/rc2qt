@@ -130,7 +130,7 @@ int main(int argc, char** argv)
     std::cout << "Decoded " << pe_resources.size() << " resources from PE file:" << std::endl;
 
     rc::resolver res;
-    rc::constant_registry::instance();
+    auto& reg = rc::constant_registry::instance();
 
     rc::generator gen;
 
@@ -307,18 +307,21 @@ int main(int argc, char** argv)
             std::cout << " " << op << " " << name;
           if(s.value.resolved_value >= 0)
             std::cout << " -> 0x" << std::hex << s.value.resolved_value
-                      << " (" << res.format_value(s.value.resolved_value) << ")" << std::dec;
+                      << " (" << res.format_value(rc::category_t::dialog_style, s.value.resolved_value) << ")" << std::dec;
           std::cout << std::endl;
         }
         for(const auto& c : dd.controls)
         {
           std::cout << "  CONTROL " << c.id << " " << c.class_name;
+
+          rc::category_t cat = rc::constant_registry::resolve_category(c.class_name);
+
           if(c.style.resolved_value >= 0)
             std::cout << " style=0x" << std::hex << c.style.resolved_value
-                      << " (" << res.format_value(c.style.resolved_value) << ")" << std::dec;
+                      << " (" << res.format_value(cat, c.style.resolved_value) << ")" << std::dec;
           if(c.ext_style.resolved_value >= 0)
             std::cout << " ext=0x" << std::hex << c.ext_style.resolved_value
-                      << " (" << res.format_value(c.ext_style.resolved_value) << ")" << std::dec;
+                      << " (" << res.format_value(cat, c.ext_style.resolved_value) << ")" << std::dec;
           std::cout << std::endl;
         }
       }

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include "rc_constants.h"
 
 namespace rc
 {
@@ -18,7 +19,7 @@ class resolver
 public:
   int64_t resolve_style(const style_expr& expr) const;
 
-  std::string format_value(int64_t value) const;
+  std::string format_value(rc::category_t cat, int64_t value) const;
 
   void resolve_file(rc_file& file) const;
 

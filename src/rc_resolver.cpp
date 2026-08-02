@@ -3,7 +3,7 @@
 #include "rc_constants.h"
 
 #include <algorithm>
-#include <sstream>
+#include <format>
 
 namespace rc
 {
@@ -40,16 +40,14 @@ int64_t resolver::resolve_style(const style_expr& expr) const
   return result;
 }
 
-std::string resolver::format_value(int64_t value) const
+std::string resolver::format_value(rc::category_t cat, int64_t value) const
 {
   const auto& reg = constant_registry::instance();
-  std::string name = reg.resolve(value);
+  std::string name = reg.resolve(cat, value);
   if(!name.empty())
     return name;
 
-  std::ostringstream oss;
-  oss << "0x" << std::hex << value;
-  return oss.str();
+  return std::format("0x{:x}", static_cast<uint64_t>(value));
 }
 
 void resolver::resolve_file(rc_file& file) const
