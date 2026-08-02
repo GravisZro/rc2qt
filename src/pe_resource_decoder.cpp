@@ -4,6 +4,7 @@
 #include "pe_constants.hpp"
 #include "pe_containers.hpp"
 #include "rc_constants.h"
+#include "rc_helpers.h"
 
 #include <sstream>
 #include <string_view>
@@ -239,157 +240,6 @@ namespace
     return result;
   }
 
-  /*
-  const std::array<std::pair<uint32_t, std::string_view>,20> dialog_style_flags =
-  {{
-    { 0x00000001, "DS_MODALFRAME" },
-    { 0x00000002, "DS_ABSALIGN" },
-    { 0x00000004, "DS_SETFOREGROUND" },
-    { 0x00000008, "DS_NOFAILCREATE" },
-    { 0x00000010, "DS_SETFONT" },
-    { 0x00000020, "DS_FIXEDSYS" },
-    { 0x00000040, "DS_CONTROL" },
-    { 0x00000080, "DS_CENTER" },
-    { 0x00000100, "DS_CENTERMOUSE" },
-    { 0x00000200, "DS_CONTEXTHELP" },
-    { 0x00010000, "WS_POPUP" },
-    { 0x00040000, "WS_CAPTION" },
-    { 0x00080000, "WS_SYSMENU" },
-    { 0x00100000, "WS_THICKFRAME" },
-    { 0x00200000, "WS_MINIMIZEBOX" },
-    { 0x00400000, "WS_MAXIMIZEBOX" },
-    { 0x01000000, "WS_VISIBLE" },
-    { 0x02000000, "WS_DISABLED" },
-    { 0x04000000, "WS_CLIPSIBLINGS" },
-    { 0x10000000, "WS_CHILD" }
-  }};
-
-  inline constexpr std::array<std::pair<uint32_t, std::string_view>, 77> button_style_flags =
-  {{
-    // Button Styles (BS_)
-    { 0x00000001, "BS_PUSHBUTTON" },
-    { 0x00000002, "BS_DEFPUSHBUTTON" },
-    { 0x00000003, "BS_CHECKBOX" },
-    { 0x00000004, "BS_AUTOCHECKBOX" },
-    { 0x00000005, "BS_RADIOBUTTON" },
-    { 0x00000007, "BS_3STATE" },
-    { 0x00000008, "BS_AUTO3STATE" },
-    { 0x00000009, "BS_GROUPBOX" },
-    { 0x0000000A, "BS_AUTORADIOBUTTON" },
-    { 0x0000000B, "BS_PUSHBOX" },
-    { 0x0000000C, "BS_OWNERDRAW" },
-    { 0x0000000F, "BS_TYPEMASK" },
-    { 0x00000010, "BS_LEFTTEXT" },
-    { 0x00000020, "BS_ICON" },
-    { 0x00000040, "BS_BITMAP" },
-    { 0x00000080, "BS_AUTORADIOBUTTON" },
-    { 0x00000200, "BS_FLAT" }
-  }};
-
-  inline constexpr std::array<std::pair<uint32_t, std::string_view>, 14> edit_style_flags =
-  {{
-    // Edit Styles (ES_)
-    { 0x00000000, "ES_LEFT" },
-    { 0x00000001, "ES_CENTER" },
-    { 0x00000002, "ES_RIGHT" },
-    { 0x00000004, "ES_MULTILINE" },
-    { 0x00000008, "ES_UPPERCASE" },
-    { 0x00000010, "ES_LOWERCASE" },
-    { 0x00000020, "ES_PASSWORD" },
-    { 0x00000040, "ES_AUTOVSCROLL" },
-    { 0x00000080, "ES_AUTOHSCROLL" },
-    { 0x00000100, "ES_NOHIDESEL" },
-    { 0x00001000, "ES_OEMCONVERT" },
-    { 0x00002000, "ES_READONLY" },
-    { 0x00004000, "ES_WANTRETURN" },
-    { 0x00010000, "ES_NUMBER" },
-  }};
-
-  inline constexpr std::array<std::pair<uint32_t, std::string_view>, 20> static_style_flags =
-  {{
-    // Static Styles (SS_)
-    { 0x00000001, "SS_LEFT" },
-    { 0x00000002, "SS_CENTER" },
-    { 0x00000003, "SS_RIGHT" },
-    { 0x00000004, "SS_ICON" },
-    { 0x00000005, "SS_BLACKRECT" },
-    { 0x00000006, "SS_GRAYRECT" },
-    { 0x00000007, "SS_WHITERECT" },
-    { 0x00000008, "SS_BLACKFRAME" },
-    { 0x00000009, "SS_GRAYFRAME" },
-    { 0x0000000A, "SS_WHITEFRAME" },
-    { 0x0000000D, "SS_SIMPLE" },
-    { 0x0000000E, "SS_LEFTNOWORDWRAP" },
-    { 0x00000010, "SS_OWNERDRAW" },
-    { 0x00000030, "SS_TYPEMASK" },
-    { 0x00000100, "SS_NOPREFIX" },
-    { 0x00000200, "SS_NOTIFY" },
-    { 0x00000400, "SS_CENTERIMAGE" },
-    { 0x00000800, "SS_RIGHTJUST" },
-    { 0x00001000, "SS_REALSIZECONTROL" },
-    { 0x00002000, "SS_SUNKEN" },
-  }};
-
-  inline constexpr std::array<std::pair<uint32_t, std::string_view>, 15> listbox_style_flags =
-  {{
-    // Listbox Styles (LBS_)
-    { 0x00000001, "LBS_NOTIFY" },
-    { 0x00000002, "LBS_SORT" },
-    { 0x00000008, "LBS_NOSEL" },
-    { 0x00000010, "LBS_MULTIPLESEL" },
-    { 0x00000020, "LBS_OWNERDRAWFIXED" },
-    { 0x00000040, "LBS_OWNERDRAWVARIABLE" },
-    { 0x00000080, "LBS_HASSTRINGS" },
-    { 0x00000100, "LBS_USETABSTOPS" },
-    { 0x00000200, "LBS_NOINTEGRALHEIGHT" },
-    { 0x00000400, "LBS_MULTICOLUMN" },
-    { 0x00000800, "LBS_WANTKEYBOARDINPUT" },
-    { 0x00001000, "LBS_EXTENDEDSEL" },
-    { 0x00002000, "LBS_DISABLENOSCROLL" },
-    { 0x00010000, "LBS_NODATA" },
-    { 0x00020000, "LBS_NOSEL" },
-  }};
-
-  inline constexpr std::array<std::pair<uint32_t, std::string_view>, 14> combo_style_flags =
-  {{
-    // Combobox Styles (CBS_)
-    { 0x00000001, "CBS_SIMPLE" },
-    { 0x00000002, "CBS_DROPDOWN" },
-    { 0x00000003, "CBS_DROPDOWNLIST" },
-    { 0x00000004, "CBS_OWNERDRAWFIXED" },
-    { 0x00000008, "CBS_OWNERDRAWVARIABLE" },
-    { 0x00000010, "CBS_AUTOHSCROLL" },
-    { 0x00000020, "CBS_OEMCONVERT" },
-    { 0x00000040, "CBS_SORT" },
-    { 0x00000080, "CBS_HASSTRINGS" },
-    { 0x00000100, "CBS_NOINTEGRALHEIGHT" },
-    { 0x00000200, "CBS_SIMPLE" },
-    { 0x00000400, "CBS_DISABLENOSCROLL" },
-    { 0x00001000, "CBS_UPPERCASE" },
-    { 0x00002000, "CBS_LOWERCASE" },
-  }};
-
-  inline constexpr std::array<std::pair<uint32_t, std::string_view>, 6> scrollbar_style_flags =
-  {{
-    // Scrollbar Styles (SBS_)
-    { 0x00000001, "SBS_HORZ" },
-    { 0x00000002, "SBS_VERT" },
-    { 0x00000004, "SBS_TOPALIGN" },
-    { 0x00000008, "SBS_LEFTALIGN" },
-    { 0x00000010, "SBS_NOABBREVIATIONS" },
-    { 0x00000020, "SBS_DISABLENOSCROLL" },
-  }};
-
-  inline constexpr std::array<std::pair<uint32_t, std::string_view>, 4> window_style_flags =
-  {{
-    // Window Styles (WS_)
-    { 0x01000000, "WS_VISIBLE" },
-    { 0x02000000, "WS_DISABLED" },
-    { 0x04000000, "WS_TABSTOP" },
-    { 0x10000000, "WS_GROUP" }
-  }};
-  */
-
   static std::string format_style(uint32_t style, rc::category_t style_type)
   {
     std::string result;
@@ -412,58 +262,7 @@ namespace
     return result;
   }
 
-  /* Obsolete: replaced by format_style(ex_style, category_t::extended_style)
-     which resolves WS_EX_* names from the constant registry. The local
-     table below had incorrect values and duplicate entries.
-  static std::string format_ex_style(uint32_t ex_style)
-  {
-    std::vector<std::string> flags;
-    if (ex_style & 0x00000100) flags.push_back("WS_EX_DLGMODALFRAME");
-    if (ex_style & 0x00000004) flags.push_back("WS_EX_NOPARENTNOTIFY");
-    if (ex_style & 0x00000080) flags.push_back("WS_EX_TOOLWINDOW");
-    if (ex_style & 0x00000040) flags.push_back("WS_EX_APPWINDOW");
-    if (ex_style & 0x00000200) flags.push_back("WS_EX_WINDOWEDGE");
-    if (ex_style & 0x00000008) flags.push_back("WS_EX_TOPMOST");
-    if (ex_style & 0x00080000) flags.push_back("WS_EX_LAYERED");
-    if (ex_style & 0x00000020) flags.push_back("WS_EX_CLIENTEDGE");
-    if (ex_style & 0x00000010) flags.push_back("WS_EX_CONTEXTHELP");
-    if (ex_style & 0x00040000) flags.push_back("WS_EX_CONTROLPARENT");
-    if (ex_style & 0x00000400) flags.push_back("WS_EX_RIGHTSCROLLBAR");
-    if (ex_style & 0x00000001) flags.push_back("WS_EX_RIGHT");
-    if (ex_style & 0x00000002) flags.push_back("WS_EX_RTLREADING");
-    if (ex_style & 0x00002000) flags.push_back("WS_EX_STATICEDGE");
-    if (ex_style & 0x00010000) flags.push_back("WS_EX_LAYERED");
-    if (ex_style & 0x00000010) flags.push_back("WS_EX_CONTEXTHELP");
 
-    std::string result;
-    for (size_t i = 0; i < flags.size(); i++)
-    {
-      if (i > 0)
-        result += " | ";
-      result += flags[i];
-    }
-    return result;
-  }
-  */
-
-  static std::string escape_rc_string(const std::string& s)
-  {
-    std::string result;
-    for (char c : s)
-    {
-      if (c == '"')
-        result += "\"\"";
-      else if (c == '\\')
-        result += "\\\\";
-      else if (c == '\t')
-        result += "\\t";
-      else if (c == '\n')
-        result += "\\n";
-      else
-        result += c;
-    }
-    return result;
-  }
 
   static std::string resource_id_string(uint32_t id)
   {
@@ -626,10 +425,10 @@ namespace
       uint32_t rest_style = ctrl.style & ~static_cast<uint32_t>(0x10000000);
       std::string style_val;
       if (rest_style)
-        style_val = std::format("0x{:x}", rest_style);
+        style_val = std::format("0x{:08x}", rest_style);
 
       std::string line = std::format("    CONTROL \"{}\", {}, \"{}\"",
-        escape_rc_string(ctrl.text), id_str, ctrl.class_name);
+        rc::escape_string(ctrl.text), id_str, ctrl.class_name);
 
       if (style_val.empty())
         line += ", 0";
@@ -645,7 +444,7 @@ namespace
     }
 
     std::string line = std::format("    {} \"{}\", {}, {}, {}, {}, {}",
-      keyword, escape_rc_string(ctrl.text), id_str, ctrl.x, ctrl.y, ctrl.cx, ctrl.cy);
+      keyword, rc::escape_string(ctrl.text), id_str, ctrl.x, ctrl.y, ctrl.cx, ctrl.cy);
 
     uint32_t control_type = 0;
     std::string cls_upper = ctrl.class_name;
@@ -735,11 +534,11 @@ std::string decode_dialog(
   }
 
   if (!hdr.title.empty())
-    out << "CAPTION \"" << escape_rc_string(hdr.title) << "\"\n";
+    out << "CAPTION \"" << rc::escape_string(hdr.title) << "\"\n";
 
   if (hdr.font_size > 0)
   {
-    out << "FONT " << hdr.font_size << ", \"" << escape_rc_string(hdr.font_name) << "\"";
+    out << "FONT " << hdr.font_size << ", \"" << rc::escape_string(hdr.font_name) << "\"";
     if (hdr.font_weight || hdr.font_italic)
     {
       out << ", " << hdr.font_weight;
@@ -864,7 +663,7 @@ std::string decode_menu(
         }
         else if (is_popup)
         {
-          out << indent << "POPUP \"" << escape_rc_string(text) << "\"";
+          out << indent << "POPUP \"" << rc::escape_string(text) << "\"";
           if (u_id != 0)
             out << ", " << u_id;
           if (dw_state & 0x0003)
@@ -881,7 +680,7 @@ std::string decode_menu(
         }
         else
         {
-          out << indent << "MENUITEM \"" << escape_rc_string(text) << "\", " << u_id;
+          out << indent << "MENUITEM \"" << rc::escape_string(text) << "\", " << u_id;
           if (dw_state & 0x0003) out << ", GRAYED";
           if (dw_state & 0x0008) out << ", CHECKED";
           if (dw_state & 0x1000) out << ", DEFAULT";
@@ -939,7 +738,7 @@ std::string decode_menu(
       }
       else if (is_popup)
       {
-        out << indent << "POPUP \"" << escape_rc_string(text) << "\"";
+        out << indent << "POPUP \"" << rc::escape_string(text) << "\"";
         if (option & 0x0001)
           out << ", GRAYED";
         if (option & 0x0002)
@@ -951,7 +750,7 @@ std::string decode_menu(
       }
       else
       {
-        out << indent << "MENUITEM \"" << escape_rc_string(text) << "\", " << id;
+        out << indent << "MENUITEM \"" << rc::escape_string(text) << "\", " << id;
         if (option & 0x0001) out << ", GRAYED";
         if (option & 0x0008) out << ", CHECKED";
         if (option & 0x0080) out << ", MENUBARBREAK";
@@ -1112,7 +911,7 @@ std::string decode_stringtable(
 
     uint32_t string_id = (group_id - 1) * 16 + i;
     out << "  " << resource_id_string(string_id)
-      << ", \"" << escape_rc_string(str) << "\"\n";
+      << ", \"" << rc::escape_string(str) << "\"\n";
   }
 
   out << "END\n";
@@ -1234,7 +1033,7 @@ std::string decode_versioninfo(
             || (!val.empty() && (std::isdigit(val[0]) || val[0] == '-' || val[0] == '0')))
           out << pad << "VALUE \"" << key << "\", " << val << "\n";
         else
-          out << pad << "VALUE \"" << key << "\", \"" << escape_rc_string(val) << "\"\n";
+          out << pad << "VALUE \"" << key << "\", \"" << rc::escape_string(val) << "\"\n";
       }
 
       r.pos() = next_item;

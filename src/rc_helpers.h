@@ -47,6 +47,7 @@ namespace rc
   std::string cp1252_to_utf8(const std::string& input);
 
   bool match_string(const std::string& needle, std::initializer_list<std::string> haystack);
+  std::string escape_string(const std::string& s);
 }
 
 #endif // RC_HELPERS_H

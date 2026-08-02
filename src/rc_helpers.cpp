@@ -128,4 +128,23 @@ namespace rc
     auto upper = to_upper(needle);
     return std::ranges::any_of(haystack, [upper](auto str) { return rc::to_upper(str) == upper; });
   }
+
+  std::string escape_string(const std::string& s)
+  {
+    std::string result;
+    result.reserve(s.size()); // Pre-allocate to reduce reallocations
+
+    for (char c : s)
+    {
+      switch (c)
+      {
+        case '"':  result += "\\\""; break;
+        case '\\': result += "\\\\"; break;
+        case '\t': result += "\\t";  break;
+        case '\n': result += "\\n";  break;
+        default:   result += c;      break;
+      }
+    }
+    return result;
+  }
 }
