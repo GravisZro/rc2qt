@@ -110,8 +110,9 @@ private:
 
     bool operator <(const catval_t& other) const
     {
-      return int(cat) < int(other.cat) ||
-             value < other.value;
+      if(int(cat) != int(other.cat))
+        return int(cat) < int(other.cat);
+      return value < other.value;
     }
   };
 

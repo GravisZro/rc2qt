@@ -238,6 +238,27 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::dialog_style, 0x0200, "DS_SETFOREGROUND", "Brings the dialog box to the foreground upon creation.");
   add(category_t::dialog_style, 0x0002, "DS_SYSMODAL", "Creates a system-modal dialog box (historical style");
   add(category_t::dialog_style, 0x0048, "DS_SHELLFONT", "Uses the system shell font for rendering text inside the dialog box (requires DS_SETFONT).");
+  /* ── WS_* Window Styles usable on dialogs ───────────────────────── */
+  add(category_t::dialog_style, 0x00800000, "WS_BORDER", "Creates a window that has a thin-line border.");
+  add(category_t::dialog_style, 0x00C00000, "WS_CAPTION", "Creates a window that has a title bar (includes the WS_BORDER style).");
+  add(category_t::dialog_style, 0x40000000, "WS_CHILD", "Creates a child window. A window with this style cannot have a menu bar and cannot be used with the WS_POPUP style.");
+  add(category_t::dialog_style, 0x02000000, "WS_CLIPCHILDREN", "Excludes the area occupied by child windows when drawing occurs within the parent window. Used when creating the parent window.");
+  add(category_t::dialog_style, 0x04000000, "WS_CLIPSIBLINGS", "Clips child windows relative to each other; that is");
+  add(category_t::dialog_style, 0x08000000, "WS_DISABLED", "Creates a window that is initially disabled. A disabled window cannot receive input from the user.");
+  add(category_t::dialog_style, 0x00400000, "WS_DLGFRAME", "Creates a window that has a border of a style typically used with dialog boxes. A window with this style cannot have a title bar.");
+  add(category_t::dialog_style, 0x00020000, "WS_GROUP", "Specifies the first control of a group of controls. The group consists of this first control and all controls defined after it");
+  add(category_t::dialog_style, 0x00100000, "WS_HSCROLL", "Creates a window that has a horizontal scroll bar.");
+  add(category_t::dialog_style, 0x00010000, "WS_MAXIMIZEBOX", "Creates a window that has a maximize button. Cannot be combined with the WS_EX_CONTEXTHELP style. Requires WS_SYSMENU.");
+  add(category_t::dialog_style, 0x00020000, "WS_MINIMIZEBOX", "Creates a window that has a minimize button. Cannot be combined with the WS_EX_CONTEXTHELP style. Requires WS_SYSMENU.");
+  add(category_t::dialog_style, 0x80000000, "WS_POPUP", "Creates a pop-up window. Cannot be used with the WS_CHILD style.");
+  add(category_t::dialog_style, 0x00040000, "WS_SIZEBOX", "Creates a window that has a sizing border (same as WS_THICKFRAME).");
+  add(category_t::dialog_style, 0x00080000, "WS_SYSMENU", "Creates a window that has a window menu on its title bar. Requires WS_CAPTION.");
+  add(category_t::dialog_style, 0x00010000, "WS_TABSTOP", "Specifies a control that can receive the keyboard focus when the user presses the TAB key. Pressing TAB changes the focus to the next control with this style.");
+  add(category_t::dialog_style, 0x10000000, "WS_VISIBLE", "Creates a window that is initially visible.");
+  add(category_t::dialog_style, 0x00200000, "WS_VSCROLL", "Creates a window that has a vertical scroll bar.");
+  add(category_t::dialog_style, 0x00040000, "WS_THICKFRAME", "Creates a window that has a sizing border (same as WS_SIZEBOX).");
+  add(category_t::dialog_style, 0x00CF0000, "WS_OVERLAPPEDWINDOW", "Creates an overlapped window with WS_OVERLAPPED");
+  add(category_t::dialog_style, 0x80880000, "WS_POPUPWINDOW", "Creates a pop-up window with WS_POPUP");
 
   /* ── BS_* Button Styles ───────────────────────────────────────── */
   add(category_t::button_style, 0x0005, "BS_3STATE", "Creates a button that functions like a checkbox but can be dimmed (indeterminate state) as well as checked or unchecked.");

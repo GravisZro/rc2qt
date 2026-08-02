@@ -239,6 +239,7 @@ namespace
     return result;
   }
 
+  /*
   const std::array<std::pair<uint32_t, std::string_view>,20> dialog_style_flags =
   {{
     { 0x00000001, "DS_MODALFRAME" },
@@ -387,32 +388,27 @@ namespace
     { 0x04000000, "WS_TABSTOP" },
     { 0x10000000, "WS_GROUP" }
   }};
+  */
 
   static std::string format_style(uint32_t style, rc::category_t style_type)
   {
     std::string result;
+    const auto& reg = rc::constant_registry::instance();
 
-    auto append_flags = [&result, style](const std::pair<uint32_t, std::string_view>& pair)
+    for (uint32_t bit = 1; bit; bit <<= 1)
     {
-      if(style & pair.first)
-        result.append(" | ").append(pair.second);
-    };
-
-    switch(style_type)
-    {
-      case rc::category_t::window_style: std::ranges::for_each(window_style_flags, append_flags); break;
-      case rc::category_t::dialog_style: std::ranges::for_each(dialog_style_flags, append_flags); break;
-      case rc::category_t::button_style: std::ranges::for_each(button_style_flags, append_flags); break;
-      case rc::category_t::edit_style: std::ranges::for_each(edit_style_flags, append_flags); break;
-      case rc::category_t::static_style: std::ranges::for_each(static_style_flags, append_flags); break;
-      case rc::category_t::listbox_style: std::ranges::for_each(listbox_style_flags, append_flags); break;
-      case rc::category_t::combobox_style: std::ranges::for_each(combo_style_flags, append_flags); break;
-      case rc::category_t::scrollbar_style: std::ranges::for_each(scrollbar_style_flags, append_flags); break;
-      default: break;
+      if (style & bit)
+      {
+        std::string name = reg.resolve(style_type, bit);
+        if (!name.empty())
+        {
+          if (!result.empty())
+            result += " | ";
+          result += name;
+        }
+      }
     }
 
-    if(!result.empty())
-      result.erase(0, 2);
     return result;
   }
 
