@@ -19,9 +19,10 @@ fail=0
 for rc_file in "$TESTDIR"/*.rc; do
   [ -f "$rc_file" ] || continue
   total=$((total + 1))
-  qrc_out="$OUTDIR/$(basename "$rc_file" .rc).qrc"
+  rc_basename=$(basename "$rc_file" .rc)
+  qrc_out="$OUTDIR/$rc_basename.qrc"
 
-  output=$("$RC2QT" "$rc_file" -o "$OUTDIR/" -q "$qrc_out" 2>&1) && rc=0 || rc=$?
+  output=$("$RC2QT" "$rc_file" -o "$OUTDIR/" -r "$rc_basename" -q "$qrc_out" 2>&1) && rc=0 || rc=$?
   if [ $rc -eq 0 ]; then
     success=$((success + 1))
   else
