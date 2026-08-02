@@ -719,7 +719,8 @@ std::string decode_dialog(
 
   if (hdr.style)
   {
-    out << "STYLE " << format_style(hdr.style, rc::category_t::dialog_style);
+    out << "STYLE " << format_style(hdr.style,
+      rc::category_t::dialog_style | rc::category_t::window_style);
     out << "\n";
   }
 

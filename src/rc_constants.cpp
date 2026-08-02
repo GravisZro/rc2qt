@@ -1,8 +1,5 @@
 #include "rc_constants.h"
 
-#include <algorithm>
-#include <cctype>
-
 namespace rc
 {
 
@@ -37,75 +34,53 @@ category_t constant_registry::resolve_category(const std::string& name)
   if(name.empty())
     return category_t::window_style;
 
-  std::string lower = name;
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  const std::string upper = rc::to_upper(name);
 
   const std::unordered_map<std::string, category_t> categories =
   {
     // Standard control classes (ordinal references #128-#133)
-    { "button", category_t::button_style },
+    { "BUTTON", category_t::button_style },
     { "#128", category_t::button_style },
-    { "edit", category_t::edit_style },
+    { "EDIT", category_t::edit_style },
     { "#129", category_t::edit_style },
-    { "static", category_t::static_style },
+    { "STATIC", category_t::static_style },
     { "#130", category_t::static_style },
-    { "listbox", category_t::listbox_style },
+    { "LISTBOX", category_t::listbox_style },
     { "#131", category_t::listbox_style },
-    { "scrollbar", category_t::scrollbar_style },
+    { "SCROLLBAR", category_t::scrollbar_style },
     { "#132", category_t::scrollbar_style },
-    { "combobox", category_t::combobox_style },
-    { "comboboxex32", category_t::combobox_style },
+    { "COMBOBOX", category_t::combobox_style },
+    { "COMBOBOXEX32", category_t::combobox_style },
     { "#133", category_t::combobox_style },
 
     // Common Control classes
-    { "syslistview32", category_t::listview_style },
-    { "systreeview32", category_t::treeview_style },
-    { "msctls_trackbar32", category_t::trackbar_style },
-    { "msctls_progress32", category_t::progressbar_style },
-    { "msctls_updown32", category_t::updown_style },
-    { "sysdatetimepick32", category_t::datetimepicker_style },
-    { "sysmonthcal32", category_t::datetimepicker_style },
-    { "systabcontrol32", category_t::tabcontrol_style },
+    { "SYSLISTVIEW32", category_t::listview_style },
+    { "SYSTREEVIEW32", category_t::treeview_style },
+    { "MSCTLS_TRACKBAR32", category_t::trackbar_style },
+    { "MSCTLS_PROGRESS32", category_t::progressbar_style },
+    { "MSCTLS_UPDOWN32", category_t::updown_style },
+    { "SYSDATETIMEPICK32", category_t::datetimepicker_style },
+    { "SYSMONTHCAL32", category_t::datetimepicker_style },
+    { "SYSTABCONTROL32", category_t::tabcontrol_style },
 
     // Edit-based controls
-    { "richedit", category_t::edit_style },
-    { "richedit20a", category_t::edit_style },
-    { "richedit20w", category_t::edit_style },
-    { "richedit50w", category_t::edit_style },
+    { "RICHEDIT", category_t::edit_style },
+    { "RICHEDIT20A", category_t::edit_style },
+    { "RICHEDIT20W", category_t::edit_style },
+    { "RICHEDIT50W", category_t::edit_style },
 
     // RC resource statement keywords
     { "ACCELERATORS", category_t::accelerator_flag },
     { "DIALOG", category_t::dialog_style },
     { "DIALOGEX", category_t::dialog_style },
-/*
-    "BITMAP",
-    "CURSOR",
-    "FONT",
-    "HTML",
-    "ICON",
-    "MENU",
-    "MENUEX",
-    "MESSAGETABLE",
-    "POPUP",
-    "RCDATA",
-    "STRINGTABLE",
-    "TOOLBAR",
-    "VERSIONINFO",
-    "TEXTINCLUDE",
-    "REGISTRY",
-    "DLGINIT",
-    "GUIDELINES",
-    "DESIGNINFO",
-    "DLGINCLUDE"
-*/
+
   };
 
-  auto it = categories.find(lower);
+  auto it = categories.find(upper);
   if(it != categories.end())
-    return it->second;
+    return it->second | category_t::window_style;
 
-  return category_t::window_style;
+  return category_t::bad_category;
 }
 
 int64_t constant_registry::resolve(const std::string& name) const
@@ -134,9 +109,16 @@ int64_t constant_registry::resolve(const std::string& name) const
 
 std::string constant_registry::resolve(category_t cat, int64_t value) const
 {
-  if(auto it = m_value_to_name.find(catval_t{ cat, value });
-     it != m_value_to_name.end())
-    return it->second;
+  for(uint64_t bit = 1; bit != 0; bit <<= 1)
+  {
+    if(static_cast<uint64_t>(cat) & bit)
+    {
+      auto it = m_value_to_name.find(catval_t
+        { static_cast<category_t>(bit), value });
+      if(it != m_value_to_name.end())
+        return it->second;
+    }
+  }
   return {};
 }
 
@@ -144,7 +126,7 @@ std::vector<constant_entry> constant_registry::entries_by_category(category_t ca
 {
   std::vector<constant_entry> result;
   for(const auto& e : m_entries)
-    if(e.category == cat)
+    if(static_cast<uint64_t>(e.category) & static_cast<uint64_t>(cat))
       result.push_back(e);
   return result;
 }
@@ -238,27 +220,6 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::dialog_style, 0x0200, "DS_SETFOREGROUND", "Brings the dialog box to the foreground upon creation.");
   add(category_t::dialog_style, 0x0002, "DS_SYSMODAL", "Creates a system-modal dialog box (historical style");
   add(category_t::dialog_style, 0x0048, "DS_SHELLFONT", "Uses the system shell font for rendering text inside the dialog box (requires DS_SETFONT).");
-  /* ── WS_* Window Styles usable on dialogs ───────────────────────── */
-  add(category_t::dialog_style, 0x00800000, "WS_BORDER", "Creates a window that has a thin-line border.");
-  add(category_t::dialog_style, 0x00C00000, "WS_CAPTION", "Creates a window that has a title bar (includes the WS_BORDER style).");
-  add(category_t::dialog_style, 0x40000000, "WS_CHILD", "Creates a child window. A window with this style cannot have a menu bar and cannot be used with the WS_POPUP style.");
-  add(category_t::dialog_style, 0x02000000, "WS_CLIPCHILDREN", "Excludes the area occupied by child windows when drawing occurs within the parent window. Used when creating the parent window.");
-  add(category_t::dialog_style, 0x04000000, "WS_CLIPSIBLINGS", "Clips child windows relative to each other; that is");
-  add(category_t::dialog_style, 0x08000000, "WS_DISABLED", "Creates a window that is initially disabled. A disabled window cannot receive input from the user.");
-  add(category_t::dialog_style, 0x00400000, "WS_DLGFRAME", "Creates a window that has a border of a style typically used with dialog boxes. A window with this style cannot have a title bar.");
-  add(category_t::dialog_style, 0x00020000, "WS_GROUP", "Specifies the first control of a group of controls. The group consists of this first control and all controls defined after it");
-  add(category_t::dialog_style, 0x00100000, "WS_HSCROLL", "Creates a window that has a horizontal scroll bar.");
-  add(category_t::dialog_style, 0x00010000, "WS_MAXIMIZEBOX", "Creates a window that has a maximize button. Cannot be combined with the WS_EX_CONTEXTHELP style. Requires WS_SYSMENU.");
-  add(category_t::dialog_style, 0x00020000, "WS_MINIMIZEBOX", "Creates a window that has a minimize button. Cannot be combined with the WS_EX_CONTEXTHELP style. Requires WS_SYSMENU.");
-  add(category_t::dialog_style, 0x80000000, "WS_POPUP", "Creates a pop-up window. Cannot be used with the WS_CHILD style.");
-  add(category_t::dialog_style, 0x00040000, "WS_SIZEBOX", "Creates a window that has a sizing border (same as WS_THICKFRAME).");
-  add(category_t::dialog_style, 0x00080000, "WS_SYSMENU", "Creates a window that has a window menu on its title bar. Requires WS_CAPTION.");
-  add(category_t::dialog_style, 0x00010000, "WS_TABSTOP", "Specifies a control that can receive the keyboard focus when the user presses the TAB key. Pressing TAB changes the focus to the next control with this style.");
-  add(category_t::dialog_style, 0x10000000, "WS_VISIBLE", "Creates a window that is initially visible.");
-  add(category_t::dialog_style, 0x00200000, "WS_VSCROLL", "Creates a window that has a vertical scroll bar.");
-  add(category_t::dialog_style, 0x00040000, "WS_THICKFRAME", "Creates a window that has a sizing border (same as WS_SIZEBOX).");
-  add(category_t::dialog_style, 0x00CF0000, "WS_OVERLAPPEDWINDOW", "Creates an overlapped window with WS_OVERLAPPED");
-  add(category_t::dialog_style, 0x80880000, "WS_POPUPWINDOW", "Creates a pop-up window with WS_POPUP");
 
   /* ── BS_* Button Styles ───────────────────────────────────────── */
   add(category_t::button_style, 0x0005, "BS_3STATE", "Creates a button that functions like a checkbox but can be dimmed (indeterminate state) as well as checked or unchecked.");

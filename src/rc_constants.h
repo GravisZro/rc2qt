@@ -7,6 +7,8 @@
 #include <map>
 #include <vector>
 
+#include "rc_helpers.h"
+
 namespace rc
 {
 
@@ -27,45 +29,45 @@ namespace rc
    IDR_ — Generic resource identifier
 */
 
-enum class category_t : uint32_t
+enum class category_t : uint64_t
 {
   bad_category = 0,
-  window_style,       // WS_*
-  extended_style,     // WS_EX_*
-  dialog_style,       // DS_*
-  button_style,       // BS_*
-  edit_style,         // ES_*
-  static_style,       // SS_*
-  listbox_style,      // LBS_*
-  combobox_style,     // CBS_*
-  scrollbar_style,    // SBS_*
-  listview_style,     // LVS_*
-  treeview_style,     // TVS_*
-  trackbar_style,     // TBS_*
-  progressbar_style,  // PBS_*
-  updown_style,       // UDS_*
-  datetimepicker_style, // DTS_*
-  tabcontrol_style,   // TCS_*
-  window_message,     // WM_*
-  virtual_key,        // VK_*
-  message_box,        // MB_*
-  menu_flag,          // MF_*, MFT_*, MFS_*
-  accelerator_flag,   // FVIRTKEY, FALT, etc.
-  resource_type,      // RT_*
-  control_message,    // CB_*, LB_*, EM_*, BM_*, STM_*, SBM_*, DM_*
-  notification,       // CBN_*, LBN_*, EN_*, BN_*, STN_*
-  dialog_id,          // IDOK, IDCANCEL, etc.
-  system_id,          // IDC_STATIC, etc.
-  control_id,         // AFX_IDC_* control identifiers
-  mfc_dialog_id,      // AFX_IDD_*, IDD_* dialog template IDs
-  mfc_string_id,      // AFX_IDS_* string IDs
-  mfc_bitmap_id,      // AFX_IDB_*, IDB_* bitmap IDs
-  mfc_icon_id,        // AFX_IDI_* icon IDs
-  mfc_prompt_id,      // AFX_IDP_* prompt IDs
-  oem_bitmap,         // OBM_* OEM bitmap IDs
-  system_resource_id, // ID_* system resource IDs
-  mfc_cursor_id,      // AFX_IDC_* cursor IDs
-  mfc_accel_id,       // AFX_IDR_* accelerator table IDs
+  window_style = 1ULL << 0,       // WS_*
+  extended_style = 1ULL << 1,     // WS_EX_*
+  dialog_style = 1ULL << 2,       // DS_*
+  button_style = 1ULL << 3,       // BS_*
+  edit_style = 1ULL << 4,         // ES_*
+  static_style = 1ULL << 5,       // SS_*
+  listbox_style = 1ULL << 6,      // LBS_*
+  combobox_style = 1ULL << 7,     // CBS_*
+  scrollbar_style = 1ULL << 8,    // SBS_*
+  listview_style = 1ULL << 9,     // LVS_*
+  treeview_style = 1ULL << 10,    // TVS_*
+  trackbar_style = 1ULL << 11,    // TBS_*
+  progressbar_style = 1ULL << 12, // PBS_*
+  updown_style = 1ULL << 13,      // UDS_*
+  datetimepicker_style = 1ULL << 14, // DTS_*
+  tabcontrol_style = 1ULL << 15,  // TCS_*
+  window_message = 1ULL << 16,    // WM_*
+  virtual_key = 1ULL << 17,       // VK_*
+  message_box = 1ULL << 18,       // MB_*
+  menu_flag = 1ULL << 19,         // MF_*, MFT_*, MFS_*
+  accelerator_flag = 1ULL << 20,  // FVIRTKEY, FALT, etc.
+  resource_type = 1ULL << 21,     // RT_*
+  control_message = 1ULL << 22,   // CB_*, LB_*, EM_*, BM_*, STM_*, SBM_*, DM_*
+  notification = 1ULL << 23,      // CBN_*, LBN_*, EN_*, BN_*, STN_*
+  dialog_id = 1ULL << 24,         // IDOK, IDCANCEL, etc.
+  system_id = 1ULL << 25,         // IDC_STATIC, etc.
+  control_id = 1ULL << 26,        // AFX_IDC_* control identifiers
+  mfc_dialog_id = 1ULL << 27,     // AFX_IDD_*, IDD_* dialog template IDs
+  mfc_string_id = 1ULL << 28,     // AFX_IDS_* string IDs
+  mfc_bitmap_id = 1ULL << 29,     // AFX_IDB_*, IDB_* bitmap IDs
+  mfc_icon_id = 1ULL << 30,       // AFX_IDI_* icon IDs
+  mfc_prompt_id = 1ULL << 31,     // AFX_IDP_* prompt IDs
+  oem_bitmap = 1ULL << 32,        // OBM_* OEM bitmap IDs
+  system_resource_id = 1ULL << 33, // ID_* system resource IDs
+  mfc_cursor_id = 1ULL << 34,     // AFX_IDC_* cursor IDs
+  mfc_accel_id = 1ULL << 35,      // AFX_IDR_* accelerator table IDs
 };
 
 struct constant_entry
@@ -103,15 +105,18 @@ private:
 
   struct catval_t
   {
-    category_t cat = category_t::window_style;
+    category_t cat = category_t::bad_category;
     int64_t value = 0;
     bool operator ==(const catval_t& other) const
-      { return int(cat) == int(other.cat) && value == other.value; }
+    {
+      return static_cast<uint64_t>(cat) == static_cast<uint64_t>(other.cat)
+        && value == other.value;
+    }
 
     bool operator <(const catval_t& other) const
     {
-      if(int(cat) != int(other.cat))
-        return int(cat) < int(other.cat);
+      if(static_cast<uint64_t>(cat) != static_cast<uint64_t>(other.cat))
+        return static_cast<uint64_t>(cat) < static_cast<uint64_t>(other.cat);
       return value < other.value;
     }
   };

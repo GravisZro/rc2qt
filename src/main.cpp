@@ -307,7 +307,9 @@ int main(int argc, char** argv)
             std::cout << " " << op << " " << name;
           if(s.value.resolved_value >= 0)
             std::cout << " -> 0x" << std::hex << s.value.resolved_value
-                      << " (" << res.format_value(rc::category_t::dialog_style, s.value.resolved_value) << ")" << std::dec;
+                      << " (" << res.format_value(
+                        rc::category_t::dialog_style | rc::category_t::window_style,
+                        s.value.resolved_value) << ")" << std::dec;
           std::cout << std::endl;
         }
         for(const auto& c : dd.controls)
