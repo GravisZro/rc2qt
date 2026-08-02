@@ -412,6 +412,9 @@ namespace
     return result;
   }
 
+  /* Obsolete: replaced by format_style(ex_style, category_t::extended_style)
+     which resolves WS_EX_* names from the constant registry. The local
+     table below had incorrect values and duplicate entries.
   static std::string format_ex_style(uint32_t ex_style)
   {
     std::vector<std::string> flags;
@@ -441,6 +444,7 @@ namespace
     }
     return result;
   }
+  */
 
   static std::string escape_rc_string(const std::string& s)
   {
@@ -635,7 +639,7 @@ namespace
       line += std::format(", {}, {}, {}, {}", ctrl.x, ctrl.y, ctrl.cx, ctrl.cy);
 
       if (ctrl.ex_style)
-        line += ", " + format_ex_style(ctrl.ex_style);
+        line += ", " + format_style(ctrl.ex_style, rc::category_t::extended_style);
 
       return line;
     }
@@ -726,7 +730,7 @@ std::string decode_dialog(
 
   if (hdr.ex_style)
   {
-    out << "EXSTYLE " << format_ex_style(hdr.ex_style);
+    out << "EXSTYLE " << format_style(hdr.ex_style, rc::category_t::extended_style);
     out << "\n";
   }
 
