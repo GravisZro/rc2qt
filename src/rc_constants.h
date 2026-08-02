@@ -107,17 +107,11 @@ private:
   {
     category_t cat = category_t::bad_category;
     int64_t value = 0;
-    bool operator ==(const catval_t& other) const
-    {
-      return static_cast<uint64_t>(cat) == static_cast<uint64_t>(other.cat)
-        && value == other.value;
-    }
 
     bool operator <(const catval_t& other) const
     {
-      if(static_cast<uint64_t>(cat) != static_cast<uint64_t>(other.cat))
-        return static_cast<uint64_t>(cat) < static_cast<uint64_t>(other.cat);
-      return value < other.value;
+      return cat < other.cat ||
+             (cat == other.cat && value < other.value);
     }
   };
 

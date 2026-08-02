@@ -355,14 +355,12 @@ int main(int argc, char** argv)
     if(gen.generate_all(file, out_dir.generic_string(), res_dir_name))
       std::cout << "Generated all dialogs in: "
                 << (out_dir / res_dir_name).generic_string() << std::endl;
-    else
-      std::cerr << "Error: failed to generate dialogs" << std::endl;
 
     std::filesystem::path qrc_path_fs;
     if(!qrc_path.empty())
       qrc_path_fs = qrc_path;
     else
-      qrc_path_fs = out_dir / (rc_basename + ".qrc");
+      qrc_path_fs = out_dir / res_dir_name / (rc_basename + ".qrc");
 
     std::vector<std::string> ui_files;
     std::filesystem::path sub_dir = out_dir / res_dir_name;

@@ -23,7 +23,7 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
   std::vector<std::string> generated_files;
   std::set<std::string> used_short_ids;
 
-  std::filesystem::create_directories(std::filesystem::path(output_dir) / rc_basename);
+  bool created_output_dir = false;
 
   int dialog_index = 0;
 
@@ -33,6 +33,12 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
       continue;
 
     const auto& dd = std::get<dialog_data>(res.data);
+
+    if(!created_output_dir)
+    {
+      std::filesystem::create_directories(std::filesystem::path(output_dir) / rc_basename);
+      created_output_dir = true;
+    }
 
     std::string short_id = res.id;
     if(short_id.size() > 4 && short_id.substr(0, 4) == "IDD_")
