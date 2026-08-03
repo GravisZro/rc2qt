@@ -179,9 +179,16 @@ namespace
     char16_t            szKey[16];
     uint16_t            Padding1;
     vs_fixedfileinfo_t  Value;
-    uint16_t            Padding2;
-    uint16_t            Children;
+    // uint16_t            Padding2;
+    // uint16_t            Children;
+    // The child blocks (StringFileInfo/VarFileInfo) begin immediately after
+    // Value, which ends on a DWORD boundary (header = 92 bytes).
   };
+
+  static_assert(sizeof(vs_fixedfileinfo_t) == 52,
+    "VS_FIXEDFILEINFO must be 52 bytes");
+  static_assert(sizeof(vs_versioninfo_t) == 92,
+    "VS_VERSION_INFO header must be 92 bytes");
 
   static const char* class_from_ordinal(uint16_t ordinal)
   {
@@ -918,12 +925,23 @@ std::string decode_stringtable(
   return out.str();
 }
 
+/* Parent container kind that drives how each child block is interpreted. */
+enum class version_block_kind
+{
+  root,          // children are named containers (StringFileInfo/VarFileInfo)
+  string_file,   // children are StringTable language blocks (containers)
+  string_table,  // children are String blocks (quoted UTF-16 values)
+  var_file,      // children are Var blocks (binary WORD-array values)
+};
+
 std::string decode_versioninfo(
   std::span<const uint8_t> data,
   const std::string& resource_id)
 {
   byte_reader reader(data);
 
+  /* Obsolete: the version header was read one field at a time. It is now
+     read into the packed vs_versioninfo_t struct in a single operation.
   uint16_t total_len = reader.read_u16();
   (void)total_len;
   std::string header = read_unicode_string(reader);
@@ -965,11 +983,47 @@ std::string decode_versioninfo(
       reader.pos() -= 4;
     }
   }
+  */
+
+  if (reader.remaining() < sizeof(vs_versioninfo_t))
+    return "";
+
+  vs_versioninfo_t header{};
+  std::memcpy(&header,
+              reader.slice(reader.pos(), sizeof(header)).data(),
+              sizeof(header));
+  reader.skip(sizeof(header));
+
+  std::u16string key;
+  for (size_t i = 0; i < 16 && header.szKey[i] != 0; i++)
+    key += header.szKey[i];
+
+  if (key != u"VS_VERSION_INFO")
+    return "";
+
+  std::ostringstream out;
+  out << resource_id << " VERSIONINFO\n";
+
+  const vs_fixedfileinfo_t& fixed_info = header.Value;
+
+  if (fixed_info.dwSignature == 0xFEEF04BD)
+  {
+    auto hiword = [](uint32_t v) -> uint32_t { return (v >> 16) & 0xFFFF; };
+    auto loword = [](uint32_t v) -> uint32_t { return v & 0xFFFF; };
+
+    out << "FILEVERSION "
+        << hiword(fixed_info.dwFileVersionMS) << "," << loword(fixed_info.dwFileVersionMS) << ","
+        << hiword(fixed_info.dwFileVersionLS) << "," << loword(fixed_info.dwFileVersionLS) << "\n";
+    out << "PRODUCTVERSION "
+        << hiword(fixed_info.dwProductVersionMS) << "," << loword(fixed_info.dwProductVersionMS) << ","
+        << hiword(fixed_info.dwProductVersionLS) << "," << loword(fixed_info.dwProductVersionLS) << "\n";
+  }
 
   out << "BEGIN\n";
 
-  std::function<void(byte_reader&, int, size_t)> decode_block;
-  decode_block = [&](byte_reader& r, int indent, size_t block_end) -> void
+  std::function<void(byte_reader&, int, size_t, version_block_kind)> decode_block;
+  decode_block = [&](byte_reader& r, int indent, size_t block_end,
+    version_block_kind parent_kind) -> void
   {
     while (r.pos() < block_end && r.remaining() >= 4)
     {
@@ -987,8 +1041,9 @@ std::string decode_versioninfo(
       if (len == 0 || r.pos() + len > block_end + 1024)
         break;
 
-      if (r.pos() % 4 != 0)
-        r.skip((4 - (r.pos() % 4)) % 4);
+      /* Every version block carries a WORD wType field between
+         wValueLength and szKey. */
+      r.skip(2);
 
       std::string key = read_unicode_string(r);
 
@@ -996,10 +1051,22 @@ std::string decode_versioninfo(
         r.skip((4 - (r.pos() % 4)) % 4);
 
       std::string pad(indent * 2, ' ');
-      size_t next_item = item_start + len;
 
-      bool is_container = (key == "StringFileInfo" || key == "VarFileInfo"
-        || key == "StringTable" || key == "VS_VERSION_INFO");
+      /* The block content ends at item_start + wLength; the next block
+         starts at the next DWORD boundary. */
+      size_t next_item = item_start + len;
+      if (next_item % 4 != 0)
+        next_item += 4 - (next_item % 4);
+
+      /* A block is a container if its key names a known container, or if
+         it is a StringTable language block (8-hex-digit key) sitting
+         directly inside a StringFileInfo block. */
+      // bool is_container = (key == "StringFileInfo" || key == "VarFileInfo"
+      //   || key == "StringTable" || key == "VS_VERSION_INFO");
+      bool is_named_container = (key == "StringFileInfo" || key == "VarFileInfo"
+        || key == "VS_VERSION_INFO");
+      bool is_container = (is_named_container
+        || parent_kind == version_block_kind::string_file);
 
       if (is_container)
       {
@@ -1009,17 +1076,39 @@ std::string decode_versioninfo(
           out << pad << "BEGIN\n";
         }
 
+        version_block_kind child_kind = version_block_kind::root;
+        if (key == "StringFileInfo")
+          child_kind = version_block_kind::string_file;
+        else if (key == "VarFileInfo")
+          child_kind = version_block_kind::var_file;
+        else if (parent_kind == version_block_kind::string_file)
+          child_kind = version_block_kind::string_table;
+
         size_t children_end = item_start + len;
         size_t val_end = r.pos() + val_len;
         if (val_end < children_end)
-          decode_block(r, indent + (key == "VS_VERSION_INFO" ? 0 : 1), children_end);
+          decode_block(r, indent + (key == "VS_VERSION_INFO" ? 0 : 1), children_end,
+                       child_kind);
 
         if (key != "VS_VERSION_INFO")
           out << pad << "END\n";
       }
+      else if (parent_kind == version_block_kind::var_file && val_len > 0)
+      {
+        /* Var block: the value is a binary array of WORDs (language ids). */
+        std::string val;
+        for (uint16_t i = 0; i + 1 < val_len && r.remaining() >= 2; i += 2)
+        {
+          if (!val.empty())
+            val += ", ";
+          val += std::format("0x{:04X}", r.read_u16());
+        }
+        out << pad << "VALUE \"" << key << "\", " << val << "\n";
+      }
       else if (val_len > 0 && val_len < 1024)
       {
         std::string val = read_unicode_string(r);
+        /* Obsolete heuristic: binary values were re-read as raw bytes.
         if (val_len > 2 && val.size() == 1 && !val.empty())
         {
           r.pos() -= val.size();
@@ -1028,6 +1117,7 @@ std::string decode_versioninfo(
             raw += static_cast<char>(r.read_u8());
           val = raw;
         }
+        */
 
         if (val.find(',') != std::string::npos
             || (!val.empty() && (std::isdigit(val[0]) || val[0] == '-' || val[0] == '0')))
@@ -1040,7 +1130,7 @@ std::string decode_versioninfo(
     }
   };
 
-  decode_block(reader, 1, data.size());
+  decode_block(reader, 1, data.size(), version_block_kind::root);
 
   out << "END\n";
   return out.str();
