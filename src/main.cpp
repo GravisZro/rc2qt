@@ -11,6 +11,7 @@
 #include <array>
 #include <algorithm>
 #include <filesystem>
+#include <unistd.h>
 
 #include "rc_tokenizer.h"
 #include "rc_parser.h"
@@ -52,7 +53,7 @@ static void print_usage(const char* program_name)
   std::cerr << "  -o <dir>       Output directory (default: input file directory)" << std::endl;
   std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
   std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
-  std::cerr << "  -h, --help     Show this help" << std::endl;
+  std::cerr << "  -h             Show this help" << std::endl;
 }
 
 int main(int argc, char** argv)
@@ -62,37 +63,35 @@ int main(int argc, char** argv)
   std::string qrc_path;
   std::string res_dir_name = "res";
 
-  for(int i = 1; i < argc; ++i)
+  int opt;
+  while((opt = getopt(argc, argv, "o:r:q:h")) != -1)
   {
-    std::string arg = argv[i];
-    if(arg == "-o" && i + 1 < argc)
+    switch(opt)
     {
-      output_path = std::filesystem::path(argv[++i]).generic_string();
-    }
-    else if(arg == "-r" && i + 1 < argc)
-    {
-      res_dir_name = std::filesystem::path(argv[++i]).generic_string();
-    }
-    else if(arg == "-q" && i + 1 < argc)
-    {
-      qrc_path = std::filesystem::path(argv[++i]).generic_string();
-    }
-    else if(arg == "-h" || arg == "--help")
-    {
-      print_usage(argv[0]);
-      return 0;
-    }
-    else if(input_path.empty())
-    {
-      input_path = std::filesystem::path(arg).generic_string();
+      case 'o':
+        output_path = std::filesystem::path(optarg).generic_string();
+        break;
+      case 'r':
+        res_dir_name = std::filesystem::path(optarg).generic_string();
+        break;
+      case 'q':
+        qrc_path = std::filesystem::path(optarg).generic_string();
+        break;
+      case 'h':
+        print_usage(argv[0]);
+        return 0;
+      default:
+        print_usage(argv[0]);
+        return 1;
     }
   }
 
-  if(input_path.empty())
+  if(optind >= argc)
   {
     print_usage(argv[0]);
     return 1;
   }
+  input_path = std::filesystem::path(argv[optind]).generic_string();
 
   if(is_pe_file(input_path))
   {
@@ -131,7 +130,7 @@ int main(int argc, char** argv)
     std::cout << "Decoded " << pe_resources.size() << " resources from PE file:" << std::endl;
 
     rc::resolver res;
-    auto& reg = rc::constant_registry::instance();
+    rc::constant_registry::instance();
 
     rc::generator gen;
 
