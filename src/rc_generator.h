@@ -68,12 +68,7 @@ private:
 
   bool has_style(const style_expr& style, const std::string& flag) const;
 
-  std::string find_statement_text(const dialog_data& dd, const std::string& keyword) const;
-  std::string find_statement_id(const dialog_data& dd, const std::string& keyword) const;
-  int find_statement_numeric(const dialog_data& dd, const std::string& keyword, int default_value = 0) const;
-  int find_statement_numeric2(const dialog_data& dd, const std::string& keyword, int default_value = 0) const;
-  bool find_statement_italic(const dialog_data& dd, const std::string& keyword) const;
-  const style_expr* find_statement_style(const dialog_data& dd, const std::string& keyword) const;
+  const dialog_stmt* find_statement(const dialog_data& dd, const std::string& keyword) const;
   bool has_dialog_flag(const dialog_data& dd, const std::string& keyword, const std::string& flag) const;
 
   std::string strip_accelerator(const std::string& text) const;

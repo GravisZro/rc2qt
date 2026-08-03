@@ -80,7 +80,9 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     pugi::xml_node root_widget = ui.child("widget");
 
-    std::string menu_id = find_statement_id(dd, "MENU");
+    std::string menu_id;
+    if(const dialog_stmt* stmt = find_statement(dd, "MENU"))
+      menu_id = stmt->id_value;
 
     for(const auto& menu_res : file.resources)
     {
@@ -408,16 +410,32 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
 void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd)
 {
-  std::string font_family = find_statement_text(dd, "FONT");
+  std::string font_family;
+  if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
+    font_family = stmt->text_value;
   if(font_family.empty())
     font_family = "MS Sans Serif";
 
   font_family = map_ms_font(font_family);
 
-  int font_size = find_statement_numeric(dd, "FONT", 8);
-  int font_weight = find_statement_numeric2(dd, "FONT", 0);
+  int font_size = 8;
+  if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
+  {
+    if(stmt->value.resolved_value >= 0)
+      font_size = static_cast<int>(stmt->value.resolved_value);
+    else if(stmt->numeric_value > 0)
+      font_size = static_cast<int>(stmt->numeric_value);
+  }
+  int font_weight = 0;
+  if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
+  {
+    if(stmt->numeric_value2 > 0)
+      font_weight = static_cast<int>(stmt->numeric_value2);
+  }
   bool font_bold = (font_weight >= 700);
-  bool font_italic = find_statement_italic(dd, "FONT");
+  bool font_italic = false;
+  if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
+    font_italic = stmt->italic;
   set_dlu_factors(font_family, font_size > 0 ? font_size : 8);
 
   int px = dlu_to_pixel_x(dd.x);
@@ -426,7 +444,9 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   int ph = dlu_to_pixel_y(dd.height);
   add_property_rect(widget, px, py, pw, ph);
 
-  std::string caption = find_statement_text(dd, "CAPTION");
+  std::string caption;
+  if(const dialog_stmt* stmt = find_statement(dd, "CAPTION"))
+    caption = stmt->text_value;
   if(!caption.empty())
     add_property_string(widget, "windowTitle", caption);
 
@@ -1269,6 +1289,9 @@ bool generator::has_style(const style_expr& style, const std::string& flag) cons
   return false;
 }
 
+/* Obsolete: find_statement_text/find_statement_id/find_statement_numeric/
+   find_statement_numeric2/find_statement_italic/find_statement_style replaced
+   by a single find_statement() that returns the dialog_stmt*.
 std::string generator::find_statement_text(const dialog_data& dd, const std::string& keyword) const
 {
   for(const auto& s : dd.statements)
@@ -1338,12 +1361,23 @@ const style_expr* generator::find_statement_style(const dialog_data& dd, const s
   }
   return nullptr;
 }
+*/
+
+const dialog_stmt* generator::find_statement(const dialog_data& dd, const std::string& keyword) const
+{
+  for(const auto& s : dd.statements)
+  {
+    if(s.keyword == keyword)
+      return &s;
+  }
+  return nullptr;
+}
 
 bool generator::has_dialog_flag(const dialog_data& dd, const std::string& keyword, const std::string& flag) const
 {
-  const style_expr* expr = find_statement_style(dd, keyword);
-  if(expr)
-    return has_style(*expr, flag);
+  const dialog_stmt* stmt = find_statement(dd, keyword);
+  if(stmt && has_style(stmt->value, flag))
+    return true;
   return false;
 }
 
