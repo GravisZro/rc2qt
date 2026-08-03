@@ -9,7 +9,9 @@ std::string to_upper(const std::string& s)
 {
   std::string result = s;
   std::transform(result.begin(), result.end(), result.begin(),
-                 [](unsigned char c) { return c | 0x80 ? c : std::toupper(c); });
+                 /* Obsolete: '|' never skips the high bit and makes to_upper a no-op.
+                 [](unsigned char c) { return c | 0x80 ? c : std::toupper(c); }); */
+                 [](unsigned char c) { return c & 0x80 ? c : std::toupper(c); });
   return result;
 }
 

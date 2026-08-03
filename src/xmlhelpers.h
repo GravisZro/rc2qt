@@ -27,6 +27,13 @@ namespace xml
       node.append_attribute(name).set_value(value.c_str());
   }
 
+  /* Prevent string literals from binding to the bool overload. */
+  inline void set_attr(pugi::xml_node node, const char* const name, const char* value)
+  {
+    if(value && *value)
+      node.append_attribute(name).set_value(value);
+  }
+
   template<typename T, std::enable_if_t<std::is_enum_v<T>, bool> = false>
   static inline void set_attr(pugi::xml_node node, const char* const name, T value)
     { set_attr(node, name, to_string(value)); }
@@ -56,7 +63,7 @@ namespace xml
     return out;
   }
 
-         // NOTE: pugixml will truncate the highest bit hex values stored in signed types
+  // NOTE: pugixml will truncate the highest bit hex values stored in signed types
   template<typename T>
   static inline typename std::enable_if<!std::is_enum<T>::value && !std::is_same<T, std::string>::value && !std::is_floating_point<T>::value, T>::type
   get_attr(const pugi::xml_node& node, const char* name, T default_value = 0)

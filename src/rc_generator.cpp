@@ -75,7 +75,7 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     pugi::xml_document doc;
     pugi::xml_node ui = doc.append_child("ui");
-    ui.append_attribute("version") = "4.0";
+    set_attr(ui, "version", "4.0");
     ui.append_child("class").text() = "Form";
 
     write_dialog(ui, res);
@@ -304,7 +304,7 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
     if(match_string(res.type, { "BITMAP", "ICON", "CURSOR", "RT_MANIFEST", "REGISTRY", "TYPELIB", "DATA"}))
     {
       pugi::xml_node file_node = res_node.append_child("file");
-      file_node.append_attribute("alias") = res.id.c_str();
+      set_attr(file_node, "alias", res.id);
       std::string normalized = res.filename;
       std::replace(normalized.begin(), normalized.end(), '\\', '/');
       std::filesystem::path abs_path = std::filesystem::absolute(normalized);
@@ -325,8 +325,8 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   std::string dialog_name = res.id;
 
   pugi::xml_node widget = parent.append_child("widget");
-  widget.append_attribute("class") = "QDialog";
-  widget.append_attribute("name") = dialog_name.c_str();
+  set_attr(widget, "class", "QDialog");
+  set_attr(widget, "name", dialog_name);
 
   write_dialog_properties(widget, dd);
 
@@ -829,11 +829,11 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
       pugi::xml_node tab_widget = add_widget(widget, "QWidget", tab_name);
 
       pugi::xml_node tab_attr = tab_widget.append_child("attribute");
-      tab_attr.append_attribute("name") = "title";
+      set_attr(tab_attr, "name", "title");
       tab_attr.append_child("string").text() = tab_title.c_str();
 
       pugi::xml_node tab_prop = tab_widget.append_child("property");
-      tab_prop.append_attribute("name") = "geometry";
+      set_attr(tab_prop, "name", "geometry");
       pugi::xml_node tab_rect = tab_prop.append_child("rect");
       tab_rect.append_child("x").text() = 0;
       tab_rect.append_child("y").text() = 0;
@@ -887,15 +887,15 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
 pugi::xml_node generator::add_widget(pugi::xml_node& parent, const std::string& qt_class, const std::string& name)
 {
   pugi::xml_node widget = parent.append_child("widget");
-  widget.append_attribute("class") = qt_class.c_str();
-  widget.append_attribute("name") = name.c_str();
+  set_attr(widget, "class", qt_class);
+  set_attr(widget, "name", name);
   return widget;
 }
 
 void generator::add_property_rect(pugi::xml_node& widget, int x, int y, int width, int height)
 {
   pugi::xml_node prop = widget.append_child("property");
-  prop.append_attribute("name") = "geometry";
+  set_attr(prop, "name", "geometry");
   pugi::xml_node rect = prop.append_child("rect");
   rect.append_child("x").text() = x;
   rect.append_child("y").text() = y;
@@ -906,7 +906,7 @@ void generator::add_property_rect(pugi::xml_node& widget, int x, int y, int widt
 void generator::add_property_string(pugi::xml_node& widget, const std::string& name, const std::string& value)
 {
   pugi::xml_node prop = widget.append_child("property");
-  prop.append_attribute("name") = name.c_str();
+  set_attr(prop, "name", name);
   pugi::xml_node str_node = prop.append_child("string");
   std::string safe_value;
   for(char c : value)
@@ -922,21 +922,21 @@ void generator::add_property_string(pugi::xml_node& widget, const std::string& n
 void generator::add_property_bool(pugi::xml_node& widget, const std::string& name, bool value)
 {
   pugi::xml_node prop = widget.append_child("property");
-  prop.append_attribute("name") = name.c_str();
+  set_attr(prop, "name", name);
   prop.append_child("bool").text() = value ? "true" : "false";
 }
 
 void generator::add_property_int(pugi::xml_node& widget, const std::string& name, int value)
 {
   pugi::xml_node prop = widget.append_child("property");
-  prop.append_attribute("name") = name.c_str();
+  set_attr(prop, "name", name);
   prop.append_child("number").text() = value;
 }
 
 void generator::add_property_size(pugi::xml_node& widget, const std::string& name, int width, int height)
 {
   pugi::xml_node prop = widget.append_child("property");
-  prop.append_attribute("name") = name.c_str();
+  set_attr(prop, "name", name);
   pugi::xml_node size = prop.append_child("size");
   size.append_child("width").text() = width;
   size.append_child("height").text() = height;
@@ -945,21 +945,21 @@ void generator::add_property_size(pugi::xml_node& widget, const std::string& nam
 void generator::add_property_set(pugi::xml_node& widget, const std::string& name, const std::string& value)
 {
   pugi::xml_node prop = widget.append_child("property");
-  prop.append_attribute("name") = name.c_str();
+  set_attr(prop, "name", name);
   prop.append_child("set").text() = value.c_str();
 }
 
 void generator::add_property_enum(pugi::xml_node& widget, const std::string& name, const std::string& value)
 {
   pugi::xml_node prop = widget.append_child("property");
-  prop.append_attribute("name") = name.c_str();
+  set_attr(prop, "name", name);
   prop.append_child("enum").text() = value.c_str();
 }
 
 void generator::add_property_font(pugi::xml_node& widget, const std::string& family, int pointsize, bool bold, bool italic)
 {
   pugi::xml_node prop = widget.append_child("property");
-  prop.append_attribute("name") = "font";
+  set_attr(prop, "name", "font");
   pugi::xml_node font = prop.append_child("font");
   font.append_child("family").text() = family.c_str();
   font.append_child("pointsize").text() = pointsize;
@@ -1267,11 +1267,11 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
   if(!m_menubar_node)
   {
     m_menubar_node = parent.append_child("widget");
-    m_menubar_node.append_attribute("class") = "QMenuBar";
-    m_menubar_node.append_attribute("name") = "menubar";
+    set_attr(m_menubar_node, "class", "QMenuBar");
+    set_attr(m_menubar_node, "name", "menubar");
 
     pugi::xml_node geom = m_menubar_node.append_child("property");
-    geom.append_attribute("name") = "geometry";
+    set_attr(geom, "name", "geometry");
     pugi::xml_node rect = geom.append_child("rect");
     rect.append_child("x").text() = 0;
     rect.append_child("y").text() = 0;
@@ -1293,17 +1293,17 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
       menu_name = unique_name(cleaned);
 
       pugi::xml_node menu = m_menubar_node.append_child("widget");
-      menu.append_attribute("class") = "QMenu";
-      menu.append_attribute("name") = menu_name.c_str();
+      set_attr(menu, "class", "QMenu");
+      set_attr(menu, "name", menu_name);
 
       pugi::xml_node title = menu.append_child("property");
-      title.append_attribute("name") = "title";
+      set_attr(title, "name", "title");
       title.append_child("string").text() = popup_ptr->text.c_str();
 
       write_menu_entries(menu, popup_ptr->entries);
 
       pugi::xml_node addaction = m_menubar_node.append_child("addaction");
-      addaction.append_attribute("name") = menu_name.c_str();
+      set_attr(addaction, "name", menu_name);
     }
   }
 }
@@ -1319,7 +1319,7 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       if(mi.text == "-" || mi.text.empty())
       {
         pugi::xml_node addaction = menu_node.append_child("addaction");
-        addaction.append_attribute("name") = "separator";
+        set_attr(addaction, "name", "separator");
         continue;
       }
 
@@ -1328,7 +1328,7 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
         : mi.id;
 
       pugi::xml_node addaction = menu_node.append_child("addaction");
-      addaction.append_attribute("name") = action_name.c_str();
+      set_attr(addaction, "name", action_name);
     }
     else if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
     {
@@ -1342,17 +1342,17 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       sub_name = unique_name(cleaned);
 
       pugi::xml_node sub_menu = menu_node.append_child("widget");
-      sub_menu.append_attribute("class") = "QMenu";
-      sub_menu.append_attribute("name") = sub_name.c_str();
+      set_attr(sub_menu, "class", "QMenu");
+      set_attr(sub_menu, "name", sub_name);
 
       pugi::xml_node title = sub_menu.append_child("property");
-      title.append_attribute("name") = "title";
+      set_attr(title, "name", "title");
       title.append_child("string").text() = sub->text.c_str();
 
       write_menu_entries(sub_menu, sub->entries);
 
       pugi::xml_node addaction = menu_node.append_child("addaction");
-      addaction.append_attribute("name") = sub_name.c_str();
+      set_attr(addaction, "name", sub_name);
     }
   }
 }
@@ -1365,20 +1365,20 @@ void generator::write_toolbar(pugi::xml_node& parent, const resource& res)
     tb_name = res.id;
 
   pugi::xml_node toolbar = parent.append_child("widget");
-  toolbar.append_attribute("class") = "QToolBar";
-  toolbar.append_attribute("name") = tb_name.c_str();
+  set_attr(toolbar, "class", "QToolBar");
+  set_attr(toolbar, "name", tb_name);
 
   for(const auto& entry : td.entries)
   {
     if(entry.is_separator)
     {
       pugi::xml_node addaction = toolbar.append_child("addaction");
-      addaction.append_attribute("name") = "separator";
+      set_attr(addaction, "name", "separator");
     }
     else if(!entry.id.empty())
     {
       pugi::xml_node addaction = toolbar.append_child("addaction");
-      addaction.append_attribute("name") = entry.id.c_str();
+      set_attr(addaction, "name", entry.id);
     }
   }
 }
@@ -1426,7 +1426,7 @@ void generator::write_actions(pugi::xml_node& parent, const rc_file& file)
   for(const auto& [id, _] : actions_defined)
   {
     pugi::xml_node action = parent.append_child("action");
-    action.append_attribute("name") = id.c_str();
+    set_attr(action, "name", id);
 
     std::string display_text = id;
     auto text_it = m_menu_text_map.find(id);
@@ -1434,14 +1434,14 @@ void generator::write_actions(pugi::xml_node& parent, const rc_file& file)
       display_text = text_it->second;
 
     pugi::xml_node text = action.append_child("property");
-    text.append_attribute("name") = "text";
+    set_attr(text, "name", "text");
     text.append_child("string").text() = display_text.c_str();
 
     auto acc_it = m_accelerator_map.find(id);
     if(acc_it != m_accelerator_map.end() && !acc_it->second.empty())
     {
       pugi::xml_node shortcut = action.append_child("property");
-      shortcut.append_attribute("name") = "shortcut";
+      set_attr(shortcut, "name", "shortcut");
       shortcut.append_child("string").text() = acc_it->second.c_str();
     }
 
@@ -1449,7 +1449,7 @@ void generator::write_actions(pugi::xml_node& parent, const rc_file& file)
     if(str_it != m_string_table_map.end() && !str_it->second.empty())
     {
       pugi::xml_node tooltip = action.append_child("property");
-      tooltip.append_attribute("name") = "toolTip";
+      set_attr(tooltip, "name", "toolTip");
       tooltip.append_child("string").text() = str_it->second.c_str();
     }
 
