@@ -46,6 +46,15 @@ static std::string read_file(const std::string& path)
   return ss.str();
 }
 
+static void print_usage(const char* program_name)
+{
+  std::cerr << "Usage: " << program_name << " [options] <file.rc|file.exe>" << std::endl;
+  std::cerr << "  -o <dir>       Output directory (default: input file directory)" << std::endl;
+  std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
+  std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
+  std::cerr << "  -h, --help     Show this help" << std::endl;
+}
+
 int main(int argc, char** argv)
 {
   std::string input_path;
@@ -70,11 +79,7 @@ int main(int argc, char** argv)
     }
     else if(arg == "-h" || arg == "--help")
     {
-      std::cerr << "Usage: " << argv[0] << " [options] <file.rc|file.exe>" << std::endl;
-      std::cerr << "  -o <dir>       Output directory (default: input file directory)" << std::endl;
-      std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
-      std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
-      std::cerr << "  -h, --help     Show this help" << std::endl;
+      print_usage(argv[0]);
       return 0;
     }
     else if(input_path.empty())
@@ -85,11 +90,7 @@ int main(int argc, char** argv)
 
   if(input_path.empty())
   {
-    std::cerr << "Usage: " << argv[0] << " [options] <file.rc|file.exe>" << std::endl;
-    std::cerr << "  -o <dir>       Output directory (default: input file directory)" << std::endl;
-    std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
-    std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
-    std::cerr << "  -h, --help     Show this help" << std::endl;
+    print_usage(argv[0]);
     return 1;
   }
 
