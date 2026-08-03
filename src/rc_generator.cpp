@@ -617,6 +617,7 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   int py = dlu_to_pixel_y(ctrl.y);
   int pw = dlu_to_pixel_x(ctrl.width);
   int ph = dlu_to_pixel_y(ctrl.height);
+  apply_combo_dropdown_height(widget, ctrl, qt_class == "QComboBox", ph);
   add_property_rect(widget, px, py, pw, ph);
 
   if(!ctrl.text.empty())
@@ -855,6 +856,7 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
 
         std::string child_name = unique_name(child_ctrl.id);
         pugi::xml_node child_widget = add_widget(tab_widget, child_class, child_name);
+        apply_combo_dropdown_height(child_widget, child_ctrl, child_class == "QComboBox", ch);
         add_property_rect(child_widget, cx, cy, cw, ch);
 
         if(!child_ctrl.text.empty())
@@ -881,6 +883,31 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         add_property_string(item_node, "text", item_text);
       }
     }
+  }
+}
+
+void generator::apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px)
+{
+  bool is_dropdown = is_combo &&
+    (has_style(ctrl.style, "CBS_DROPDOWN") ||
+     has_style(ctrl.style, "CBS_DROPDOWNLIST"));
+  if(is_dropdown)
+  {
+    // The COMBOBOX height parameter is the fully-expanded height (dropdown list
+    // open). A drop-down combo box is collapsed to a one-line field; the list
+    // extent is preserved through maxVisibleItems.
+    constexpr int kComboClosedDlu = 14;
+    constexpr int kComboItemDlu = 8;
+    int closed_height = dlu_to_pixel_y(kComboClosedDlu);
+    int item_height = dlu_to_pixel_y(kComboItemDlu);
+    if(item_height > 0)
+    {
+      int max_visible = (height_px - closed_height) / item_height;
+      if(max_visible < 1)
+        max_visible = 1;
+      add_property_int(widget, "maxVisibleItems", max_visible);
+    }
+    height_px = closed_height;
   }
 }
 

@@ -39,6 +39,7 @@ private:
   void write_dialog(pugi::xml_node& parent, const resource& res);
   void write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd);
   void write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name);
+  void apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px);
 
   std::set<std::string> id_words(const std::string& id) const;
   bool share_common_word(const std::string& id1, const std::string& id2) const;
