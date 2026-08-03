@@ -8,6 +8,7 @@
 #include <utility>
 #include <format>
 #include <iostream>
+#include <algorithm>
 
 constexpr auto expand_tabs(std::string_view str)
 {
@@ -50,7 +51,15 @@ constexpr E operator + (E a, E b) { return static_cast<E>(std::to_underlying(a) 
 template<typename E, std::enable_if_t<std::is_enum_v<E>, bool> = false>
 constexpr E operator - (E a, E b) { return static_cast<E>(std::to_underlying(a) - std::to_underlying(b)); }
 
-std::string to_upper(const std::string& s);
+constexpr std::string to_upper(const std::string& s)
+{
+  std::string result = s;
+  std::transform(result.begin(), result.end(), result.begin(),
+                 /* Obsolete: '|' never skips the high bit and makes to_upper a no-op.
+                 [](unsigned char c) { return c | 0x80 ? c : std::toupper(c); }); */
+                 [](unsigned char c) { return c & 0x80 ? c : std::toupper(c); });
+  return result;
+}
 
 int64_t safe_stoi(const std::string& s, int64_t default_value = 0);
 uint64_t safe_stoul(const std::string& s, int base = 0, uint64_t default_value = 0);

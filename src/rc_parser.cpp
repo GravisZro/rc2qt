@@ -10,6 +10,112 @@
 
 namespace rc
 {
+using token_list = std::initializer_list<token_type>;
+using string_list = std::initializer_list<std::string>;
+
+enum const_flags : uint16_t
+{
+  resource_type = 0x0001,
+  attribute_type = 0x0002,
+  control_keyword = 0x0004,
+  dialog_keyword = 0x0008,
+  popup_flag = 0x0010,
+  has_text_flag = 0x0020,
+};
+
+static const std::map<std::string_view, const_flags> const_flag_data
+{
+    // resource types
+  { "ACCELERATORS", const_flags::resource_type },
+  { "BITMAP",       const_flags::resource_type },
+  { "CURSOR",       const_flags::resource_type },
+  { "DIALOG",       const_flags::resource_type },
+  { "DIALOGEX",     const_flags::resource_type },
+  { "FONT",         const_flags::resource_type },
+  { "HTML",         const_flags::resource_type },
+  { "ICON",         const_flags::resource_type },
+  { "MENU",         const_flags::resource_type },
+  { "MENUEX",       const_flags::resource_type },
+  { "MESSAGETABLE", const_flags::resource_type },
+  { "POPUP",        const_flags::resource_type },
+  { "RCDATA",       const_flags::resource_type },
+  { "STRINGTABLE",  const_flags::resource_type },
+  { "TOOLBAR",      const_flags::resource_type },
+  { "VERSIONINFO",  const_flags::resource_type },
+  { "TEXTINCLUDE",  const_flags::resource_type },
+  { "REGISTRY",     const_flags::resource_type },
+  { "DLGINIT",      const_flags::resource_type },
+  { "GUIDELINES",   const_flags::resource_type },
+  { "DESIGNINFO",   const_flags::resource_type },
+  { "DLGINCLUDE",   const_flags::resource_type },
+
+    // resource attribute types
+  { "PRELOAD",      const_flags::attribute_type },
+  { "LOADONCALL",   const_flags::attribute_type },
+  { "DISCARDABLE",  const_flags::attribute_type },
+  { "MOVEABLE",     const_flags::attribute_type },
+  { "PURE",         const_flags::attribute_type },
+  { "IMPURE",       const_flags::attribute_type },
+  { "SHARED",       const_flags::attribute_type },
+  { "NONSHARED",    const_flags::attribute_type },
+  { "FIXED",        const_flags::attribute_type },
+
+    // controls
+  { "AUTO3STATE",       const_flags::control_keyword | const_flags::has_text_flag },
+  { "AUTOCHECKBOX",     const_flags::control_keyword | const_flags::has_text_flag },
+  { "AUTORADIOBUTTON",  const_flags::control_keyword | const_flags::has_text_flag },
+  { "CHECKBOX",         const_flags::control_keyword | const_flags::has_text_flag },
+  { "COMBOBOX",         const_flags::control_keyword },
+  { "CONTROL",          const_flags::control_keyword },
+  { "CTEXT",            const_flags::control_keyword | const_flags::has_text_flag },
+  { "DEFPUSHBUTTON",    const_flags::control_keyword },
+  { "EDITTEXT",         const_flags::control_keyword },
+  { "GROUPBOX",         const_flags::control_keyword | const_flags::has_text_flag },
+  { "ICON",             const_flags::control_keyword | const_flags::has_text_flag },
+  { "LISTBOX",          const_flags::control_keyword },
+  { "LTEXT",            const_flags::control_keyword | const_flags::has_text_flag },
+  { "PUSHBOX",          const_flags::control_keyword | const_flags::has_text_flag },
+  { "PUSHBUTTON",       const_flags::control_keyword | const_flags::has_text_flag },
+  { "DEFPUSHBUTTON",    const_flags::control_keyword | const_flags::has_text_flag },
+  { "RADIOBUTTON",      const_flags::control_keyword | const_flags::has_text_flag },
+  { "RTEXT",            const_flags::control_keyword | const_flags::has_text_flag },
+  { "SCROLLBAR",        const_flags::control_keyword },
+  { "STATE3",           const_flags::control_keyword | const_flags::has_text_flag },
+
+    // dialog options
+  { "CAPTION",          const_flags::dialog_keyword },
+  { "CLASS",            const_flags::dialog_keyword },
+  { "EXSTYLE",          const_flags::dialog_keyword },
+  { "FONT",             const_flags::dialog_keyword },
+  { "LANGUAGE",         const_flags::dialog_keyword },
+  { "STYLE",            const_flags::dialog_keyword },
+  { "VERSION",          const_flags::dialog_keyword },
+  { "CHARACTERISTICS",  const_flags::dialog_keyword },
+  { "MENU",             const_flags::dialog_keyword },
+
+  { "GRAYED",           const_flags::popup_flag },
+  { "INACTIVE",         const_flags::popup_flag },
+  { "CHECKED",          const_flags::popup_flag },
+  { "MENUBARBREAK",     const_flags::popup_flag },
+  { "MENUBREAK",        const_flags::popup_flag },
+  { "RIGHTBREAK",       const_flags::popup_flag },
+  { "MF_GRAYED",        const_flags::popup_flag },
+  { "MF_ENABLED",       const_flags::popup_flag },
+  { "MF_CHECKED",       const_flags::popup_flag },
+  { "MF_UNCHECKED",     const_flags::popup_flag },
+  { "MF_MENUBARBREAK",  const_flags::popup_flag },
+  { "MF_MENUBREAK",     const_flags::popup_flag },
+  { "MF_POPUP",         const_flags::popup_flag },
+  { "MF_SEPARATOR",     const_flags::popup_flag },
+  { "MF_STRING",        const_flags::popup_flag },
+  { "MF_HELP",          const_flags::popup_flag },
+  { "MF_END",           const_flags::popup_flag },
+};
+
+static bool has_flag(const std::string& s, const_flags flag)
+{
+  return const_flag_data.contains(s) && (const_flag_data.at(s) & flag);
+}
 
 parser::parser(const std::vector<token>& t) : m_tokens(t) {}
 
@@ -49,39 +155,31 @@ uint16_t parser::nextu16(void)
   return static_cast<uint16_t>(safe_stoi(next_val()));
 }
 
-static bool match_type(token_type needle, std::initializer_list<token_type> haystack)
+bool parser::is_current_type_attribute(void) const
 {
-  return std::ranges::any_of(haystack, [needle](auto token) { return token == needle; });
+  return current().type == token_type::identifier &&
+         has_flag(current().value, const_flags::attribute_type);
 }
 
-bool parser::is_current_type(token_type token)
-  { return current().type == token; }
-
-bool parser::is_current_type(std::initializer_list<token_type> haystack)
+bool parser::is_current_identifier(const std::string& identifier)
 {
-  return match_type(current().type, haystack);
+  return current() == token_type::identifier &&
+         current() == identifier;
 }
 
-static constexpr std::initializer_list<token_type> tt_II    = { token_type::identifier, token_type::integer_literal };
-static constexpr std::initializer_list<token_type> tt_IIH   = { token_type::identifier, token_type::integer_literal,
+
+static constexpr token_list tt_II    = { token_type::identifier, token_type::integer_literal };
+static constexpr token_list tt_IIH   = { token_type::identifier, token_type::integer_literal,
                                                                 token_type::hex_literal };
-static constexpr std::initializer_list<token_type> tt_IIHS  = { token_type::identifier, token_type::integer_literal,
+static constexpr token_list tt_IIHS  = { token_type::identifier, token_type::integer_literal,
                                                                 token_type::hex_literal, token_type::string_literal };
-static constexpr std::initializer_list<token_type> tt_NEB   = { token_type::newline, token_type::eof, token_type::begin, };
-static constexpr std::initializer_list<token_type> tt_NEE   = { token_type::newline, token_type::eof, token_type::end };
+static constexpr token_list tt_NEB   = { token_type::newline, token_type::eof, token_type::begin, };
+static constexpr token_list tt_NEE   = { token_type::newline, token_type::eof, token_type::end };
 
-
-bool parser::is_current_string(const std::string& str)
-  { return current().value == str; }
-
-bool parser::is_current_string(std::initializer_list<std::string> haystack)
-{
-  return match_string(current().value, haystack);
-}
 
 bool parser::match(token_type type)
 {
-  if(current().type == type)
+  if(current() == type)
   {
     ++m_pos;
     return true;
@@ -91,7 +189,7 @@ bool parser::match(token_type type)
 
 bool parser::match_id(const std::string& value)
 {
-  if(is_current_type(token_type::identifier) && current().value == value)
+  if(is_current_identifier(value))
   {
     ++m_pos;
     return true;
@@ -105,77 +203,43 @@ void parser::skip_newlines()
 }
 
 
-bool parser::is_resource_type(const std::string& s)
-{
-  return match_string(s,
-    { "ACCELERATORS", "BITMAP", "CURSOR", "DIALOG", "DIALOGEX",
-      "FONT", "HTML", "ICON", "MENU", "MENUEX", "MESSAGETABLE",
-      "POPUP", "RCDATA", "STRINGTABLE", "TOOLBAR", "VERSIONINFO",
-      "TEXTINCLUDE", "REGISTRY", "DLGINIT", "GUIDELINES", "DESIGNINFO",
-      "DLGINCLUDE" });
-}
-
-bool parser::is_attribute(const std::string& s)
-{
-  return match_string(s,
-    { "PRELOAD", "LOADONCALL", "DISCARDABLE", "MOVEABLE", "PURE",
-      "IMPURE", "SHARED", "NONSHARED", "FIXED" });
-}
-
-bool parser::is_control_keyword(const std::string& s)
-{
-  return match_string(s,
-    { "AUTO3STATE", "AUTOCHECKBOX", "AUTORADIOBUTTON", "CHECKBOX",
-      "COMBOBOX", "CONTROL", "CTEXT", "DEFPUSHBUTTON", "EDITTEXT",
-      "GROUPBOX", "ICON", "LISTBOX", "LTEXT", "PUSHBOX", "PUSHBUTTON",
-      "RADIOBUTTON", "RTEXT", "SCROLLBAR", "STATE3" });
-}
-
-bool parser::is_dialog_statement(const std::string& s)
-{
-  return match_string(s,
-    { "CAPTION", "CLASS", "EXSTYLE", "FONT", "LANGUAGE",
-      "STYLE", "VERSION", "CHARACTERISTICS", "MENU"});
-}
-
-
 std::string parser::parse_resource_id()
 {
-  return is_current_type(tt_IIHS) ? next_val() : "";
+  return current() == tt_IIHS ? next_val() : "";
 }
 
 style_expr parser::parse_style_expr()
 {
   style_expr expr;
 
-  if(is_current_type(token_type::identifier) && is_current_string("NOT"))
+  if(is_current_identifier("NOT"))
   {
     advance();
     skip_newlines();
     std::string flag;
-    if(is_current_type(tt_IIH))
+    if(current() == tt_IIH)
       flag = next_val();
     if(!flag.empty())
       expr.not_flags.push_back(flag);
     return expr;
   }
 
-  if(is_current_type(tt_IIH))
+  if(current() == tt_IIH)
     expr.first = next_val();
 
-  while(is_current_type(token_type::pipe) ||
-        (is_current_type(token_type::identifier) &&
-          is_current_string({"||","OR"})))
+  while(current() == token_type::pipe ||
+        (current() == token_type::identifier &&
+         current() == string_list{"||", "OR"}))
   {
     std::string op = next_val();
     skip_newlines();
 
-    if(is_current_type(token_type::identifier) && is_current_string("NOT"))
+    if(is_current_identifier("NOT"))
     {
       advance();
       skip_newlines();
       std::string flag;
-      if(is_current_type(tt_IIH))
+      if(current() == tt_IIH)
         flag = next_val();
       if(!flag.empty())
         expr.not_flags.push_back(flag);
@@ -184,7 +248,7 @@ style_expr parser::parse_style_expr()
     }
 
     std::string val;
-    if(is_current_type(tt_IIH))
+    if(current() == tt_IIH)
       val = next_val();
     else
       break;
@@ -205,14 +269,14 @@ control parser::parse_control()
 
   if(to_upper(ctrl.keyword) == "CONTROL")
   {
-    if(is_current_type(token_type::string_literal))
+    if(current() == token_type::string_literal)
       ctrl.text = next_val();
     if(match(token_type::comma))
     {
       ctrl.id = parse_resource_id();
       if(match(token_type::comma))
       {
-        if(is_current_type(token_type::string_literal))
+        if(current() == token_type::string_literal)
           ctrl.class_name = next_val();
       }
       if(match(token_type::comma))
@@ -240,14 +304,9 @@ control parser::parse_control()
   }
   else
   {
-    bool keyword_has_text = match_string(ctrl.keyword,
-                                         {"PUSHBUTTON", "DEFPUSHBUTTON", "CHECKBOX", "AUTOCHECKBOX",
-                                          "AUTO3STATE", "STATE3", "RADIOBUTTON", "AUTORADIOBUTTON",
-                                          "LTEXT", "CTEXT", "RTEXT", "GROUPBOX", "ICON", "PUSHBOX"});
-
-    if(keyword_has_text)
+    if(has_flag(ctrl.keyword, const_flags::control_keyword))
     {
-      if(is_current_type(tt_IIHS))
+      if(current() == tt_IIHS)
         ctrl.text = next_val();
       if(match(token_type::comma))
         ctrl.id = parse_resource_id();
@@ -286,10 +345,10 @@ menu_item parser::parse_menu_item()
     item.id = parse_resource_id();
   while(match(token_type::comma))
   {
-    if(is_current_type(token_type::identifier) &&
-       !is_control_keyword(current().value) &&
-       !is_current_string({"POPUP", "END"}) &&
-       !is_current_type({token_type::eof, token_type::newline}))
+    if(current() == token_type::identifier &&
+       !has_flag(current().value, const_flags::control_keyword) &&
+        current() != string_list{ "POPUP", "END" } &&
+        current() != token_list{ token_type::eof, token_type::newline })
     {
       item.flags.push_back(next_val());
     }
@@ -301,20 +360,21 @@ menu_item parser::parse_menu_item()
   return item;
 }
 
+
 popup* parser::parse_popup()
 {
   auto is_flag = [this]()
-    { return is_current_type(token_type::identifier) &&
-            !is_current_string({ "BEGIN", "END" }) &&
-            !is_current_type({token_type::eof, token_type::newline}); };
+    { return current() == token_type::identifier &&
+            current() != string_list {"BEGIN", "END"} &&
+            current() != token_list { token_type::eof, token_type::newline }; };
 
   auto* pp = new popup();
   advance();
-  if(is_current_type(token_type::string_literal))
+  if(current() == token_type::string_literal)
     pp->text = next_val();
   if(match(token_type::comma))
   {
-    if(is_current_type(tt_IIH) && ! is_current_string({ "GRAYED", "INACTIVE", "CHECKED", "MENUBARBREAK", "MENUBREAK", "RIGHTBREAK", "MF_GRAYED", "MF_ENABLED", "MF_CHECKED", "MF_UNCHECKED", "MF_MENUBARBREAK", "MF_MENUBREAK", "MF_POPUP", "MF_SEPARATOR", "MF_STRING", "MF_HELP", "MF_END" }))
+    if(current() == tt_IIH && !has_flag(current().value, const_flags::popup_flag))
       pp->id = next_val();
 
     while(is_flag())
@@ -333,7 +393,7 @@ popup* parser::parse_popup()
 
 void parser::parse_menu_body(std::vector<menu_entry>& entries)
 {
-  while(skip_newlines(), !is_current_type({token_type::end, token_type::eof}))
+  while(skip_newlines(), current() != token_list { token_type::end, token_type::eof })
   {
     if(to_upper(current().value) == "POPUP")
     {
@@ -342,10 +402,10 @@ void parser::parse_menu_body(std::vector<menu_entry>& entries)
       me.item = pp;
       entries.push_back(me);
     }
-    else if(is_current_string("MENUITEM"))
+    else if(current() == "MENUITEM")
     {
       advance();
-      if(is_current_string("SEPARATOR"))
+      if(current() == "SEPARATOR")
       {
         advance();
         menu_item sep;
@@ -380,24 +440,24 @@ dialog_stmt parser::parse_dialog_statement()
     stmt.value = parse_style_expr();
   else if(upper == "CAPTION")
   {
-    if(is_current_type(token_type::string_literal))
+    if(current() == token_type::string_literal)
       stmt.text_value = next_val();
   }
   else if(upper == "FONT")
   {
-    if(is_current_type(token_type::integer_literal))
+    if(current() == token_type::integer_literal)
       stmt.numeric_value = nextu16();
     if(match(token_type::comma))
     {
-      if(is_current_type(token_type::string_literal))
+      if(current() == token_type::string_literal)
         stmt.text_value = next_val();
       if(match(token_type::comma))
       {
-        if(is_current_type({token_type::identifier, token_type::integer_literal}))
+        if(current() == token_list{token_type::identifier, token_type::integer_literal})
           stmt.numeric_value2 = nextu16();
         if(match(token_type::comma))
         {
-          if(is_current_type({token_type::identifier, token_type::integer_literal}))
+          if(current() == token_list{token_type::identifier, token_type::integer_literal})
           {
             stmt.italic = nextu16();
           }
@@ -407,7 +467,7 @@ dialog_stmt parser::parse_dialog_statement()
   }
   else if(upper == "CLASS")
   {
-    if(is_current_type(token_type::string_literal))
+    if(current() == token_type::string_literal)
       stmt.text_value = next_val();
     else
       stmt.text_value = parse_resource_id();
@@ -436,9 +496,9 @@ void parser::skip_begin_end()
   int depth = 1;
   while(depth > 0 && current().type != token_type::eof)
   {
-    if(is_current_type(token_type::begin))
+    if(current() == token_type::begin)
       ++depth;
-    else if(is_current_type(token_type::end))
+    else if(current() == token_type::end)
       --depth;
     if(depth > 0)
       advance();
@@ -447,12 +507,12 @@ void parser::skip_begin_end()
 
 void parser::parse_simple_resource(resource& res)
 {
-  while(is_current_type(token_type::identifier) && is_attribute(current().value))
+  while(is_current_type_attribute())
     res.attributes.push_back(next_val());
 
-  if(is_current_type(token_type::string_literal))
+  if(current() == token_type::string_literal)
     res.filename = next_val();
-  else if(is_current_type(token_type::identifier) && !is_resource_type(current().value))
+  else if(current() == token_type::identifier && !has_flag(current().value, const_flags::resource_type))
     res.filename = next_val();
 }
 
@@ -460,10 +520,10 @@ void parser::parse_dialog_resource(resource& res)
 {
   dialog_data dd;
 
-  while(is_current_type(token_type::identifier) && is_attribute(current().value))
+  while(is_current_type_attribute())
     res.attributes.push_back(next_val());
 
-  if(is_current_type({token_type::integer_literal, token_type::hex_literal}))
+  if(current() == token_list { token_type::integer_literal, token_type::hex_literal })
     dd.x = static_cast<int16_t>(safe_stoi(next_val()));
   if(match(token_type::comma))
   {
@@ -489,9 +549,9 @@ void parser::parse_dialog_resource(resource& res)
 
   skip_newlines();
 
-  while(current().type != token_type::begin && current().type != token_type::eof)
+  while(current() != token_list { token_type::begin, token_type::eof })
   {
-    if(is_dialog_statement(current().value))
+    if(has_flag(current().value, const_flags::dialog_keyword))
       dd.statements.push_back(parse_dialog_statement());
     else
       advance();
@@ -503,9 +563,9 @@ void parser::parse_dialog_resource(resource& res)
     while(current().type != token_type::end && current().type != token_type::eof)
     {
       skip_newlines();
-      if(is_current_type({token_type::end, token_type::eof}))
+      if(current() == token_list { token_type::end, token_type::eof })
         break;
-      if(is_control_keyword(current().value))
+      if(has_flag(current().value, const_flags::control_keyword))
         dd.controls.push_back(parse_control());
       else
         advance();
@@ -517,16 +577,11 @@ void parser::parse_dialog_resource(resource& res)
   res.data = dd;
 }
 
-void parser::parse_dialogex_resource(resource& res)
-{
-  parse_dialog_resource(res);
-}
-
 void parser::parse_menu_resource(resource& res)
 {
   menu_data md;
 
-  while(is_current_type(token_type::identifier) && (is_attribute(current().value) || to_upper(current().value) == "EX"))
+  while(current() == token_type::identifier && (has_flag(current().value, const_flags::attribute_type) || to_upper(current().value) == "EX"))
     res.attributes.push_back(next_val());
 
   skip_newlines();
@@ -543,10 +598,10 @@ void parser::parse_toolbar_resource(resource& res)
 {
   toolbar_data td;
 
-  while(is_current_type(token_type::identifier) && (is_attribute(current().value) || to_upper(current().value) == "EX"))
+  while(current() == token_type::identifier && (has_flag(current().value, const_flags::attribute_type) || current() == "EX"))
     res.attributes.push_back(next_val());
 
-  if(is_current_type({token_type::integer_literal, token_type::hex_literal}))
+  if(current() == token_list { token_type::integer_literal, token_type::hex_literal })
     td.width = static_cast<uint16_t>(safe_stoi(next_val()));
   if(match(token_type::comma))
   {
@@ -557,10 +612,10 @@ void parser::parse_toolbar_resource(resource& res)
   skip_newlines();
   if(match(token_type::begin))
   {
-    while(current().type != token_type::end && current().type != token_type::eof)
+    while(current() != token_list { token_type::end, token_type::eof })
     {
       skip_newlines();
-      if(is_current_type({token_type::end, token_type::eof}))
+      if(current() == token_list { token_type::end, token_type::eof })
         break;
 
       if(to_upper(current().value) == "SEPARATOR")
@@ -593,24 +648,24 @@ void parser::parse_accelerator_resource(resource& res)
 {
   std::vector<accelerator_entry> accels;
 
-  while(is_current_type(token_type::identifier) && is_attribute(current().value))
+  while(is_current_type_attribute())
     res.attributes.push_back(next_val());
 
   skip_newlines();
   if(match(token_type::begin))
   {
-    while(current().type != token_type::end && current().type != token_type::eof)
+    while(current() != token_list { token_type::end, token_type::eof })
     {
       skip_newlines();
-      if(is_current_type({token_type::end, token_type::eof}))
+      if(current() == token_list { token_type::end, token_type::eof })
         break;
 
       accelerator_entry ae;
-      if(is_current_type(token_type::string_literal))
+      if(current() == token_type::string_literal)
         ae.event = next_val();
-      else       if(is_current_type({token_type::integer_literal, token_type::hex_literal}))
+      else if(current() == token_list { token_type::integer_literal, token_type::hex_literal })
         ae.event = next_val();
-      else if(is_current_type(token_type::identifier))
+      else if(current() == token_type::identifier)
         ae.event = next_val();
 
       if(match(token_type::comma))
@@ -618,7 +673,7 @@ void parser::parse_accelerator_resource(resource& res)
 
       while(match(token_type::comma) || match(token_type::pipe))
       {
-        if(is_current_type(token_type::identifier))
+        if(current() == token_type::identifier)
           ae.modifiers.push_back(next_val());
       }
 
@@ -635,19 +690,19 @@ void parser::parse_stringtable_resource(resource& res)
 {
   std::vector<string_table_entry> entries;
 
-  while(is_current_type(token_type::identifier) && is_attribute(current().value))
+  while(is_current_type_attribute())
     res.attributes.push_back(next_val());
 
   skip_newlines();
   if(match(token_type::begin))
   {
-    while(skip_newlines(), !is_current_type({ token_type::end, token_type::eof}))
+    while(skip_newlines(), current() != token_list { token_type::end, token_type::eof })
     {
       string_table_entry ste;
       ste.id = parse_resource_id();
       if(match(token_type::comma))
       {
-        if(is_current_type(token_type::string_literal))
+        if(current() == token_type::string_literal)
           ste.value = next_val();
       }
       entries.push_back(ste);
@@ -663,21 +718,21 @@ void parser::parse_versioninfo_resource(resource& res)
 {
   version_info vi;
 
-  while(is_current_type(token_type::identifier) && is_attribute(current().value))
+  while(is_current_type_attribute())
     res.attributes.push_back(next_val());
 
-  while(current().type != token_type::begin && current().type != token_type::eof)
+  while(current() != token_list { token_type::begin, token_type::eof})
   {
-    if(is_current_type(token_type::identifier))
+    if(current() == token_type::identifier)
     {
       std::string key = to_upper(next_val());
       std::string val;
-      while(is_current_type({token_type::newline, token_type::eof, token_type::identifier}))
+      while(current() == token_list {token_type::newline, token_type::eof, token_type::identifier})
       {
         if(!val.empty())
           val += " ";
         val += next_val();
-        if(is_current_type(token_type::comma))
+        if(current() == token_type::comma)
         {
           val += next_val();
           if(!val.empty())
@@ -697,38 +752,36 @@ void parser::parse_versioninfo_resource(resource& res)
   if(match(token_type::begin))
   {
     int depth = 1;
-    size_t max_iters = m_tokens.size() * 4;
+    size_t max_iters = m_tokens.size() * 4; // is this an accurate value?
     size_t iters = 0;
-    while(depth > 0 && !is_current_type(token_type::eof) && iters < max_iters)
+    while(depth > 0 && current() != token_type::eof && iters++ < max_iters)
     {
-      ++iters;
-      if(is_current_type(token_type::begin))
+      if(current() == token_type::begin)
         ++depth;
-      if(is_current_type(token_type::end))
+      else if(current() == token_type::end)
         --depth;
 
-      if(depth >= 2 && is_current_type(token_type::string_literal))
+      if(depth >= 2 && current() == token_type::string_literal)
       {
         advance();
       }
 
-      if(depth >= 2 && is_current_type(token_type::identifier) &&
-          is_current_string("VALUE"))
+      if(depth >= 2 && is_current_identifier("VALUE"))
       {
         advance();
-        if(is_current_type({token_type::string_literal, token_type::identifier}))
+        if(current() == token_list { token_type::string_literal, token_type::identifier })
         {
           std::string key = next_val();
           std::string val;
           if(match(token_type::comma))
           {
             skip_newlines();
-            while(!is_current_type({token_type::newline, token_type::eof}))
+            while(current() != token_list { token_type::newline, token_type::eof })
             {
               if(!val.empty())
                 val += " ";
               val += next_val();
-              if(is_current_type(token_type::comma))
+              if(current() == token_type::comma)
               {
                 val += next_val();
                 if(!val.empty())
@@ -745,6 +798,8 @@ void parser::parse_versioninfo_resource(resource& res)
         advance();
     }
     match(token_type::end);
+    if(iters >= max_iters)
+      throw std::runtime_error("!! Parsing terminated early.");
   }
 
   res.data = vi;
@@ -754,19 +809,14 @@ void parser::parse_rcdata_resource(resource& res)
 {
   version_info vi;
 
-  while(is_current_type(token_type::identifier) && is_attribute(current().value))
+  while(is_current_type_attribute())
     res.attributes.push_back(next_val());
 
   skip_newlines();
   if(match(token_type::begin))
   {
-    while(!is_current_type({ token_type::eof, token_type::end }))
-    {
-      skip_newlines();
-      if(is_current_type({ token_type::eof, token_type::end }))
-        break;
+    while(skip_newlines(), current() != token_list { token_type::eof, token_type::end })
       advance();
-    }
     match(token_type::end);
   }
 
@@ -777,7 +827,7 @@ void parser::parse_dlginit_resource(resource& res)
 {
   std::vector<dlginit_entry> entries;
 
-  while(is_current_type(token_type::identifier) && is_attribute(current().value))
+  while(is_current_type_attribute())
     res.attributes.push_back(next_val());
 
   skip_newlines();
@@ -787,13 +837,9 @@ void parser::parse_dlginit_resource(resource& res)
     return;
   }
 
-  while(!is_current_type({ token_type::eof, token_type::end }))
+  while(skip_newlines(), current() != token_list { token_type::eof, token_type::end })
   {
-    skip_newlines();
-    if(is_current_type({ token_type::eof, token_type::end }))
-      break;
-
-    if(is_current_type({token_type::integer_literal, token_type::hex_literal}))
+    if(current() == token_list { token_type::integer_literal, token_type::hex_literal })
     {
       std::string num_str = current().value;
       bool is_zero = (num_str == "0");
@@ -804,119 +850,149 @@ void parser::parse_dlginit_resource(resource& res)
       if(is_zero)
       {
         advance();
-        while(!is_current_type(tt_NEE))
+        while(current() != tt_NEE)
           advance();
         continue;
       }
     }
 
-    if(is_current_type(token_type::identifier))
+    if(current() != token_type::identifier)
+      throw std::runtime_error("Expected identifier!");
+
+    dlginit_entry entry;
+    entry.control_id = next_val();
+
+    if(!match(token_type::comma))
     {
-      dlginit_entry entry;
-      entry.control_id = next_val();
-
-      if(!match(token_type::comma))
-      {
-        while(!is_current_type(tt_NEE))
-          advance();
-        continue;
-      }
-
-      skip_newlines();
-
-      if(is_current_type({token_type::hex_literal, token_type::integer_literal}))
-      {
-        std::string msg = current().value;
-        if(msg.size() > 2 && msg[0] == '0' && (msg[1] == 'x' || msg[1] == 'X'))
-          entry.message = static_cast<uint16_t>(safe_stoul(msg, 16));
-        else
-          entry.message = static_cast<uint16_t>(safe_stoul(msg));
+      while(current() != tt_NEE)
         advance();
-      }
+      continue;
+    }
 
-      while(!is_current_type(tt_NEE))
-        advance();
+    skip_newlines();
 
-      skip_newlines();
-
-      std::string text_data;
-      while(!is_current_type(tt_NEE))
-      {
-        if(is_current_type(token_type::hex_literal))
-        {
-          std::string hex = current().value;
-          unsigned val = safe_stoul(hex, 16);
-          text_data += static_cast<char>(val & 0xFF);
-          text_data += static_cast<char>((val >> 8) & 0xFF);
-          advance();
-          while(is_current_type(token_type::comma))
-          {
-            advance();
-            skip_newlines();
-            if(is_current_type(token_type::hex_literal))
-            {
-              std::string h2 = current().value;
-              unsigned v2 = safe_stoul(h2, 16);
-              text_data += static_cast<char>(v2 & 0xFF);
-              text_data += static_cast<char>((v2 >> 8) & 0xFF);
-              advance();
-            }
-            else if(is_current_type(token_type::string_literal))
-            {
-              std::string s2 = current().value;
-              s2.erase(std::remove(s2.begin(), s2.end(), '"'), s2.end());
-              for(size_t j = 0; j < s2.size(); ++j)
-                text_data += s2[j];
-              advance();
-            }
-            else
-              break;
-          }
-        }
-        else if(is_current_type(token_type::string_literal))
-        {
-          std::string s = current().value;
-          s.erase(std::remove(s.begin(), s.end(), '"'), s.end());
-          for(size_t i = 0; i < s.size(); ++i)
-            text_data += s[i];
-          advance();
-        }
-        else if(is_current_type(token_type::comma))
-        {
-          advance();
-        }
-        else
-          break;
-      }
-
-      size_t last = text_data.find_last_not_of('\0');
-      if(last != std::string::npos)
-        text_data = text_data.substr(0, last + 1);
+    if(current() == token_list { token_type::hex_literal, token_type::integer_literal })
+    {
+      std::string msg = current().value;
+      if(msg.size() > 2 && msg[0] == '0' && (msg[1] == 'x' || msg[1] == 'X'))
+        entry.message = static_cast<uint16_t>(safe_stoul(msg, 16));
       else
-        text_data.clear();
+        entry.message = static_cast<uint16_t>(safe_stoul(msg));
+      advance();
+    }
 
-      entry.text = text_data;
-      entries.push_back(entry);
-    }
-    else
+    while(current() != tt_NEE)
+      advance();
+
+    skip_newlines();
+
+    std::string text_data;
+    while(current() != tt_NEE)
     {
-      while(current().type != token_type::newline && current().type != token_type::end &&
-            current().type != token_type::eof)
+      if(current() == token_type::hex_literal)
+      {
+        std::string hex = current().value;
+        unsigned val = safe_stoul(hex, 16);
+        text_data += static_cast<char>(val & 0xFF);
+        text_data += static_cast<char>((val >> 8) & 0xFF);
         advance();
+        while(current() == token_type::comma)
+        {
+          advance();
+          skip_newlines();
+          if(current() == token_type::hex_literal)
+          {
+            std::string h2 = current().value;
+            unsigned v2 = safe_stoul(h2, 16);
+            text_data += static_cast<char>(v2 & 0xFF);
+            text_data += static_cast<char>((v2 >> 8) & 0xFF);
+            advance();
+          }
+          else if(current() == token_type::string_literal)
+          {
+            std::string s2 = current().value;
+            s2.erase(std::remove(s2.begin(), s2.end(), '"'), s2.end());
+            for(size_t j = 0; j < s2.size(); ++j)
+              text_data += s2[j];
+            advance();
+          }
+          else
+            break;
+        }
+      }
+      else if(current() == token_type::string_literal)
+      {
+        std::string s = current().value;
+        s.erase(std::remove(s.begin(), s.end(), '"'), s.end());
+        for(size_t i = 0; i < s.size(); ++i)
+          text_data += s[i];
+        advance();
+      }
+      else if(current() == token_type::comma)
+        advance();
+      else
+        break;
     }
+
+    size_t last = text_data.find_last_not_of('\0');
+    if(last != std::string::npos)
+      text_data = text_data.substr(0, last + 1);
+    else
+      text_data.clear();
+
+    entry.text = text_data;
+    entries.push_back(entry);
   }
 
   match(token_type::end);
   res.data = entries;
 }
 
-void parser::parse_unknown_resource(resource& res)
+void parser::parse_designinfo_resource(resource& res)
 {
-  while(!is_current_type(tt_NEB))
+  // TODO: implement proper parser
+  parse_unused_resource(res);
+}
+
+void parser::parse_textinclude_resource(resource& res)
+{
+  // TODO: implement header file parser to map new "#define" identifiers to numeric values
+  parse_unused_resource(res);
+}
+
+void parser::parse_typelib_resource(resource& res)
+{
+  parse_unused_resource(res);
+}
+
+void parser::parse_unused_resource([[maybe_unused]] resource& res)
+{
+  while(current() != token_list { token_type::newline, token_type::eof })
     advance();
+  skip_newlines();
+  skip_begin_end();
+}
+
+void parser::decode_binary_resource(resource& res)
+{
+  // TODO: implement calling binary decoders
+  while(is_current_type_attribute())
+    advance();
+  res.filename = next_val();
+  info("Decoding binary resource:\n\tID: {}\n\ttype: {}\n\tfilename: {}", res.id, res.type, res.filename);
 
   skip_newlines();
   skip_begin_end();
+}
+
+
+void parser::parse_user_resource(resource& res)
+{
+  while(is_current_type_attribute())
+    advance();
+  res.filename = next_val();
+  //info("Saving user resource:\n\tID: {}\n\ttype: {}\n\tfilename: {}", res.id, res.type, res.filename);
+  parse_unused_resource(res);
 }
 
 resource parser::parse_resource()
@@ -925,36 +1001,60 @@ resource parser::parse_resource()
   res.id = parse_resource_id();
   skip_newlines();
 
-  if(is_current_type(token_type::identifier))
+  if(current() == token_type::identifier)
     res.type = next_val();
 
   std::map<std::string, void (parser::*)(resource&)> funcmap =
   {
-    { "DIALOG", &parser::parse_dialog_resource },
-    { "DIALOGEX", &parser::parse_dialogex_resource },
-    { "MENU", &parser::parse_menu_resource },
-    { "MENUEX", &parser::parse_menu_resource },
-    { "TOOLBAR", &parser::parse_toolbar_resource },
+    { "DIALOG",       &parser::parse_dialog_resource },
+    { "DIALOGEX",     &parser::parse_dialog_resource },
+    { "MENU",         &parser::parse_menu_resource },
+    { "MENUEX",       &parser::parse_menu_resource },
+    { "TOOLBAR",      &parser::parse_toolbar_resource },
     { "ACCELERATORS", &parser::parse_accelerator_resource },
-    { "STRINGTABLE", &parser::parse_stringtable_resource },
-    { "VERSIONINFO", &parser::parse_versioninfo_resource },
-    { "RCDATA", &parser::parse_rcdata_resource },
-    { "DLGINIT", &parser::parse_dlginit_resource },
-    { "BITMAP", &parser::parse_simple_resource },
-    { "ICON", &parser::parse_simple_resource },
-    { "CURSOR", &parser::parse_simple_resource },
-    { "FONT", &parser::parse_simple_resource },
-    { "HTML", &parser::parse_simple_resource },
+    { "STRINGTABLE",  &parser::parse_stringtable_resource },
+    { "VERSIONINFO",  &parser::parse_versioninfo_resource },
+    { "RCDATA",       &parser::parse_rcdata_resource },
+    { "DLGINIT",      &parser::parse_dlginit_resource },
+    { "BITMAP",       &parser::parse_simple_resource },
+    { "ICON",         &parser::parse_simple_resource },
+    { "CURSOR",       &parser::parse_simple_resource },
+    { "FONT",         &parser::parse_simple_resource },
+    { "HTML",         &parser::parse_simple_resource },
     { "MESSAGETABLE", &parser::parse_simple_resource },
-    { "REGISTRY", &parser::parse_simple_resource },
-    { "DLGINCLUDE", &parser::parse_simple_resource },
+    { "REGISTRY",     &parser::parse_simple_resource },
+    { "DLGINCLUDE",   &parser::parse_simple_resource },
+    { "DESIGNINFO",   &parser::parse_designinfo_resource },
+    { "TYPELIB",      &parser::parse_typelib_resource },
+    { "TEXTINCLUDE",  &parser::parse_textinclude_resource },
+    { "RT_ACCELERATOR",   &parser::decode_binary_resource },
+    { "RT_ANICURSOR",     &parser::decode_binary_resource },
+    { "RT_ANIICON",       &parser::decode_binary_resource },
+    { "RT_BITMAP",        &parser::decode_binary_resource },
+    { "RT_CURSOR",        &parser::decode_binary_resource },
+    { "RT_DIALOG",        &parser::decode_binary_resource },
+    { "RT_DLGINCLUDE",    &parser::decode_binary_resource },
+    { "RT_FONT",          &parser::decode_binary_resource },
+    { "RT_FONTDIR",       &parser::decode_binary_resource },
+    { "RT_GROUP_CURSOR",  &parser::decode_binary_resource },
+    { "RT_GROUP_ICON",    &parser::decode_binary_resource },
+    { "RT_HTML",          &parser::decode_binary_resource },
+    { "RT_ICON",          &parser::decode_binary_resource },
+    { "RT_MANIFEST",      &parser::decode_binary_resource },
+    { "RT_MENU",          &parser::decode_binary_resource },
+    { "RT_MESSAGETABLE",  &parser::decode_binary_resource },
+    { "RT_PLUGPLAY",      &parser::decode_binary_resource },
+    { "RT_RCDATA",        &parser::decode_binary_resource },
+    { "RT_STRING",        &parser::decode_binary_resource },
+    { "RT_VERSION",       &parser::decode_binary_resource },
+    { "RT_VXD",           &parser::decode_binary_resource },
   };
 
   if(auto name = to_upper(res.type);
      funcmap.contains(name))
     std::bind_front(funcmap.at(name), this)(res);
   else
-    parse_unknown_resource(res);
+    parse_user_resource(res);
 
   return res;
 }
@@ -966,27 +1066,26 @@ rc_file parser::parse()
   while(current().type != token_type::eof)
   {
     skip_newlines();
-    if(is_current_type(token_type::eof))
+    if(current() == token_type::eof)
       break;
 
-    if(is_current_type(token_type::identifier) && is_current_string("LANGUAGE"))
+    if(is_current_identifier("LANGUAGE"))
     {
       advance();
       skip_newlines();
-      if(is_current_type(tt_II))
+      if(current() == tt_II)
         advance();
       skip_newlines();
-      if(is_current_type(token_type::comma))
+      if(current() == token_type::comma)
         advance();
       skip_newlines();
-      if(is_current_type(tt_II))
+      if(current() == tt_II)
         advance();
       skip_newlines();
       continue;
     }
 
-    if(is_current_type(token_type::identifier) &&
-        is_current_string("STRINGTABLE"))
+    if(is_current_identifier("STRINGTABLE"))
     {
       resource res;
       res.type = next_val();
@@ -996,7 +1095,7 @@ rc_file parser::parse()
       continue;
     }
 
-    if(is_current_type(tt_II))
+    if(current() == tt_II)
     {
       resource res = parse_resource();
       file.resources.push_back(res);

@@ -249,6 +249,10 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::button_style, 0x8000, "BS_FLAT", "Specifies that the button is drawn flat");
   add(category_t::button_style, 0x0000000E, "BS_COMMANDLINK", "Creates a command link button with a large glyph and multi-line text.");
   add(category_t::button_style, 0x0000000F, "BS_DEFCOMMANDLINK", "Creates a default command link button that receives the default action when the user presses ENTER.");
+  add(category_t::button_style, 0x0000000D, "BS_DEFSPLITBUTTON", "Same as BS_SPLITBUTTON, except the button is the default button.");
+  add(category_t::button_style, 0x0000000C, "BS_SPLITBUTTON", "Creates a split button. A split button has a drop-down arrow.");
+  add(category_t::button_style, 0x0000000F, "BS_TYPEMASK", "Mask used to retrieve the button type style bits.");
+  add(category_t::button_style, 0x00000008, "BS_USERBUTTON", "Obsolete user-defined button style; the value is reserved.");
 
   /* ── ES_* Edit Control Styles ─────────────────────────────────── */
   add(category_t::edit_style, 0x0080, "ES_AUTOHSCROLL", "Automatically scrolls edit control text to the right when typing reaches the right border.");
@@ -265,6 +269,14 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::edit_style, 0x0002, "ES_RIGHT", "Right-aligns text in a single-line or multiline edit control.");
   add(category_t::edit_style, 0x0008, "ES_UPPERCASE", "Converts all characters entered into the edit control to uppercase.");
   add(category_t::edit_style, 0x1000, "ES_WANTRETURN", "Inserts a carriage return when the user presses ENTER in a multiline edit control instead of submitting the dialog.");
+  add(category_t::edit_style, 0x00002000, "ES_DISABLENOSCROLL", "Disables scroll bars instead of hiding them when they are not needed.");
+  add(category_t::edit_style, 0x00080000, "ES_NOIME", "Disables the IME operation. This style is available for Asian language support only.");
+  add(category_t::edit_style, 0x00000008, "ES_NOOLEDRAGDROP", "Disables OLE drag-and-drop support for the control.");
+  add(category_t::edit_style, 0x00008000, "ES_SAVESEL", "Preserves the text selection when the control loses focus.");
+  add(category_t::edit_style, 0x01000000, "ES_SELECTIONBAR", "Displays a selection bar at the left margin of the control.");
+  add(category_t::edit_style, 0x00040000, "ES_SELFIME", "Directs the rich edit control to let the application handle all IME operations.");
+  add(category_t::edit_style, 0x00004000, "ES_SUNKEN", "Displays a sunken edge border around the control.");
+  add(category_t::edit_style, 0x00400000, "ES_VERTICAL", "Draws text vertically from top to bottom.");
 
   /* ── SS_* Static Control Styles ───────────────────────────────── */
   add(category_t::static_style, 0x000E, "SS_BITMAP", "Specifies that the static control displays a bitmap resource.");
@@ -316,6 +328,7 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::listbox_style, 0x00A00003, "LBS_STANDARD", "Combines LBS_NOTIFY");
   add(category_t::listbox_style, 0x0080, "LBS_USETABSTOPS", "Enables the list box to recognize and expand tab characters within item strings.");
   add(category_t::listbox_style, 0x0400, "LBS_WANTKEYBOARDINPUT", "Sends WM_VKEYTOITEM messages to the parent window whenever a key is pressed while the list box has focus.");
+  add(category_t::listbox_style, 0x8000, "LBS_COMBOBOX", "Notifies a list box that it is part of a combo box. This allows coordination between the two controls so that they present a unified UI.");
 
   /* ── CBS_* Combo Box Styles ───────────────────────────────────── */
   add(category_t::combobox_style, 0x0040, "CBS_AUTOHSCROLL", "Automatically scrolls text in the combo box edit control horizontally when typed past the right edge.");
@@ -365,6 +378,8 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::listview_style, 0x0020, "LVS_SORTDESCENDING", "Sorts items in descending order using the current sort column.");
   add(category_t::listview_style, 0x0003, "LVS_TYPEMASK", "Mask used to retrieve the view-type bits of a list-view control.");
   add(category_t::listview_style, 0xfc00, "LVS_TYPESTYLEMASK", "Mask used to retrieve the type and style bits that affect arranging in list-view.");
+  add(category_t::listview_style, 0x0400, "LVS_OWNERDRAWFIXED", "Specifies that the owner window paints items in report view.");
+  add(category_t::listview_style, 0x0002, "LVS_SMALLICON", "Displays items as small icons with labels.");
 
   /* ── TVS_* Tree-View Styles ──────────────────────────────────── */
   add(category_t::treeview_style, 0x0100, "TVS_CHECKBOXES", "Displays check boxes next to each item in the tree-view control.");
@@ -398,6 +413,11 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::trackbar_style, 0x0002, "TBS_VERT", "Displays a vertical trackbar.");
   add(category_t::trackbar_style, 0x0000, "TBS_TOPTOP", "Displays tick marks on the top and positions the thumb at the top.");
   add(category_t::trackbar_style, 0x0000, "TBS_RIGHT", "Displays tick marks on the right side of the trackbar (same as TBS_BOTTOM).");
+  add(category_t::trackbar_style, 0x0400, "TBS_DOWNISLEFT", "Places down and left on the left side of the control (reversed layout).");
+  add(category_t::trackbar_style, 0x0800, "TBS_NOTIFYBEFOREMOVE", "Notifies the parent before repositioning the slider due to user action (enables snapping).");
+  add(category_t::trackbar_style, 0x0200, "TBS_REVERSED", "Reverses the trackbar orientation so smaller values are at the high end.");
+  add(category_t::trackbar_style, 0x0100, "TBS_TOOLTIPS", "Enables tooltips for the trackbar.");
+  add(category_t::trackbar_style, 0x1000, "TBS_TRANSPARENTBKGND", "The background is painted by the parent via WM_PRINTCLIENT.");
 
   /* ── PBS_* Progress Bar Styles ───────────────────────────────── */
   add(category_t::progressbar_style, 0x0008, "PBS_MARQUEE", "Enables marquee mode where the progress bar animates continuously without a specific position.");
@@ -415,6 +435,7 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::updown_style, 0x0080, "UDS_NOTHOUSANDS", "Does not insert a thousands separator in the buddy edit control.");
   add(category_t::updown_style, 0x0002, "UDS_SETBUDDYINT", "Sets the buddy edit control text to an integer value whenever the up-down control changes.");
   add(category_t::updown_style, 0x0001, "UDS_WRAP", "Causes the control to wrap around to the other end when reaching the maximum or minimum value.");
+  add(category_t::updown_style, 0x0100, "UDS_HOTTRACK", "Displays a hot-tracking border on the up-down control when the pointer hovers over it.");
 
   /* ── DTS_* Date/Time Picker Styles ───────────────────────────── */
   add(category_t::datetimepicker_style, 0x0010, "DTS_APPCANPARSE", "Enables the owner to parse user input in the date/time picker control.");
@@ -425,6 +446,7 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::datetimepicker_style, 0x0001, "DTS_UPDOWN", "Displays an up-down control rather than a drop-down calendar for date selection.");
   add(category_t::datetimepicker_style, 0x0000, "DTS_SHORTDATEFORMAT", "Uses the short date format as specified in the user's locale settings (default).");
   add(category_t::datetimepicker_style, 0x0020, "DTS_MONTHCAL", "Displays a month calendar control as a drop-down rather than a simple drop-down list.");
+  add(category_t::datetimepicker_style, 0x000C, "DTS_SHORTDATECENTURYFORMAT", "Similar to DTS_SHORTDATEFORMAT, except the year is a four-digit field.");
 
   /* ── TCS_* Tab Control Styles ────────────────────────────────── */
   add(category_t::tabcontrol_style, 0x0002, "TCS_BOTTOM", "Places tabs at the bottom of the control.");
@@ -443,6 +465,14 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::tabcontrol_style, 0x0020, "TCS_RIGHTJUSTIFY", "Right-justifies tabs when the tab control is multiline.");
   add(category_t::tabcontrol_style, 0x0001, "TCS_SCROLLOP", "Enables horizontal scrolling of multiple rows of tabs.");
   add(category_t::tabcontrol_style, 0x0400, "TCS_TOOLTIPS", "Enables tooltips for each tab in the tab control.");
+  add(category_t::tabcontrol_style, 0x0010, "TCS_FORCEICONLEFT", "Forces the icon to be left-aligned in each tab.");
+  add(category_t::tabcontrol_style, 0x0020, "TCS_FORCELABELLEFT", "Forces the label to be left-aligned in each tab.");
+  add(category_t::tabcontrol_style, 0x0040, "TCS_HOTTRACK", "Underlines the tab label under the pointer to indicate that the tab can be selected.");
+  add(category_t::tabcontrol_style, 0x0002, "TCS_RIGHT", "Places tabs on the right side of the control (same as TCS_BOTTOM).");
+  add(category_t::tabcontrol_style, 0x0001, "TCS_SCROLLOPPOSITE", "Enables horizontal scrolling of multiple rows of tabs (same as TCS_SCROLLOP).");
+  add(category_t::tabcontrol_style, 0x0000, "TCS_SINGLELINE", "Displays only one row of tabs.");
+  add(category_t::tabcontrol_style, 0x0000, "TCS_TABS", "Displays tabs as normal tabs (default).");
+  add(category_t::tabcontrol_style, 0x0080, "TCS_VERTICAL", "Displays tabs vertically.");
 
   /* ── SB_* Scroll Bar Constants ───────────────────────────────── */
   add(category_t::scrollbar_style, 0x0000, "SB_HORZ", "Identifies a horizontal scroll bar for scroll bar messages.");

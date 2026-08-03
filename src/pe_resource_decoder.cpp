@@ -42,14 +42,14 @@ namespace
     uint8_t read_u8()
     {
       if (m_pos >= m_data.size())
-        throw std::runtime_error("byte_reader: out of bounds reading u8");
+        throw std::runtime_error("byte_reader: out of bounds reading uint8_t");
       return m_data[m_pos++];
     }
 
     uint16_t read_u16()
     {
       if (m_pos + 2 > m_data.size())
-        throw std::runtime_error("byte_reader: out of bounds reading u16");
+        throw std::runtime_error("byte_reader: out of bounds reading uint16_t");
       uint16_t val = m_data[m_pos] | (static_cast<uint16_t>(m_data[m_pos + 1]) << 8);
       m_pos += 2;
       return val;
@@ -58,7 +58,7 @@ namespace
     uint32_t read_u32()
     {
       if (m_pos + 4 > m_data.size())
-        throw std::runtime_error("byte_reader: out of bounds reading u32");
+        throw std::runtime_error("byte_reader: out of bounds reading uint32_t");
       uint32_t val = m_data[m_pos]
         | (static_cast<uint32_t>(m_data[m_pos + 1]) << 8)
         | (static_cast<uint32_t>(m_data[m_pos + 2]) << 16)
@@ -154,14 +154,20 @@ namespace
     std::string font_name;
   };
 
+  struct [[gnu::packed]] vs_version_t
+  {
+    uint16_t high;
+    uint16_t low;
+  };
+
   struct [[gnu::packed]] vs_fixedfileinfo_t
   {
     uint32_t dwSignature;
-    uint32_t dwStrucVersion;
-    uint32_t dwFileVersionMS;
-    uint32_t dwFileVersionLS;
-    uint32_t dwProductVersionMS;
-    uint32_t dwProductVersionLS;
+    vs_version_t dwStrucVersion;
+    vs_version_t dwFileVersionMS;
+    vs_version_t dwFileVersionLS;
+    vs_version_t dwProductVersionMS;
+    vs_version_t dwProductVersionLS;
     uint32_t dwFileFlagsMask;
     uint32_t dwFileFlags;
     uint32_t dwFileOS;
@@ -938,58 +944,11 @@ std::string decode_versioninfo(
 {
   byte_reader reader(data);
 
-  /* Obsolete: the version header was read one field at a time. It is now
-     read into the packed vs_versioninfo_t struct in a single operation.
-  uint16_t total_len = reader.read_u16();
-  (void)total_len;
-  std::string header = read_unicode_string(reader);
-
-  if (header != "VS_VERSION_INFO")
-    return "";
-
-  std::ostringstream out;
-  out << resource_id << " VERSIONINFO\n";
-
-  if (reader.pos() % 4 != 0)
-    reader.skip((4 - (reader.pos() % 4)) % 4);
-
-  if (reader.remaining() >= 40)
-  {
-    size_t value_offset = reader.pos();
-    uint32_t sig = reader.read_u32();
-    if (sig == 0xFEEF04BD)
-    {
-      uint32_t file_ver_ms = reader.read_u32();
-      uint32_t file_ver_ls = reader.read_u32();
-      uint32_t prod_ver_ms = reader.read_u32();
-      uint32_t prod_ver_ls = reader.read_u32();
-
-      auto hiword = [](uint32_t v) -> uint32_t { return (v >> 16) & 0xFFFF; };
-      auto loword = [](uint32_t v) -> uint32_t { return v & 0xFFFF; };
-
-      out << "FILEVERSION "
-          << hiword(file_ver_ms) << "," << loword(file_ver_ms) << ","
-          << hiword(file_ver_ls) << "," << loword(file_ver_ls) << "\n";
-      out << "PRODUCTVERSION "
-          << hiword(prod_ver_ms) << "," << loword(prod_ver_ms) << ","
-          << hiword(prod_ver_ls) << "," << loword(prod_ver_ls) << "\n";
-
-      reader.skip(48);
-    }
-    else
-    {
-      reader.pos() -= 4;
-    }
-  }
-  */
-
   if (reader.remaining() < sizeof(vs_versioninfo_t))
     return "";
 
   vs_versioninfo_t header{};
-  std::memcpy(&header,
-              reader.slice(reader.pos(), sizeof(header)).data(),
-              sizeof(header));
+  std::memcpy(&header, data.data(), sizeof(header));
   reader.skip(sizeof(header));
 
   std::u16string key;
@@ -1006,15 +965,16 @@ std::string decode_versioninfo(
 
   if (fixed_info.dwSignature == 0xFEEF04BD)
   {
-    auto hiword = [](uint32_t v) -> uint32_t { return (v >> 16) & 0xFFFF; };
-    auto loword = [](uint32_t v) -> uint32_t { return v & 0xFFFF; };
-
-    out << "FILEVERSION "
-        << hiword(fixed_info.dwFileVersionMS) << "," << loword(fixed_info.dwFileVersionMS) << ","
-        << hiword(fixed_info.dwFileVersionLS) << "," << loword(fixed_info.dwFileVersionLS) << "\n";
-    out << "PRODUCTVERSION "
-        << hiword(fixed_info.dwProductVersionMS) << "," << loword(fixed_info.dwProductVersionMS) << ","
-        << hiword(fixed_info.dwProductVersionLS) << "," << loword(fixed_info.dwProductVersionLS) << "\n";
+    out << std::format("FILEVERSION {},{},{},{}\n",
+                        fixed_info.dwFileVersionMS.high,
+                        fixed_info.dwFileVersionMS.low,
+                        fixed_info.dwFileVersionLS.high,
+                        fixed_info.dwFileVersionLS.low);
+    out << std::format("PRODUCTVERSION {},{},{},{}\n",
+                       fixed_info.dwProductVersionMS.high,
+                       fixed_info.dwProductVersionMS.low,
+                       fixed_info.dwProductVersionLS.high,
+                       fixed_info.dwProductVersionLS.low);
   }
 
   out << "BEGIN\n";
@@ -1059,12 +1019,11 @@ std::string decode_versioninfo(
       /* A block is a container if its key names a known container, or if
          it is a StringTable language block (8-hex-digit key) sitting
          directly inside a StringFileInfo block. */
-      // bool is_container = (key == "StringFileInfo" || key == "VarFileInfo"
-      //   || key == "StringTable" || key == "VS_VERSION_INFO");
-      bool is_named_container = (key == "StringFileInfo" || key == "VarFileInfo"
-        || key == "VS_VERSION_INFO");
-      bool is_container = (is_named_container
-        || parent_kind == version_block_kind::string_file);
+      bool is_named_container = (key == "StringFileInfo" ||
+                                 key == "VarFileInfo" ||
+                                 key == "VS_VERSION_INFO");
+      bool is_container = (is_named_container ||
+                           parent_kind == version_block_kind::string_file);
 
       if (is_container)
       {
@@ -1101,27 +1060,16 @@ std::string decode_versioninfo(
             val += ", ";
           val += std::format("0x{:04X}", r.read_u16());
         }
-        out << pad << "VALUE \"" << key << "\", " << val << "\n";
+        out << pad << std::format("VALUE \"{}\", {}\n", key, val);
       }
       else if (val_len > 0 && val_len < 1024)
       {
         std::string val = read_unicode_string(r);
-        /* Obsolete heuristic: binary values were re-read as raw bytes.
-        if (val_len > 2 && val.size() == 1 && !val.empty())
-        {
-          r.pos() -= val.size();
-          std::string raw;
-          for (uint16_t i = 0; i < val_len; i++)
-            raw += static_cast<char>(r.read_u8());
-          val = raw;
-        }
-        */
-
         if (val.find(',') != std::string::npos
             || (!val.empty() && (std::isdigit(val[0]) || val[0] == '-' || val[0] == '0')))
-          out << pad << "VALUE \"" << key << "\", " << val << "\n";
+          out << pad << std::format("VALUE \"{}\", {}\n", key, val);
         else
-          out << pad << "VALUE \"" << key << "\", \"" << escape_string(val) << "\"\n";
+          out << pad << std::format("VALUE \"{}\", {}\n", key, escape_string(val));
       }
 
       r.pos() = next_item;
