@@ -26,6 +26,7 @@ res/
 
 # documentation
 docs/qt*/
+docs/win32/
 docs/menurc/*
 !docs/menurc/dlginit-resource.md
 !docs/menurc/rc-exe-quirks-and-bugs.md
