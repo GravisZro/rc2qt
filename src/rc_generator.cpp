@@ -591,6 +591,12 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   if(qt_class.empty())
     qt_class = "QWidget";
 
+  /* EDITTEXT keywords map to QLineEdit, but a multiline edit control
+     (ES_MULTILINE) must become a QTextEdit, mirroring the EDIT class
+     handling in map_class_to_widget(). */
+  if(qt_class == "QLineEdit" && has_style(ctrl.style, "ES_MULTILINE"))
+    qt_class = "QTextEdit";
+
   std::string name_id = ctrl.id;
   auto resolved_id = constant_registry::instance().resolve(ctrl.id);
   bool is_numeric_id = !ctrl.id.empty() &&
