@@ -40,7 +40,7 @@ set(BUILD_SHARED_LIBS ON)
 
 
 set(HEADERS
-  src/rc_helpers.h
+  src/utils.h
   src/rc_ast.h
   src/rc_constants.h
   src/rc_generator.h
@@ -52,7 +52,7 @@ set(HEADERS
 )
 
 set(SOURCES
-  src/rc_helpers.cpp
+  src/utils.cpp
   src/rc_constants.cpp
   src/rc_generator.cpp
   src/rc_parser.cpp
@@ -73,7 +73,7 @@ set(TEST_SOURCES
   src/rc_tokenizer.cpp
   src/rc_constants.cpp
   src/rc_resolver.cpp
-  src/rc_helpers.cpp
+  src/utils.cpp
   src/rc_parser.cpp
   src/test_parser.cpp
 )
