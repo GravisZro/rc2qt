@@ -2,52 +2,63 @@
 #define RC_HELPERS_H
 
 #include <string>
+#include <string_view>
 #include <initializer_list>
 #include <type_traits>
+#include <utility>
+#include <format>
+#include <iostream>
 
-namespace rc
+constexpr auto expand_tabs(std::string_view str)
 {
-  // Generic bitwise operators for any enum used as a flag bitmask.
-  // Allows combining enumerator values, e.g. category_t::a | category_t::b.
-  template<typename Enum, typename = std::enable_if_t<std::is_enum_v<Enum>>>
-  constexpr Enum operator |(Enum lhs, Enum rhs)
+  std::string result;
+  result.reserve(str.size());
+  for (auto c : str)
   {
-    return static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(lhs) |
-                             static_cast<std::underlying_type_t<Enum>>(rhs));
+    if (c == '\t')
+      result += ' ', result += ' ';
+    else
+      result += c;
   }
-
-  template<typename Enum, typename = std::enable_if_t<std::is_enum_v<Enum>>>
-  constexpr Enum operator &(Enum lhs, Enum rhs)
-  {
-    return static_cast<Enum>(static_cast<std::underlying_type_t<Enum>>(lhs) &
-                             static_cast<std::underlying_type_t<Enum>>(rhs));
-  }
-
-  template<typename Enum, typename = std::enable_if_t<std::is_enum_v<Enum>>>
-  constexpr bool operator ==(Enum lhs, Enum rhs)
-  {
-    return static_cast<std::underlying_type_t<Enum>>(lhs) ==
-           static_cast<std::underlying_type_t<Enum>>(rhs);
-  }
-
-  template<typename Enum, typename = std::enable_if_t<std::is_enum_v<Enum>>>
-  constexpr bool operator <(Enum lhs, Enum rhs)
-  {
-    return static_cast<std::underlying_type_t<Enum>>(lhs) <
-           static_cast<std::underlying_type_t<Enum>>(rhs);
-  }
-
-  std::string to_upper(const std::string& s);
-
-  //bool upper_contains(const std::string& needle, std::initializer_list<std::string> haystack);
-  int64_t safe_stoi(const std::string& s, int64_t default_value = 0);
-  uint64_t safe_stoul(const std::string& s, int base = 0, uint64_t default_value = 0);
-
-  std::string utf16le_to_utf8(const std::string& input);
-  std::string cp1252_to_utf8(const std::string& input);
-
-  bool match_string(const std::string& needle, std::initializer_list<std::string> haystack);
-  std::string escape_string(const std::string& s);
+  return result;
 }
+
+template<typename... Args>
+static inline void info(std::string_view fmt, Args... args)
+{ std::cerr << std::vformat(expand_tabs(fmt), std::make_format_args(args...)) << std::endl << std::flush; }
+
+template<typename... Args>
+static inline void print(std::string_view fmt, Args... args)
+{ std::cout << std::vformat(expand_tabs(fmt), std::make_format_args(args...)) << std::endl << std::flush; }
+
+// Generic bitwise operators for any enum used as a flag bitmask.
+// Allows combining enumerator values, e.g. category_t::a | category_t::b.
+template<typename E, std::enable_if_t<std::is_enum_v<E>, bool> = false>
+constexpr E operator | (E a, E b) { return E(std::to_underlying(a) | std::to_underlying(b)); }
+
+
+template<typename E, std::enable_if_t<std::is_enum_v<E>, bool> = false>
+constexpr bool operator > (E a, E b) { return std::to_underlying(a) > std::to_underlying(b); }
+
+template<typename E, std::enable_if_t<std::is_enum_v<E>, bool> = false>
+constexpr bool operator < (E a, E b) { return std::to_underlying(a) < std::to_underlying(b); }
+
+
+template<typename E, std::enable_if_t<std::is_enum_v<E>, bool> = false>
+constexpr E operator + (E a, E b) { return static_cast<E>(std::to_underlying(a) + std::to_underlying(b)); }
+
+template<typename E, std::enable_if_t<std::is_enum_v<E>, bool> = false>
+constexpr E operator - (E a, E b) { return static_cast<E>(std::to_underlying(a) - std::to_underlying(b)); }
+
+std::string to_upper(const std::string& s);
+
+int64_t safe_stoi(const std::string& s, int64_t default_value = 0);
+uint64_t safe_stoul(const std::string& s, int base = 0, uint64_t default_value = 0);
+
+std::string utf16le_to_utf8(const std::string& input);
+std::string cp1252_to_utf8(const std::string& input);
+
+bool match_string(const std::string& needle, std::initializer_list<std::string> haystack);
+std::string escape_string(const std::string& s);
 
 #endif // RC_HELPERS_H

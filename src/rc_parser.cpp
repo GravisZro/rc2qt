@@ -374,7 +374,7 @@ dialog_stmt parser::parse_dialog_statement()
 {
   dialog_stmt stmt;
   stmt.keyword = next_val();
-  std::string upper = rc::to_upper(stmt.keyword);
+  std::string upper = to_upper(stmt.keyword);
 
   if(upper == "STYLE" || upper == "EXSTYLE")
     stmt.value = parse_style_expr();
@@ -670,7 +670,7 @@ void parser::parse_versioninfo_resource(resource& res)
   {
     if(is_current_type(token_type::identifier))
     {
-      std::string key = rc::to_upper(next_val());
+      std::string key = to_upper(next_val());
       std::string val;
       while(is_current_type({token_type::newline, token_type::eof, token_type::identifier}))
       {
@@ -950,7 +950,7 @@ resource parser::parse_resource()
     { "DLGINCLUDE", &parser::parse_simple_resource },
   };
 
-  if(auto name = rc::to_upper(res.type);
+  if(auto name = to_upper(res.type);
      funcmap.contains(name))
     std::bind_front(funcmap.at(name), this)(res);
   else

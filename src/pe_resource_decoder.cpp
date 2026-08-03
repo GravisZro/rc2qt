@@ -377,8 +377,7 @@ namespace
 
   static std::string classify_control(const dialog_control& ctrl)
   {
-    std::string cls = ctrl.class_name;
-    std::transform(cls.begin(), cls.end(), cls.begin(), ::toupper);
+    std::string cls = to_upper(ctrl.class_name);
 
     if (cls == "BUTTON" || cls == "BS_PUSHBUTTON" || cls == "BS_DEFPUSHBUTTON")
     {
@@ -435,7 +434,7 @@ namespace
         style_val = std::format("0x{:08x}", rest_style);
 
       std::string line = std::format("    CONTROL \"{}\", {}, \"{}\"",
-        rc::escape_string(ctrl.text), id_str, ctrl.class_name);
+        escape_string(ctrl.text), id_str, ctrl.class_name);
 
       if (style_val.empty())
         line += ", 0";
@@ -451,11 +450,10 @@ namespace
     }
 
     std::string line = std::format("    {} \"{}\", {}, {}, {}, {}, {}",
-      keyword, rc::escape_string(ctrl.text), id_str, ctrl.x, ctrl.y, ctrl.cx, ctrl.cy);
+      keyword, escape_string(ctrl.text), id_str, ctrl.x, ctrl.y, ctrl.cx, ctrl.cy);
 
     uint32_t control_type = 0;
-    std::string cls_upper = ctrl.class_name;
-    std::transform(cls_upper.begin(), cls_upper.end(), cls_upper.begin(), ::toupper);
+    std::string cls_upper = to_upper(ctrl.class_name);
     if (cls_upper == "BUTTON")
       control_type = ctrl.style & 0x0F;
     else if (cls_upper == "STATIC")
@@ -541,11 +539,11 @@ std::string decode_dialog(
   }
 
   if (!hdr.title.empty())
-    out << "CAPTION \"" << rc::escape_string(hdr.title) << "\"\n";
+    out << "CAPTION \"" << escape_string(hdr.title) << "\"\n";
 
   if (hdr.font_size > 0)
   {
-    out << "FONT " << hdr.font_size << ", \"" << rc::escape_string(hdr.font_name) << "\"";
+    out << "FONT " << hdr.font_size << ", \"" << escape_string(hdr.font_name) << "\"";
     if (hdr.font_weight || hdr.font_italic)
     {
       out << ", " << hdr.font_weight;
@@ -670,7 +668,7 @@ std::string decode_menu(
         }
         else if (is_popup)
         {
-          out << indent << "POPUP \"" << rc::escape_string(text) << "\"";
+          out << indent << "POPUP \"" << escape_string(text) << "\"";
           if (u_id != 0)
             out << ", " << u_id;
           if (dw_state & 0x0003)
@@ -687,7 +685,7 @@ std::string decode_menu(
         }
         else
         {
-          out << indent << "MENUITEM \"" << rc::escape_string(text) << "\", " << u_id;
+          out << indent << "MENUITEM \"" << escape_string(text) << "\", " << u_id;
           if (dw_state & 0x0003) out << ", GRAYED";
           if (dw_state & 0x0008) out << ", CHECKED";
           if (dw_state & 0x1000) out << ", DEFAULT";
@@ -745,7 +743,7 @@ std::string decode_menu(
       }
       else if (is_popup)
       {
-        out << indent << "POPUP \"" << rc::escape_string(text) << "\"";
+        out << indent << "POPUP \"" << escape_string(text) << "\"";
         if (option & 0x0001)
           out << ", GRAYED";
         if (option & 0x0002)
@@ -757,7 +755,7 @@ std::string decode_menu(
       }
       else
       {
-        out << indent << "MENUITEM \"" << rc::escape_string(text) << "\", " << id;
+        out << indent << "MENUITEM \"" << escape_string(text) << "\", " << id;
         if (option & 0x0001) out << ", GRAYED";
         if (option & 0x0008) out << ", CHECKED";
         if (option & 0x0080) out << ", MENUBARBREAK";
@@ -918,7 +916,7 @@ std::string decode_stringtable(
 
     uint32_t string_id = (group_id - 1) * 16 + i;
     out << "  " << resource_id_string(string_id)
-      << ", \"" << rc::escape_string(str) << "\"\n";
+      << ", \"" << escape_string(str) << "\"\n";
   }
 
   out << "END\n";
@@ -1123,7 +1121,7 @@ std::string decode_versioninfo(
             || (!val.empty() && (std::isdigit(val[0]) || val[0] == '-' || val[0] == '0')))
           out << pad << "VALUE \"" << key << "\", " << val << "\n";
         else
-          out << pad << "VALUE \"" << key << "\", \"" << rc::escape_string(val) << "\"\n";
+          out << pad << "VALUE \"" << key << "\", \"" << escape_string(val) << "\"\n";
       }
 
       r.pos() = next_item;

@@ -252,7 +252,7 @@ std::vector<token> tokenize(const std::string& input)
     if(is_id_start(c))
     {
       std::string value = read_identifier(src, pos);
-      std::string upper = rc::to_upper(value);
+      std::string upper = to_upper(value);
 
       if(upper == "BEGIN")
         tokens.push_back({token_type::begin, value, line});

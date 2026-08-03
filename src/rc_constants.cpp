@@ -34,7 +34,7 @@ category_t constant_registry::resolve_category(const std::string& name)
   if(name.empty())
     return category_t::window_style;
 
-  const std::string upper = rc::to_upper(name);
+  const std::string upper = to_upper(name);
 
   const std::unordered_map<std::string, category_t> categories =
   {

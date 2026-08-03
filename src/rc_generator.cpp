@@ -2,6 +2,7 @@
 #include "rc_ast.h"
 #include "rc_constants.h"
 #include "utils.h"
+#include "xmlhelpers.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -15,6 +16,7 @@
 
 namespace rc
 {
+  using namespace xml;
 
 bool generator::generate_all(const rc_file& file, const std::string& output_dir, const std::string& rc_basename)
 {
@@ -141,8 +143,7 @@ void generator::collect_global_data(const rc_file& file)
         {
           std::string qt_key;
 
-          std::string event_upper = a.event;
-          std::transform(event_upper.begin(), event_upper.end(), event_upper.begin(), ::toupper);
+          std::string event_upper = to_upper(a.event);
 
           bool has_ctrl = false;
           bool has_shift = false;
@@ -150,8 +151,7 @@ void generator::collect_global_data(const rc_file& file)
 
           for(const auto& mod : a.modifiers)
           {
-            std::string mod_upper = mod;
-            std::transform(mod_upper.begin(), mod_upper.end(), mod_upper.begin(), ::toupper);
+            std::string mod_upper = to_upper(mod);
             if(mod_upper == "CONTROL" || mod_upper == "CTRL")
               has_ctrl = true;
             else if(mod_upper == "SHIFT")
@@ -250,8 +250,7 @@ void generator::collect_global_data(const rc_file& file)
       bool is_ds_control = false;
       for(const auto& stmt : dd.statements)
       {
-        std::string kw_upper = stmt.keyword;
-        std::transform(kw_upper.begin(), kw_upper.end(), kw_upper.begin(), ::toupper);
+        std::string kw_upper = to_upper(stmt.keyword);
         if(kw_upper == "STYLE" && has_style(stmt.value, "DS_CONTROL"))
           is_ds_control = true;
       }
@@ -506,8 +505,7 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
 std::set<std::string> generator::id_words(const std::string& id) const
 {
   std::set<std::string> words;
-  std::string upper = id;
-  std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+  std::string upper = to_upper(id);
 
   for(const auto& prefix : {"IDD_", "DLG_", "IDC_", "IDM_"})
   {
@@ -549,10 +547,8 @@ bool generator::share_common_word(const std::string& id1, const std::string& id2
       return true;
   }
 
-  std::string upper1 = id1;
-  std::transform(upper1.begin(), upper1.end(), upper1.begin(), ::toupper);
-  std::string upper2 = id2;
-  std::transform(upper2.begin(), upper2.end(), upper2.begin(), ::toupper);
+  std::string upper1 = to_upper(id1);
+  std::string upper2 = to_upper(id2);
 
   for(const auto& prefix : {"IDD_", "DLG_", "IDC_", "IDM_"})
   {
@@ -797,13 +793,11 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
       const auto& dd = *dlg_ptr;
 
       std::string tab_title;
-      std::string dlg_id_upper = dlg_id;
-      std::transform(dlg_id_upper.begin(), dlg_id_upper.end(), dlg_id_upper.begin(), ::toupper);
+      std::string dlg_id_upper = to_upper(dlg_id);
 
       for(const auto& stmt : dd.statements)
       {
-        std::string kw_upper = stmt.keyword;
-        std::transform(kw_upper.begin(), kw_upper.end(), kw_upper.begin(), ::toupper);
+        std::string kw_upper = to_upper(stmt.keyword);
         if(kw_upper == "CAPTION")
         {
           tab_title = stmt.text_value;
@@ -975,30 +969,6 @@ void generator::add_property_font(pugi::xml_node& widget, const std::string& fam
 
 std::string generator::map_keyword_to_widget(const std::string& keyword)
 {
-  /* Obsolete: linear if-chain replaced by a lookup map.
-  if(keyword == "PUSHBUTTON" || keyword == "DEFPUSHBUTTON")
-    return "QPushButton";
-  if(keyword == "CHECKBOX" || keyword == "AUTOCHECKBOX" || keyword == "AUTO3STATE" || keyword == "STATE3")
-    return "QCheckBox";
-  if(keyword == "RADIOBUTTON" || keyword == "AUTORADIOBUTTON")
-    return "QRadioButton";
-  if(keyword == "GROUPBOX")
-    return "QGroupBox";
-  if(keyword == "LTEXT" || keyword == "CTEXT" || keyword == "RTEXT" || keyword == "ICON")
-    return "QLabel";
-  if(keyword == "EDITTEXT")
-    return "QLineEdit";
-  if(keyword == "LISTBOX")
-    return "QListWidget";
-  if(keyword == "COMBOBOX")
-    return "QComboBox";
-  if(keyword == "SCROLLBAR")
-    return "QScrollBar";
-  if(keyword == "PUSHBOX")
-    return "QPushButton";
-  return "";
-  */
-
   static const std::map<std::string, std::string> keyword_map = {
     {"PUSHBUTTON", "QPushButton"},
     {"DEFPUSHBUTTON", "QPushButton"},
@@ -1028,146 +998,53 @@ std::string generator::map_keyword_to_widget(const std::string& keyword)
 
 std::string generator::map_class_to_widget(const std::string& class_name, const style_expr& style)
 {
-  std::string lower = class_name;
-  std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+  std::string upper = to_upper(class_name);
 
   /* Ordinal aliases for the standard control classes delegate to the
      same logic as their named counterparts. */
-  if (lower == "#128")
-    lower = "button";
-  else if (lower == "#129")
-    lower = "edit";
-
-  /* Obsolete: linear if-chain replaced by a lookup map.
-  if(lower == "button")
-  {
-    if(has_style(style, "BS_GROUPBOX"))
-      return "QGroupBox";
-    if(has_style(style, "BS_CHECKBOX") || has_style(style, "BS_AUTOCHECKBOX") ||
-       has_style(style, "BS_AUTO3STATE") || has_style(style, "BS_3STATE"))
-      return "QCheckBox";
-    if(has_style(style, "BS_RADIOBUTTON") || has_style(style, "BS_AUTORADIOBUTTON"))
-      return "QRadioButton";
-    return "QPushButton";
-  }
-
-  if(lower == "static")
-  {
-    return "QLabel";
-  }
-
-  if(lower == "edit")
-  {
-    if(has_style(style, "ES_MULTILINE"))
-      return "QTextEdit";
-    return "QLineEdit";
-  }
-
-  if(lower == "listbox")
-    return "QListWidget";
-  if(lower == "combobox")
-    return "QComboBox";
-  if(lower == "comboboxex32")
-    return "QComboBox";
-  if(lower == "scrollbar")
-    return "QScrollBar";
-
-  if(lower == "systabcontrol32")
-    return "QTabWidget";
-  if(lower == "systreeview32")
-    return "QTreeWidget";
-  if(lower == "syslistview32")
-    return "QTableWidget";
-  if(lower == "msctls_progress32")
-    return "QProgressBar";
-  if(lower == "msctls_trackbar32")
-    return "QSlider";
-  if(lower == "msctls_updown32")
-    return "QSpinBox";
-  if(lower == "sysdatetimepick32")
-    return "QDateTimeEdit";
-  if(lower == "sysmonthcal32")
-    return "QCalendarWidget";
-  if(lower == "syslink")
-    return "QLabel";
-  if(lower == "toolbarwindow32")
-    return "QToolBar";
-  if(lower == "rebarwindow32")
-    return "QToolBar";
-  if(lower == "tooltips_class32")
-    return "QWidget";
-  if(lower == "#128")
-    return map_class_to_widget("BUTTON", style);
-  if(lower == "#129")
-    return map_class_to_widget("EDIT", style);
-  if(lower == "#130")
-    return "QLabel";
-  if(lower == "#131")
-    return "QListWidget";
-  if(lower == "#132")
-    return "QScrollBar";
-  if(lower == "#133")
-    return "QComboBox";
-  if(lower == "#32774")
-    return "QPushButton";
-  if(lower == "#32768")
-    return "QWidget";
-  if(lower == "sysanimate32")
-    return "QLabel";
-  if(lower == "syspager")
-    return "QStackedWidget";
-  if(lower == "richedit" || lower == "richedit20a" || lower == "richedit20w" || lower == "richedit50w")
-    return "QTextEdit";
-  if(lower == "msctls_statusbar32")
-    return "QStatusBar";
-  if(lower == "sysheader32")
-    return "QHeaderView";
-  if(lower == "msctls_hotkey32")
-    return "QWidget";
-  if(lower == "nativefontctl")
-    return "QWidget";
-
-  return "QWidget";
-  */
+  if (upper == "#128")
+    upper = "BUTTON";
+  else if (upper == "#129")
+    upper = "EDIT";
 
   static const std::map<std::string, std::string> class_map = {
-    {"static", "QLabel"},
-    {"listbox", "QListWidget"},
-    {"combobox", "QComboBox"},
-    {"comboboxex32", "QComboBox"},
-    {"scrollbar", "QScrollBar"},
-    {"systabcontrol32", "QTabWidget"},
-    {"systreeview32", "QTreeWidget"},
-    {"syslistview32", "QTableWidget"},
-    {"msctls_progress32", "QProgressBar"},
-    {"msctls_trackbar32", "QSlider"},
-    {"msctls_updown32", "QSpinBox"},
-    {"sysdatetimepick32", "QDateTimeEdit"},
-    {"sysmonthcal32", "QCalendarWidget"},
-    {"syslink", "QLabel"},
-    {"toolbarwindow32", "QToolBar"},
-    {"rebarwindow32", "QToolBar"},
-    {"tooltips_class32", "QWidget"},
+    {"STATIC", "QLabel"},
+    {"LISTBOX", "QListWidget"},
+    {"COMBOBOX", "QComboBox"},
+    {"COMBOBOXEX32", "QComboBox"},
+    {"SCROLLBAR", "QScrollBar"},
+    {"SYSTABCONTROL32", "QTabWidget"},
+    {"SYSTREEVIEW32", "QTreeWidget"},
+    {"SYSLISTVIEW32", "QTableWidget"},
+    {"MSCTLS_PROGRESS32", "QProgressBar"},
+    {"MSCTLS_TRACKBAR32", "QSlider"},
+    {"MSCTLS_UPDOWN32", "QSpinBox"},
+    {"SYSDATETIMEPICK32", "QDateTimeEdit"},
+    {"SYSMONTHCAL32", "QCalendarWidget"},
+    {"SYSLINK", "QLabel"},
+    {"TOOLBARWINDOW32", "QToolBar"},
+    {"REBARWINDOW32", "QToolBar"},
+    {"TOOLTIPS_CLASS32", "QWidget"},
     {"#130", "QLabel"},
     {"#131", "QListWidget"},
     {"#132", "QScrollBar"},
     {"#133", "QComboBox"},
     {"#32774", "QPushButton"},
     {"#32768", "QWidget"},
-    {"sysanimate32", "QLabel"},
-    {"syspager", "QStackedWidget"},
-    {"richedit", "QTextEdit"},
-    {"richedit20a", "QTextEdit"},
-    {"richedit20w", "QTextEdit"},
-    {"richedit50w", "QTextEdit"},
-    {"msctls_statusbar32", "QStatusBar"},
-    {"sysheader32", "QHeaderView"},
-    {"msctls_hotkey32", "QWidget"},
-    {"nativefontctl", "QWidget"},
+    {"SYSANIMATE32", "QLabel"},
+    {"SYSPAGER", "QStackedWidget"},
+    {"RICHEDIT", "QTextEdit"},
+    {"RICHEDIT20A", "QTextEdit"},
+    {"RICHEDIT20W", "QTextEdit"},
+    {"RICHEDIT50W", "QTextEdit"},
+    {"MSCTLS_STATUSBAR32", "QStatusBar"},
+    {"SYSHEADER32", "QHeaderView"},
+    {"MSCTLS_HOTKEY32", "QWidget"},
+    {"NATIVEFONTCTL", "QWidget"},
   };
 
   /* The BUTTON and EDIT classes depend on their style flags. */
-  if (lower == "button")
+  if (upper == "BUTTON")
   {
     if (has_style(style, "BS_GROUPBOX"))
       return "QGroupBox";
@@ -1179,14 +1056,14 @@ std::string generator::map_class_to_widget(const std::string& class_name, const 
     return "QPushButton";
   }
 
-  if (lower == "edit")
+  if (upper == "EDIT")
   {
     if (has_style(style, "ES_MULTILINE"))
       return "QTextEdit";
     return "QLineEdit";
   }
 
-  auto it = class_map.find(lower);
+  auto it = class_map.find(upper);
   if (it == class_map.end())
     return "QWidget";
   return it->second;
@@ -1588,8 +1465,7 @@ void generator::write_actions(pugi::xml_node& parent, const rc_file& file)
 
 std::string generator::map_vk_to_qt(const std::string& vk_code)
 {
-  std::string key = vk_code;
-  std::transform(key.begin(), key.end(), key.begin(), ::toupper);
+  std::string key = to_upper(vk_code);
 
   if(key.size() >= 3 && key[0] == '0' && key[1] == 'X')
   {
