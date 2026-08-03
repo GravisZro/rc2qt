@@ -215,8 +215,7 @@ void generator::collect_global_data(const rc_file& file)
 
               for(const auto& f : mi.flags)
               {
-                std::string f_upper = f;
-                std::transform(f_upper.begin(), f_upper.end(), f_upper.begin(), ::toupper);
+                std::string f_upper = to_upper(f);
                 if(f_upper == "GRAYED" || f_upper == "INACTIVE" || f_upper == "MFS_GRAYED" || f_upper == "MFS_UNHILITE")
                   m_menu_disabled_map[mi.id] = true;
                 if(f_upper == "CHECKED" || f_upper == "MFS_CHECKED")
@@ -229,8 +228,7 @@ void generator::collect_global_data(const rc_file& file)
             auto sub = std::get<std::shared_ptr<popup>>(entry.item);
             for(const auto& f : sub->flags)
             {
-              std::string f_upper = f;
-              std::transform(f_upper.begin(), f_upper.end(), f_upper.begin(), ::toupper);
+              std::string f_upper = to_upper(f);
               if(f_upper == "GRAYED" || f_upper == "INACTIVE" || f_upper == "MFS_GRAYED")
                 m_menu_disabled_map[sub->text] = true;
             }
@@ -957,6 +955,7 @@ void generator::add_property_font(pugi::xml_node& widget, const std::string& fam
 
 std::string generator::map_keyword_to_widget(const std::string& keyword)
 {
+  /* Obsolete: linear if-chain replaced by a lookup map.
   if(keyword == "PUSHBUTTON" || keyword == "DEFPUSHBUTTON")
     return "QPushButton";
   if(keyword == "CHECKBOX" || keyword == "AUTOCHECKBOX" || keyword == "AUTO3STATE" || keyword == "STATE3")
@@ -978,6 +977,33 @@ std::string generator::map_keyword_to_widget(const std::string& keyword)
   if(keyword == "PUSHBOX")
     return "QPushButton";
   return "";
+  */
+
+  static const std::map<std::string, std::string> keyword_map = {
+    {"PUSHBUTTON", "QPushButton"},
+    {"DEFPUSHBUTTON", "QPushButton"},
+    {"CHECKBOX", "QCheckBox"},
+    {"AUTOCHECKBOX", "QCheckBox"},
+    {"AUTO3STATE", "QCheckBox"},
+    {"STATE3", "QCheckBox"},
+    {"RADIOBUTTON", "QRadioButton"},
+    {"AUTORADIOBUTTON", "QRadioButton"},
+    {"GROUPBOX", "QGroupBox"},
+    {"LTEXT", "QLabel"},
+    {"CTEXT", "QLabel"},
+    {"RTEXT", "QLabel"},
+    {"ICON", "QLabel"},
+    {"EDITTEXT", "QLineEdit"},
+    {"LISTBOX", "QListWidget"},
+    {"COMBOBOX", "QComboBox"},
+    {"SCROLLBAR", "QScrollBar"},
+    {"PUSHBOX", "QPushButton"},
+  };
+
+  auto it = keyword_map.find(keyword);
+  if (it == keyword_map.end())
+    return "";
+  return it->second;
 }
 
 std::string generator::map_class_to_widget(const std::string& class_name, const style_expr& style)
@@ -985,6 +1011,14 @@ std::string generator::map_class_to_widget(const std::string& class_name, const 
   std::string lower = class_name;
   std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
+  /* Ordinal aliases for the standard control classes delegate to the
+     same logic as their named counterparts. */
+  if (lower == "#128")
+    lower = "button";
+  else if (lower == "#129")
+    lower = "edit";
+
+  /* Obsolete: linear if-chain replaced by a lookup map.
   if(lower == "button")
   {
     if(has_style(style, "BS_GROUPBOX"))
@@ -1074,6 +1108,68 @@ std::string generator::map_class_to_widget(const std::string& class_name, const 
     return "QWidget";
 
   return "QWidget";
+  */
+
+  static const std::map<std::string, std::string> class_map = {
+    {"static", "QLabel"},
+    {"listbox", "QListWidget"},
+    {"combobox", "QComboBox"},
+    {"comboboxex32", "QComboBox"},
+    {"scrollbar", "QScrollBar"},
+    {"systabcontrol32", "QTabWidget"},
+    {"systreeview32", "QTreeWidget"},
+    {"syslistview32", "QTableWidget"},
+    {"msctls_progress32", "QProgressBar"},
+    {"msctls_trackbar32", "QSlider"},
+    {"msctls_updown32", "QSpinBox"},
+    {"sysdatetimepick32", "QDateTimeEdit"},
+    {"sysmonthcal32", "QCalendarWidget"},
+    {"syslink", "QLabel"},
+    {"toolbarwindow32", "QToolBar"},
+    {"rebarwindow32", "QToolBar"},
+    {"tooltips_class32", "QWidget"},
+    {"#130", "QLabel"},
+    {"#131", "QListWidget"},
+    {"#132", "QScrollBar"},
+    {"#133", "QComboBox"},
+    {"#32774", "QPushButton"},
+    {"#32768", "QWidget"},
+    {"sysanimate32", "QLabel"},
+    {"syspager", "QStackedWidget"},
+    {"richedit", "QTextEdit"},
+    {"richedit20a", "QTextEdit"},
+    {"richedit20w", "QTextEdit"},
+    {"richedit50w", "QTextEdit"},
+    {"msctls_statusbar32", "QStatusBar"},
+    {"sysheader32", "QHeaderView"},
+    {"msctls_hotkey32", "QWidget"},
+    {"nativefontctl", "QWidget"},
+  };
+
+  /* The BUTTON and EDIT classes depend on their style flags. */
+  if (lower == "button")
+  {
+    if (has_style(style, "BS_GROUPBOX"))
+      return "QGroupBox";
+    if (has_style(style, "BS_CHECKBOX") || has_style(style, "BS_AUTOCHECKBOX")
+        || has_style(style, "BS_AUTO3STATE") || has_style(style, "BS_3STATE"))
+      return "QCheckBox";
+    if (has_style(style, "BS_RADIOBUTTON") || has_style(style, "BS_AUTORADIOBUTTON"))
+      return "QRadioButton";
+    return "QPushButton";
+  }
+
+  if (lower == "edit")
+  {
+    if (has_style(style, "ES_MULTILINE"))
+      return "QTextEdit";
+    return "QLineEdit";
+  }
+
+  auto it = class_map.find(lower);
+  if (it == class_map.end())
+    return "QWidget";
+  return it->second;
 }
 
 std::string generator::unique_name(const std::string& id)
