@@ -2103,24 +2103,92 @@ static void test_versioninfo_basic()
       "IDR_VERSION1 VERSIONINFO\n"
       "FILEVERSION 1,0,0,1\n"
       "PRODUCTVERSION 1,0,0,1\n"
+      "FILEFLAGSMASK 0x3fL\n"
+      "FILEFLAGS 0x1L\n"
+      "FILEOS 0x4L\n"
+      "FILETYPE 0x1L\n"
+      "FILESUBTYPE 0x0L\n"
       "BEGIN\n"
       "  BLOCK \"StringFileInfo\"\n"
       "  BEGIN\n"
       "    BLOCK \"040904b0\"\n"
       "    BEGIN\n"
-      "      VALUE \"FileDescription\", \"My Application\"\n"
-      "      VALUE \"FileVersion\", \"1.0.0.1\"\n"
+      "      VALUE \"FileDescription\", \"My Application\\0\"\n"
+      "      VALUE \"FileVersion\", \"1.0.0.1\\0\"\n"
+      "      VALUE \"Comments\", \"\\0\"\n"
       "    END\n"
+      "  END\n"
+      "  BLOCK \"VarFileInfo\"\n"
+      "  BEGIN\n"
+      "    VALUE \"Translation\", 0x409, 1200\n"
       "  END\n"
       "END\n"
     );
     const auto& ver = std::get<rc::version_info>(res.data);
-    assert(!ver.values.empty());
+    assert(ver.fixed.at("FILEVERSION") == "1,0,0,1");
+    assert(ver.fixed.at("PRODUCTVERSION") == "1,0,0,1");
+    assert(ver.fixed.at("FILEFLAGSMASK") == "0x3f");
+    assert(ver.fixed.at("FILEFLAGS") == "0x1");
+    assert(ver.fixed.at("FILEOS") == "0x4");
+    assert(ver.fixed.at("FILETYPE") == "0x1");
+    assert(ver.fixed.at("FILESUBTYPE") == "0x0");
+    assert(ver.string_info.size() == 1);
+    const auto& block = ver.string_info[0];
+    assert(block.language == "040904b0");
+    assert(block.values.at("FileDescription") == "My Application");
+    assert(block.values.at("FileVersion") == "1.0.0.1");
+    assert(block.values.at("Comments").empty());
+    assert(ver.var_info.at("Translation") == "0x409, 1200");
     record_result("versioninfo_basic", true);
   }
   catch (const std::exception& e)
   {
     record_result("versioninfo_basic", false, e.what());
+  }
+}
+
+static void test_versioninfo_macro_values()
+{
+  try
+  {
+    auto res = parse_single_resource(
+      "VS_VERSION_INFO VERSIONINFO\n"
+      "FILEVERSION     VER_FILEVERSION\n"
+      "PRODUCTVERSION  VER_PRODUCTVERSION\n"
+      "FILEFLAGSMASK   VER_FILEFLAGSMASK\n"
+      "FILEFLAGS       VER_FILEFLAGS\n"
+      "FILEOS          VER_FILEOS\n"
+      "FILETYPE        VFT_DLL\n"
+      "FILESUBTYPE     VFT2_UNKNOWN\n"
+      "BEGIN\n"
+      "  BLOCK \"StringFileInfo\"\n"
+      "  BEGIN\n"
+      "    BLOCK LANGUAGE_ANSI\n"
+      "    BEGIN\n"
+      "      VALUE \"CompanyName\", VER_COMPANYNAME_STR\n"
+      "      VALUE \"FileVersion\", VER_FILEVERSION_STR\n"
+      "    END\n"
+      "  END\n"
+      "  BLOCK \"VarFileInfo\"\n"
+      "  BEGIN\n"
+      "    VALUE \"Translation\", LANGUAGE_TRANS\n"
+      "  END\n"
+      "END\n"
+    );
+    const auto& ver = std::get<rc::version_info>(res.data);
+    assert(ver.fixed.at("FILETYPE") == "VFT_DLL");
+    assert(ver.fixed.at("FILESUBTYPE") == "VFT2_UNKNOWN");
+    assert(ver.string_info.size() == 1);
+    const auto& block = ver.string_info[0];
+    assert(block.language == "LANGUAGE_ANSI");
+    assert(block.values.at("CompanyName") == "VER_COMPANYNAME_STR");
+    assert(block.values.at("FileVersion") == "VER_FILEVERSION_STR");
+    assert(ver.var_info.at("Translation") == "LANGUAGE_TRANS");
+    record_result("versioninfo_macro_values", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("versioninfo_macro_values", false, e.what());
   }
 }
 
@@ -2386,6 +2454,7 @@ int main()
   test_accelerator_basic();
   test_stringtable_basic();
   test_versioninfo_basic();
+  test_versioninfo_macro_values();
 
   std::cout << "\n--- Widget Class Tests ---\n";
   test_comboboxex32();

@@ -106,9 +106,20 @@ struct string_table_entry
   std::string value;
 };
 
+struct version_string_block
+{
+  std::string language;                         // language identifier, e.g. "040904b0" or LANGUAGE_ANSI
+  std::map<std::string, std::string> values;    // VALUE name -> string value
+};
+
 struct version_info
 {
-  std::map<std::string, std::string> values;
+  // std::map<std::string, std::string> values;   // replaced by structured fields below
+  std::map<std::string, std::string> fixed;      // fixed statements: FILEVERSION, PRODUCTVERSION,
+                                                 //   FILEFLAGSMASK, FILEFLAGS, FILEOS, FILETYPE,
+                                                 //   FILESUBTYPE (uppercase key, raw value text)
+  std::vector<version_string_block> string_info; // one entry per language under "StringFileInfo"
+  std::map<std::string, std::string> var_info;   // "VarFileInfo" entries, e.g. "Translation"
 };
 
 struct menu_data

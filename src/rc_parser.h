@@ -4,6 +4,7 @@
 #include "rc_ast.h"
 #include "rc_tokenizer.h"
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -38,6 +39,7 @@ private:
   void parse_accelerator_resource(resource& res);
   void parse_stringtable_resource(resource& res);
   void parse_versioninfo_resource(resource& res);
+  void parse_version_value_list(std::map<std::string, std::string>& out);
   void parse_rcdata_resource(resource& res);
   void parse_dlginit_resource(resource& res);
   void parse_designinfo_resource(resource& res);

@@ -7,6 +7,7 @@
 #include <ranges>
 #include <map>
 #include <functional>
+#include <utility>
 
 namespace rc
 {
@@ -171,6 +172,19 @@ static constexpr token_list tt_IIHS  = { token_type::identifier, token_type::int
                                                                 token_type::hex_literal, token_type::string_literal };
 static constexpr token_list tt_NEB   = { token_type::newline, token_type::eof, token_type::begin, };
 static constexpr token_list tt_NEE   = { token_type::newline, token_type::eof, token_type::end };
+
+// fixed statement keywords of the VERSIONINFO resource
+static const string_list version_fixed_keywords =
+{
+  "FILEVERSION", "PRODUCTVERSION", "FILEFLAGSMASK",
+  "FILEFLAGS", "FILEOS", "FILETYPE", "FILESUBTYPE",
+};
+
+// number suffix tokens left over from literals such as "0x3fL"
+static const string_list version_number_suffixes =
+{
+  "L", "U", "UL", "LU", "LL", "ULL",
+};
 
 
 bool parser::match(token_type type)
@@ -710,6 +724,97 @@ void parser::parse_stringtable_resource(resource& res)
   res.data = entries;
 }
 
+// void parser::parse_versioninfo_resource(resource& res)
+// {
+//   version_info vi;
+//
+//   while(is_current_type_attribute())
+//     res.attributes.push_back(next_val());
+//
+//   while(current() != token_list { token_type::begin, token_type::eof})
+//   {
+//     if(current() == token_type::identifier)
+//     {
+//       std::string key = to_upper(next_val());
+//       std::string val;
+//       while(current() == token_list {token_type::newline, token_type::eof, token_type::identifier})
+//       {
+//         if(!val.empty())
+//           val += " ";
+//         val += next_val();
+//         if(current() == token_type::comma)
+//         {
+//           val += next_val();
+//           if(!val.empty())
+//             val += " ";
+//         }
+//       }
+//       if(!val.empty())
+//         vi.values[key] = val;
+//     }
+//     else
+//     {
+//       advance();
+//     }
+//   }
+//
+//   skip_newlines();
+//   if(match(token_type::begin))
+//   {
+//     int depth = 1;
+//     size_t max_iters = m_tokens.size() * 4; // is this an accurate value?
+//     size_t iters = 0;
+//     while(depth > 0 && current() != token_type::eof && iters++ < max_iters)
+//     {
+//       if(current() == token_type::begin)
+//         ++depth;
+//       else if(current() == token_type::end)
+//         --depth;
+//
+//       if(depth >= 2 && current() == token_type::string_literal)
+//       {
+//         advance();
+//       }
+//
+//       if(depth >= 2 && is_current_identifier("VALUE"))
+//       {
+//         advance();
+//         if(current() == token_list { token_type::string_literal, token_type::identifier })
+//         {
+//           std::string key = next_val();
+//           std::string val;
+//           if(match(token_type::comma))
+//           {
+//             skip_newlines();
+//             while(current() != token_list { token_type::newline, token_type::eof })
+//             {
+//               if(!val.empty())
+//                 val += " ";
+//               val += next_val();
+//               if(current() == token_type::comma)
+//               {
+//                 val += next_val();
+//                 if(!val.empty())
+//                   val += " ";
+//               }
+//             }
+//           }
+//           std::string full_key = key;
+//           vi.values[full_key] = val;
+//         }
+//       }
+//
+//       if(depth > 0)
+//         advance();
+//     }
+//     match(token_type::end);
+//     if(iters >= max_iters)
+//       throw std::runtime_error("!! Parsing terminated early.");
+//   }
+//
+//   res.data = vi;
+// }
+
 void parser::parse_versioninfo_resource(resource& res)
 {
   version_info vi;
@@ -717,89 +822,149 @@ void parser::parse_versioninfo_resource(resource& res)
   while(is_current_type_attribute())
     res.attributes.push_back(next_val());
 
-  while(current() != token_list { token_type::begin, token_type::eof})
+  // Fixed statements, e.g. "FILEVERSION 1,0,0,1" or "FILETYPE VFT_DLL".
+  skip_newlines();
+  while(current() == token_type::identifier && current() == version_fixed_keywords)
   {
-    if(current() == token_type::identifier)
+    std::string key = to_upper(next_val());
+    std::string val;
+    bool first = true;
+    while(current() == tt_IIH)
     {
-      std::string key = to_upper(next_val());
-      std::string val;
-      while(current() == token_list {token_type::newline, token_type::eof, token_type::identifier})
+      std::string item;
+      if(current() == token_type::identifier)
+        item = next_val();
+      else
       {
-        if(!val.empty())
-          val += " ";
-        val += next_val();
-        if(current() == token_type::comma)
-        {
-          val += next_val();
-          if(!val.empty())
-            val += " ";
-        }
+        item = next_val();
+        if(current() == token_type::identifier && current() == version_number_suffixes)
+          advance();
       }
-      if(!val.empty())
-        vi.values[key] = val;
+      if(!first)
+        val += ",";
+      val += item;
+      first = false;
+      if(!match(token_type::comma))
+        break;
     }
-    else
-    {
-      advance();
-    }
+    if(!val.empty())
+      vi.fixed[key] = val;
+    skip_newlines();
   }
 
-  skip_newlines();
+  // Body: "BLOCK \"StringFileInfo\"" / "BLOCK \"VarFileInfo\"" subtrees.
   if(match(token_type::begin))
   {
-    int depth = 1;
-    size_t max_iters = m_tokens.size() * 4; // is this an accurate value?
-    size_t iters = 0;
-    while(depth > 0 && current() != token_type::eof && iters++ < max_iters)
+    while(current() != token_type::end && current() != token_type::eof)
     {
-      if(current() == token_type::begin)
-        ++depth;
-      else if(current() == token_type::end)
-        --depth;
-
-      if(depth >= 2 && current() == token_type::string_literal)
+      skip_newlines();
+      if(current() == token_type::end || current() == token_type::eof)
+        break;
+      if(!match_id("BLOCK"))
       {
         advance();
+        continue;
       }
-
-      if(depth >= 2 && is_current_identifier("VALUE"))
+      std::string block_name;
+      if(current() == tt_IIHS)
+        block_name = next_val();
+      skip_newlines();
+      if(match(token_type::begin))
       {
-        advance();
-        if(current() == token_list { token_type::string_literal, token_type::identifier })
+        if(to_upper(block_name) == "STRINGFILEINFO")
         {
-          std::string key = next_val();
-          std::string val;
-          if(match(token_type::comma))
+          // Nested language blocks, each holding VALUE statements.
+          while(current() != token_type::end && current() != token_type::eof)
           {
             skip_newlines();
-            while(current() != token_list { token_type::newline, token_type::eof })
+            if(current() == token_type::end || current() == token_type::eof)
+              break;
+            if(match_id("BLOCK"))
             {
-              if(!val.empty())
-                val += " ";
-              val += next_val();
-              if(current() == token_type::comma)
+              version_string_block sb;
+              if(current() == tt_IIHS)
+                sb.language = next_val();
+              skip_newlines();
+              if(match(token_type::begin))
               {
-                val += next_val();
-                if(!val.empty())
-                  val += " ";
+                parse_version_value_list(sb.values);
+                match(token_type::end);
               }
+              vi.string_info.push_back(std::move(sb));
+            }
+            else
+            {
+              version_string_block sb;
+              parse_version_value_list(sb.values);
+              if(!sb.values.empty())
+                vi.string_info.push_back(std::move(sb));
             }
           }
-          std::string full_key = key;
-          vi.values[full_key] = val;
+          match(token_type::end);
+        }
+        else
+        {
+          // VarFileInfo (or any other block): plain VALUE statements.
+          parse_version_value_list(vi.var_info);
+          match(token_type::end);
         }
       }
-
-      if(depth > 0)
-        advance();
     }
     match(token_type::end);
-    if(iters >= max_iters)
-      throw std::runtime_error("!! Parsing terminated early.");
   }
 
   res.data = vi;
 }
+
+void parser::parse_version_value_list(std::map<std::string, std::string>& out)
+{
+  while(current() != token_type::end && current() != token_type::eof)
+  {
+    skip_newlines();
+    if(current() == token_type::end || current() == token_type::eof)
+      break;
+    if(!match_id("VALUE"))
+    {
+      advance();
+      continue;
+    }
+    std::string key;
+    if(current() == token_type::string_literal || current() == token_type::identifier)
+      key = next_val();
+    if(match(token_type::comma))
+    {
+      std::string val;
+      bool first = true;
+      skip_newlines();
+      while(current() == tt_IIHS)
+      {
+        std::string item;
+        if(current() == token_type::string_literal)
+        {
+          item = next_val();
+          if(!item.empty() && item.back() == '\0')
+            item.pop_back();
+        }
+        else if(current() == token_type::identifier)
+          item = next_val();
+        else
+        {
+          item = next_val();
+          if(current() == token_type::identifier && current() == version_number_suffixes)
+            advance();
+        }
+        if(!first)
+          val += ", ";
+        val += item;
+        first = false;
+        if(!match(token_type::comma))
+          break;
+      }
+      out[key] = val;
+    }
+  }
+}
+
 
 void parser::parse_rcdata_resource(resource& res)
 {
