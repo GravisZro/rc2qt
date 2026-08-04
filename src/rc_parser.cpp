@@ -1146,16 +1146,6 @@ void parser::decode_binary_resource(resource& res)
   skip_begin_end();
 }
 
-
-// void parser::parse_user_resource(resource& res)
-// {
-//   while(is_current_type_attribute())
-//     advance();
-//   res.filename = next_val();
-//   info("Saving user resource:\n\tID: {}\n\ttype: {}\n\tfilename: {}", res.id, res.type, res.filename);
-//   parse_unused_resource(res);
-// }
-
 void parser::parse_user_resource(resource& res)
 {
   while(is_current_type_attribute())
@@ -1169,11 +1159,8 @@ void parser::parse_user_resource(resource& res)
     info("Saving user resource:\n\tID: {}\n\ttype: {}\n\tfilename: {}", res.id, res.type, res.filename);
     parse_unused_resource(res);
   }
-  else
-  {
-    // Inline form: nameID typeID { raw-data }
+  else // Inline form: nameID typeID { raw-data }
     parse_user_data_block(res);
-  }
 }
 
 void parser::parse_user_data_block(resource& res)
@@ -1243,27 +1230,27 @@ resource parser::parse_resource()
 
   std::map<std::string, void (parser::*)(resource&)> funcmap =
   {
-    { "DIALOG",       &parser::parse_dialog_resource },
-    { "DIALOGEX",     &parser::parse_dialog_resource },
-    { "MENU",         &parser::parse_menu_resource },
-    { "MENUEX",       &parser::parse_menu_resource },
-    { "TOOLBAR",      &parser::parse_toolbar_resource },
-    { "ACCELERATORS", &parser::parse_accelerator_resource },
-    { "STRINGTABLE",  &parser::parse_stringtable_resource },
-    { "VERSIONINFO",  &parser::parse_versioninfo_resource },
-    { "RCDATA",       &parser::parse_rcdata_resource },
-    { "DLGINIT",      &parser::parse_dlginit_resource },
-    { "BITMAP",       &parser::parse_simple_resource },
-    { "ICON",         &parser::parse_simple_resource },
-    { "CURSOR",       &parser::parse_simple_resource },
-    { "FONT",         &parser::parse_simple_resource },
-    { "HTML",         &parser::parse_simple_resource },
-    { "MESSAGETABLE", &parser::parse_simple_resource },
-    { "REGISTRY",     &parser::parse_simple_resource },
-    { "DLGINCLUDE",   &parser::parse_simple_resource },
-    { "DESIGNINFO",   &parser::parse_designinfo_resource },
-    { "TYPELIB",      &parser::parse_typelib_resource },
-    { "TEXTINCLUDE",  &parser::parse_textinclude_resource },
+    { "DIALOG",           &parser::parse_dialog_resource },
+    { "DIALOGEX",         &parser::parse_dialog_resource },
+    { "MENU",             &parser::parse_menu_resource },
+    { "MENUEX",           &parser::parse_menu_resource },
+    { "TOOLBAR",          &parser::parse_toolbar_resource },
+    { "ACCELERATORS",     &parser::parse_accelerator_resource },
+    { "STRINGTABLE",      &parser::parse_stringtable_resource },
+    { "VERSIONINFO",      &parser::parse_versioninfo_resource },
+    { "RCDATA",           &parser::parse_rcdata_resource },
+    { "DLGINIT",          &parser::parse_dlginit_resource },
+    { "BITMAP",           &parser::parse_simple_resource },
+    { "ICON",             &parser::parse_simple_resource },
+    { "CURSOR",           &parser::parse_simple_resource },
+    { "FONT",             &parser::parse_simple_resource },
+    { "HTML",             &parser::parse_simple_resource },
+    { "MESSAGETABLE",     &parser::parse_simple_resource },
+    { "REGISTRY",         &parser::parse_simple_resource },
+    { "DLGINCLUDE",       &parser::parse_simple_resource },
+    { "DESIGNINFO",       &parser::parse_designinfo_resource },
+    { "TYPELIB",          &parser::parse_typelib_resource },
+    { "TEXTINCLUDE",      &parser::parse_textinclude_resource },
     { "RT_ACCELERATOR",   &parser::decode_binary_resource },
     { "RT_ANICURSOR",     &parser::decode_binary_resource },
     { "RT_ANIICON",       &parser::decode_binary_resource },

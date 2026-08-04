@@ -18,6 +18,233 @@ namespace rc
 {
   using namespace xml;
 
+  static pugi::xml_node add_action(pugi::xml_node node, const std::string& value)
+  {
+    pugi::xml_node action = node.append_child("addaction");
+    action.append_attribute("name").set_value(value.c_str());
+    return action;
+  }
+
+  static pugi::xml_node add_widget(pugi::xml_node& parent, const std::string& qt_class, const std::string& name)
+  {
+    pugi::xml_node widget = parent.append_child("widget");
+    set_attr(widget, "class", qt_class);
+    set_attr(widget, "name", name);
+    return widget;
+  }
+
+  static void add_property_rect(pugi::xml_node& widget, int x, int y, int width, int height)
+  {
+    pugi::xml_node prop = widget.append_child("property");
+    set_attr(prop, "name", "geometry");
+    pugi::xml_node rect = prop.append_child("rect");
+    rect.append_child("x").text() = x;
+    rect.append_child("y").text() = y;
+    rect.append_child("width").text() = width;
+    rect.append_child("height").text() = height;
+  }
+
+  static void add_property_string(pugi::xml_node& widget, const std::string& name, const std::string& value)
+  {
+    pugi::xml_node prop = widget.append_child("property");
+    set_attr(prop, "name", name);
+    pugi::xml_node str_node = prop.append_child("string");
+    std::string safe_value;
+    for(char c : value)
+    {
+      if(c == '\0')
+        safe_value += "\\0";
+      else
+        safe_value += c;
+    }
+    str_node.text() = safe_value.c_str();
+  }
+
+  static void add_property_bool(pugi::xml_node& widget, const std::string& name, bool value)
+  {
+    pugi::xml_node prop = widget.append_child("property");
+    set_attr(prop, "name", name);
+    prop.append_child("bool").text() = value ? "true" : "false";
+  }
+
+  static void add_property_int(pugi::xml_node& widget, const std::string& name, int value)
+  {
+    pugi::xml_node prop = widget.append_child("property");
+    set_attr(prop, "name", name);
+    prop.append_child("number").text() = value;
+  }
+
+  static void add_property_size(pugi::xml_node& widget, const std::string& name, int width, int height)
+  {
+    pugi::xml_node prop = widget.append_child("property");
+    set_attr(prop, "name", name);
+    pugi::xml_node size = prop.append_child("size");
+    size.append_child("width").text() = width;
+    size.append_child("height").text() = height;
+  }
+
+  static void add_property_set(pugi::xml_node& widget, const std::string& name, const std::string& value)
+  {
+    pugi::xml_node prop = widget.append_child("property");
+    set_attr(prop, "name", name);
+    prop.append_child("set").text() = value.c_str();
+  }
+
+  static void add_property_enum(pugi::xml_node& widget, const std::string& name, const std::string& value)
+  {
+    pugi::xml_node prop = widget.append_child("property");
+    set_attr(prop, "name", name);
+    prop.append_child("enum").text() = value.c_str();
+  }
+
+  static void add_property_font(pugi::xml_node& widget, const std::string& family, int pointsize, bool bold, bool italic)
+  {
+    pugi::xml_node prop = widget.append_child("property");
+    set_attr(prop, "name", "font");
+    pugi::xml_node font = prop.append_child("font");
+    font.append_child("family").text() = family.c_str();
+    font.append_child("pointsize").text() = pointsize;
+    font.append_child("bold").text() = bold ? "true" : "false";
+    font.append_child("italic").text() = italic ? "true" : "false";
+  }
+
+  static std::string map_keyword_to_widget(const std::string& keyword)
+  {
+    static const std::map<std::string, std::string> keyword_map =
+    {
+      { "PUSHBUTTON", "QPushButton" },
+      { "DEFPUSHBUTTON", "QPushButton" },
+      { "CHECKBOX", "QCheckBox" },
+      { "AUTOCHECKBOX", "QCheckBox" },
+      { "AUTO3STATE", "QCheckBox" },
+      { "STATE3", "QCheckBox" },
+      { "RADIOBUTTON", "QRadioButton" },
+      { "AUTORADIOBUTTON", "QRadioButton" },
+      { "GROUPBOX", "QGroupBox" },
+      { "LTEXT", "QLabel" },
+      { "CTEXT", "QLabel" },
+      { "RTEXT", "QLabel" },
+      { "ICON", "QLabel" },
+      { "EDITTEXT", "QLineEdit" },
+      { "LISTBOX", "QListWidget" },
+      { "COMBOBOX", "QComboBox" },
+      { "SCROLLBAR", "QScrollBar" },
+      { "PUSHBOX", "QPushButton" },
+    };
+
+    auto it = keyword_map.find(keyword);
+    if (it == keyword_map.end())
+      return "";
+    return it->second;
+  }
+
+  static bool has_style(const style_expr& style, const std::string& flag)
+  {
+    for(const auto& nf : style.not_flags)
+    {
+      if(nf == flag)
+        return false;
+    }
+
+    if(style.first == flag)
+      return true;
+
+    for(const auto& [op, name] : style.ops)
+    {
+      if(name == flag)
+        return true;
+    }
+
+    if(style.resolved_value >= 0)
+    {
+      const auto& reg = constant_registry::instance();
+      int64_t val = reg.resolve(flag);
+      if(val >= 0 && (style.resolved_value & val) == val)
+        return true;
+    }
+
+    return false;
+  }
+
+
+  static std::string map_class_to_widget(const std::string& class_name, const style_expr& style)
+  {
+    std::string upper = to_upper(class_name);
+
+    /* Ordinal aliases for the standard control classes delegate to the
+       same logic as their named counterparts. */
+    if (upper == "#128")
+      upper = "BUTTON";
+    else if (upper == "#129")
+      upper = "EDIT";
+
+    static const std::map<std::string, std::string> class_map =
+    {
+      { "STATIC", "QLabel" },
+      { "LISTBOX", "QListWidget" },
+      { "COMBOBOX", "QComboBox" },
+      { "COMBOBOXEX32", "QComboBox" },
+      { "SCROLLBAR", "QScrollBar" },
+      { "SYSTABCONTROL32", "QTabWidget" },
+      { "SYSTREEVIEW32", "QTreeWidget" },
+      { "SYSLISTVIEW32", "QTableWidget" },
+      { "MSCTLS_PROGRESS32", "QProgressBar" },
+      { "MSCTLS_TRACKBAR32", "QSlider" },
+      { "MSCTLS_UPDOWN32", "QSpinBox" },
+      { "SYSDATETIMEPICK32", "QDateTimeEdit" },
+      { "SYSMONTHCAL32", "QCalendarWidget" },
+      { "SYSLINK", "QLabel" },
+      { "TOOLBARWINDOW32", "QToolBar" },
+      { "REBARWINDOW32", "QToolBar" },
+      { "TOOLTIPS_CLASS32", "QWidget" },
+      { "#130", "QLabel" },
+      { "#131", "QListWidget" },
+      { "#132", "QScrollBar" },
+      { "#133", "QComboBox" },
+      { "#32774", "QPushButton" },
+      { "#32768", "QWidget" },
+      { "SYSANIMATE32", "QLabel" },
+      { "SYSPAGER", "QStackedWidget" },
+      { "RICHEDIT", "QTextEdit" },
+      { "RICHEDIT20A", "QTextEdit" },
+      { "RICHEDIT20W", "QTextEdit" },
+      { "RICHEDIT50W", "QTextEdit" },
+      { "MSCTLS_STATUSBAR32", "QStatusBar" },
+      { "SYSHEADER32", "QHeaderView" },
+      { "MSCTLS_HOTKEY32", "QWidget" },
+      { "NATIVEFONTCTL", "QWidget" },
+    };
+
+    /* The BUTTON and EDIT classes depend on their style flags. */
+    if (upper == "BUTTON")
+    {
+      if (has_style(style, "BS_GROUPBOX"))
+        return "QGroupBox";
+      if (has_style(style, "BS_CHECKBOX") ||
+          has_style(style, "BS_AUTOCHECKBOX") ||
+          has_style(style, "BS_AUTO3STATE") ||
+          has_style(style, "BS_3STATE"))
+        return "QCheckBox";
+      if (has_style(style, "BS_RADIOBUTTON") ||
+          has_style(style, "BS_AUTORADIOBUTTON"))
+        return "QRadioButton";
+      return "QPushButton";
+    }
+
+    if (upper == "EDIT")
+    {
+      if (has_style(style, "ES_MULTILINE"))
+        return "QTextEdit";
+      return "QLineEdit";
+    }
+
+    if (auto it = class_map.find(upper);
+        it != class_map.end())
+      return it->second;
+
+    return "QWidget";
+  }
+
 bool generator::generate_all(const rc_file& file, const std::string& output_dir, const std::string& rc_basename)
 {
   collect_global_data(file);
@@ -54,9 +281,7 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
     }
 
     if(short_id.empty())
-    {
       short_id = std::format("dialog_{}", dialog_index);
-    }
 
     ++dialog_index;
 
@@ -917,191 +1142,6 @@ void generator::apply_combo_dropdown_height(pugi::xml_node& widget, const contro
   }
 }
 
-pugi::xml_node generator::add_widget(pugi::xml_node& parent, const std::string& qt_class, const std::string& name)
-{
-  pugi::xml_node widget = parent.append_child("widget");
-  set_attr(widget, "class", qt_class);
-  set_attr(widget, "name", name);
-  return widget;
-}
-
-void generator::add_property_rect(pugi::xml_node& widget, int x, int y, int width, int height)
-{
-  pugi::xml_node prop = widget.append_child("property");
-  set_attr(prop, "name", "geometry");
-  pugi::xml_node rect = prop.append_child("rect");
-  rect.append_child("x").text() = x;
-  rect.append_child("y").text() = y;
-  rect.append_child("width").text() = width;
-  rect.append_child("height").text() = height;
-}
-
-void generator::add_property_string(pugi::xml_node& widget, const std::string& name, const std::string& value)
-{
-  pugi::xml_node prop = widget.append_child("property");
-  set_attr(prop, "name", name);
-  pugi::xml_node str_node = prop.append_child("string");
-  std::string safe_value;
-  for(char c : value)
-  {
-    if(c == '\0')
-      safe_value += "\\0";
-    else
-      safe_value += c;
-  }
-  str_node.text() = safe_value.c_str();
-}
-
-void generator::add_property_bool(pugi::xml_node& widget, const std::string& name, bool value)
-{
-  pugi::xml_node prop = widget.append_child("property");
-  set_attr(prop, "name", name);
-  prop.append_child("bool").text() = value ? "true" : "false";
-}
-
-void generator::add_property_int(pugi::xml_node& widget, const std::string& name, int value)
-{
-  pugi::xml_node prop = widget.append_child("property");
-  set_attr(prop, "name", name);
-  prop.append_child("number").text() = value;
-}
-
-void generator::add_property_size(pugi::xml_node& widget, const std::string& name, int width, int height)
-{
-  pugi::xml_node prop = widget.append_child("property");
-  set_attr(prop, "name", name);
-  pugi::xml_node size = prop.append_child("size");
-  size.append_child("width").text() = width;
-  size.append_child("height").text() = height;
-}
-
-void generator::add_property_set(pugi::xml_node& widget, const std::string& name, const std::string& value)
-{
-  pugi::xml_node prop = widget.append_child("property");
-  set_attr(prop, "name", name);
-  prop.append_child("set").text() = value.c_str();
-}
-
-void generator::add_property_enum(pugi::xml_node& widget, const std::string& name, const std::string& value)
-{
-  pugi::xml_node prop = widget.append_child("property");
-  set_attr(prop, "name", name);
-  prop.append_child("enum").text() = value.c_str();
-}
-
-void generator::add_property_font(pugi::xml_node& widget, const std::string& family, int pointsize, bool bold, bool italic)
-{
-  pugi::xml_node prop = widget.append_child("property");
-  set_attr(prop, "name", "font");
-  pugi::xml_node font = prop.append_child("font");
-  font.append_child("family").text() = family.c_str();
-  font.append_child("pointsize").text() = pointsize;
-  font.append_child("bold").text() = bold ? "true" : "false";
-  font.append_child("italic").text() = italic ? "true" : "false";
-}
-
-std::string generator::map_keyword_to_widget(const std::string& keyword)
-{
-  static const std::map<std::string, std::string> keyword_map = {
-    {"PUSHBUTTON", "QPushButton"},
-    {"DEFPUSHBUTTON", "QPushButton"},
-    {"CHECKBOX", "QCheckBox"},
-    {"AUTOCHECKBOX", "QCheckBox"},
-    {"AUTO3STATE", "QCheckBox"},
-    {"STATE3", "QCheckBox"},
-    {"RADIOBUTTON", "QRadioButton"},
-    {"AUTORADIOBUTTON", "QRadioButton"},
-    {"GROUPBOX", "QGroupBox"},
-    {"LTEXT", "QLabel"},
-    {"CTEXT", "QLabel"},
-    {"RTEXT", "QLabel"},
-    {"ICON", "QLabel"},
-    {"EDITTEXT", "QLineEdit"},
-    {"LISTBOX", "QListWidget"},
-    {"COMBOBOX", "QComboBox"},
-    {"SCROLLBAR", "QScrollBar"},
-    {"PUSHBOX", "QPushButton"},
-  };
-
-  auto it = keyword_map.find(keyword);
-  if (it == keyword_map.end())
-    return "";
-  return it->second;
-}
-
-std::string generator::map_class_to_widget(const std::string& class_name, const style_expr& style)
-{
-  std::string upper = to_upper(class_name);
-
-  /* Ordinal aliases for the standard control classes delegate to the
-     same logic as their named counterparts. */
-  if (upper == "#128")
-    upper = "BUTTON";
-  else if (upper == "#129")
-    upper = "EDIT";
-
-  static const std::map<std::string, std::string> class_map = {
-    {"STATIC", "QLabel"},
-    {"LISTBOX", "QListWidget"},
-    {"COMBOBOX", "QComboBox"},
-    {"COMBOBOXEX32", "QComboBox"},
-    {"SCROLLBAR", "QScrollBar"},
-    {"SYSTABCONTROL32", "QTabWidget"},
-    {"SYSTREEVIEW32", "QTreeWidget"},
-    {"SYSLISTVIEW32", "QTableWidget"},
-    {"MSCTLS_PROGRESS32", "QProgressBar"},
-    {"MSCTLS_TRACKBAR32", "QSlider"},
-    {"MSCTLS_UPDOWN32", "QSpinBox"},
-    {"SYSDATETIMEPICK32", "QDateTimeEdit"},
-    {"SYSMONTHCAL32", "QCalendarWidget"},
-    {"SYSLINK", "QLabel"},
-    {"TOOLBARWINDOW32", "QToolBar"},
-    {"REBARWINDOW32", "QToolBar"},
-    {"TOOLTIPS_CLASS32", "QWidget"},
-    {"#130", "QLabel"},
-    {"#131", "QListWidget"},
-    {"#132", "QScrollBar"},
-    {"#133", "QComboBox"},
-    {"#32774", "QPushButton"},
-    {"#32768", "QWidget"},
-    {"SYSANIMATE32", "QLabel"},
-    {"SYSPAGER", "QStackedWidget"},
-    {"RICHEDIT", "QTextEdit"},
-    {"RICHEDIT20A", "QTextEdit"},
-    {"RICHEDIT20W", "QTextEdit"},
-    {"RICHEDIT50W", "QTextEdit"},
-    {"MSCTLS_STATUSBAR32", "QStatusBar"},
-    {"SYSHEADER32", "QHeaderView"},
-    {"MSCTLS_HOTKEY32", "QWidget"},
-    {"NATIVEFONTCTL", "QWidget"},
-  };
-
-  /* The BUTTON and EDIT classes depend on their style flags. */
-  if (upper == "BUTTON")
-  {
-    if (has_style(style, "BS_GROUPBOX"))
-      return "QGroupBox";
-    if (has_style(style, "BS_CHECKBOX") || has_style(style, "BS_AUTOCHECKBOX")
-        || has_style(style, "BS_AUTO3STATE") || has_style(style, "BS_3STATE"))
-      return "QCheckBox";
-    if (has_style(style, "BS_RADIOBUTTON") || has_style(style, "BS_AUTORADIOBUTTON"))
-      return "QRadioButton";
-    return "QPushButton";
-  }
-
-  if (upper == "EDIT")
-  {
-    if (has_style(style, "ES_MULTILINE"))
-      return "QTextEdit";
-    return "QLineEdit";
-  }
-
-  auto it = class_map.find(upper);
-  if (it == class_map.end())
-    return "QWidget";
-  return it->second;
-}
-
 std::string generator::unique_name(const std::string& id)
 {
   std::string base = id.empty() ? "widget" : id;
@@ -1171,33 +1211,6 @@ void generator::set_dlu_factors(const std::string& font_family, int font_size)
   }
 }
 
-bool generator::has_style(const style_expr& style, const std::string& flag) const
-{
-  for(const auto& nf : style.not_flags)
-  {
-    if(nf == flag)
-      return false;
-  }
-
-  if(style.first == flag)
-    return true;
-
-  for(const auto& [op, name] : style.ops)
-  {
-    if(name == flag)
-      return true;
-  }
-
-  if(style.resolved_value >= 0)
-  {
-    const auto& reg = constant_registry::instance();
-    int64_t val = reg.resolve(flag);
-    if(val >= 0 && (style.resolved_value & val) == val)
-      return true;
-  }
-
-  return false;
-}
 
 const dialog_stmt* generator::find_statement(const dialog_data& dd, const std::string& keyword) const
 {
@@ -1255,14 +1268,10 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
       set_attr(menu, "class", "QMenu");
       set_attr(menu, "name", menu_name);
 
-      pugi::xml_node title = menu.append_child("property");
-      set_attr(title, "name", "title");
-      title.append_child("string").text() = popup_ptr->text.c_str();
-
+      add_property_string(menu, "title", popup_ptr->text);
       write_menu_entries(menu, popup_ptr->entries);
 
-      pugi::xml_node addaction = m_menubar_node.append_child("addaction");
-      set_attr(addaction, "name", menu_name);
+      add_action(m_menubar_node, menu_name);
     }
   }
 }
@@ -1276,18 +1285,14 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       const auto& mi = std::get<menu_item>(entry.item);
 
       if(mi.text == "-" || mi.text.empty())
+        add_action(menu_node, "separator");
+      else
       {
-        pugi::xml_node addaction = menu_node.append_child("addaction");
-        set_attr(addaction, "name", "separator");
-        continue;
+        std::string action_name = mi.id.empty()
+          ? std::format("action{}", m_action_counter++)
+          : mi.id;
+        add_action(menu_node, action_name);
       }
-
-      std::string action_name = mi.id.empty()
-        ? std::format("action{}", m_action_counter++)
-        : mi.id;
-
-      pugi::xml_node addaction = menu_node.append_child("addaction");
-      set_attr(addaction, "name", action_name);
     }
     else if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
     {
@@ -1304,14 +1309,9 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       set_attr(sub_menu, "class", "QMenu");
       set_attr(sub_menu, "name", sub_name);
 
-      pugi::xml_node title = sub_menu.append_child("property");
-      set_attr(title, "name", "title");
-      title.append_child("string").text() = sub->text.c_str();
-
-      write_menu_entries(sub_menu, sub->entries);
-
-      pugi::xml_node addaction = menu_node.append_child("addaction");
-      set_attr(addaction, "name", sub_name);
+      add_property_string(sub_menu, "title", sub->text);
+      write_menu_entries(sub_menu, sub->entries);      
+      add_action(menu_node, sub_name);
     }
   }
 }
@@ -1330,15 +1330,9 @@ void generator::write_toolbar(pugi::xml_node& parent, const resource& res)
   for(const auto& entry : td.entries)
   {
     if(entry.is_separator)
-    {
-      pugi::xml_node addaction = toolbar.append_child("addaction");
-      set_attr(addaction, "name", "separator");
-    }
+      add_action(toolbar, "separator");
     else if(!entry.id.empty())
-    {
-      pugi::xml_node addaction = toolbar.append_child("addaction");
-      set_attr(addaction, "name", entry.id);
-    }
+      add_action(toolbar, entry.id);
   }
 }
 
@@ -1354,19 +1348,12 @@ void generator::write_actions(pugi::xml_node& parent, const rc_file& file)
       std::function<void(const std::vector<menu_entry>&)> collect = [&](const std::vector<menu_entry>& entries)
       {
         for(const auto& entry : entries)
-        {
-          if(std::holds_alternative<menu_item>(entry.item))
-          {
-            const auto& mi = std::get<menu_item>(entry.item);
-            if(!mi.id.empty() && mi.text != "-")
+          if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
+            collect(std::get<std::shared_ptr<popup>>(entry.item)->entries);
+          else if(std::holds_alternative<menu_item>(entry.item))
+            if(const auto& mi = std::get<menu_item>(entry.item);
+               !mi.id.empty() && mi.text != "-")
               actions_defined[mi.id] = true;
-          }
-          else if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
-          {
-            auto sub = std::get<std::shared_ptr<popup>>(entry.item);
-            collect(sub->entries);
-          }
-        }
       };
       collect(md.entries);
     }
@@ -1384,33 +1371,22 @@ void generator::write_actions(pugi::xml_node& parent, const rc_file& file)
 
   for(const auto& [id, _] : actions_defined)
   {
-    pugi::xml_node action = parent.append_child("action");
-    set_attr(action, "name", id);
+    auto action = add_action(parent, id);
 
     std::string display_text = id;
     auto text_it = m_menu_text_map.find(id);
     if(text_it != m_menu_text_map.end())
       display_text = text_it->second;
 
-    pugi::xml_node text = action.append_child("property");
-    set_attr(text, "name", "text");
-    text.append_child("string").text() = display_text.c_str();
+    add_property_string(action, "text", display_text);
 
     auto acc_it = m_accelerator_map.find(id);
     if(acc_it != m_accelerator_map.end() && !acc_it->second.empty())
-    {
-      pugi::xml_node shortcut = action.append_child("property");
-      set_attr(shortcut, "name", "shortcut");
-      shortcut.append_child("string").text() = acc_it->second.c_str();
-    }
+      add_property_string(action, "shortcut", acc_it->second);
 
     auto str_it = m_string_table_map.find(id);
     if(str_it != m_string_table_map.end() && !str_it->second.empty())
-    {
-      pugi::xml_node tooltip = action.append_child("property");
-      set_attr(tooltip, "name", "toolTip");
-      tooltip.append_child("string").text() = str_it->second.c_str();
-    }
+      add_property_string(action, "toolTip", str_it->second);
 
     auto dis_it = m_menu_disabled_map.find(id);
     if(dis_it != m_menu_disabled_map.end() && dis_it->second)

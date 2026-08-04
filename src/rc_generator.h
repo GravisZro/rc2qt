@@ -47,7 +47,7 @@ private:
   void write_menu_entries(pugi::xml_node& menu_node, const std::vector<menu_entry>& entries);
   void write_toolbar(pugi::xml_node& parent, const resource& res);
   void write_actions(pugi::xml_node& parent, const rc_file& file);
-
+  /*
   pugi::xml_node add_widget(pugi::xml_node& parent, const std::string& qt_class, const std::string& name);
   void add_property_rect(pugi::xml_node& widget, int x, int y, int width, int height);
   void add_property_string(pugi::xml_node& widget, const std::string& name, const std::string& value);
@@ -60,6 +60,7 @@ private:
 
   std::string map_keyword_to_widget(const std::string& keyword);
   std::string map_class_to_widget(const std::string& class_name, const style_expr& style);
+*/
   std::string unique_name(const std::string& id);
   std::string map_vk_to_qt(const std::string& vk_code);
 
@@ -67,7 +68,7 @@ private:
   int dlu_to_pixel_y(int dlu) const;
   void set_dlu_factors(const std::string& font_family, int font_size);
 
-  bool has_style(const style_expr& style, const std::string& flag) const;
+  //bool has_style(const style_expr& style, const std::string& flag) const;
 
   const dialog_stmt* find_statement(const dialog_data& dd, const std::string& keyword) const;
   bool has_dialog_flag(const dialog_data& dd, const std::string& keyword, const std::string& flag) const;
