@@ -13,6 +13,11 @@
 #include <filesystem>
 #include <unistd.h>
 
+#ifdef HAVE_QT
+// needed for font database
+#include <QApplication>
+#endif
+
 #include "rc_tokenizer.h"
 #include "rc_parser.h"
 #include "rc_ast.h"
@@ -58,6 +63,10 @@ static void print_usage(const char* program_name)
 
 int main(int argc, char** argv)
 {
+#ifdef HAVE_QT
+  QApplication app(argc, argv);
+#endif
+
   std::string input_path;
   std::string output_path;
   std::string qrc_path;

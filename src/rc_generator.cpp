@@ -640,7 +640,7 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   if(font_family.empty())
     font_family = "MS Sans Serif";
 
-  font_family = map_ms_font(font_family);
+  font_family = substitute_font(font_family);
 
   int font_size = 8;
   if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
@@ -650,7 +650,7 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     else if(stmt->numeric_value > 0)
       font_size = static_cast<int>(stmt->numeric_value);
   }
-  int font_weight = 0;
+  int font_weight = -1; // -1 is a sentinel value
   if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
   {
     if(stmt->numeric_value2 > 0)
@@ -660,7 +660,7 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   bool font_italic = false;
   if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
     font_italic = stmt->italic;
-  set_dlu_factors(font_family, font_size > 0 ? font_size : 8);
+  set_dlu_factors(font_family, font_size > 0 ? font_size : 8, font_weight, font_italic);
 
   int px = dlu_to_pixel_x(dd.x);
   int py = dlu_to_pixel_y(dd.y);
@@ -1171,46 +1171,120 @@ int generator::dlu_to_pixel_y(int dlu) const
   return static_cast<int>(dlu * m_dlu_y_factor);
 }
 
-void generator::set_dlu_factors(const std::string& font_family, int font_size)
+#ifdef HAVE_QT
+#include <QFont>
+#include <QFontMetrics>
+#include <QFontDatabase>
+
+void generator::set_dlu_factors(const std::string& font_name, int font_size, int weight, bool italic)
 {
-  struct font_metrics
-  {
-    double avg_width;
-    double avg_height;
-  };
+  if(QFontDatabase db; !db.families().contains(QString::fromStdString(font_name), Qt::CaseInsensitive))
+  { throw std::runtime_error(std::format("Font \"{}\" not found!", font_name)); }
 
-  static const std::map<std::string, font_metrics> known_fonts = {
-    {"MS Sans Serif", {6.5, 13.0}},
-    {"Liberation Sans", {6.5, 13.0}},
-    {"Arial", {6.5, 13.0}},
-    {"Tahoma", {6.0, 15.0}},
-    {"Segoe UI", {7.0, 15.0}},
-    {"MS Shell Dlg", {6.5, 13.0}},
-    {"MS Shell Dlg 2", {6.5, 13.0}},
-    {"Liberation Mono", {6.0, 13.0}},
-    {"Courier New", {6.0, 13.0}},
-    {"Liberation Serif", {6.5, 13.0}},
-    {"Times New Roman", {6.5, 13.0}},
-    {"Verdana", {6.5, 13.0}},
-    {"Carlito", {6.5, 13.0}},
-    {"Calibri", {7.0, 15.0}},
-    {"Georgia", {7.0, 13.0}},
-  };
+  QFont font(QString::fromStdString(font_name), font_size, weight, italic);
+  QFontMetrics fm(font);
+  m_dlu_y_factor = static_cast<double>(fm.height()) / 8.0;
 
-  auto it = known_fonts.find(font_family);
-  if(it != known_fonts.end())
-  {
-    double scale = static_cast<double>(font_size) / 8.0;
-    m_dlu_x_factor = (it->second.avg_width * scale) / 4.0;
-    m_dlu_y_factor = (it->second.avg_height * scale) / 8.0;
-  }
-  else
-  {
-    m_dlu_x_factor = 1.75;
-    m_dlu_y_factor = 1.75;
-  }
+  QString alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  int alphabetWidth = fm.horizontalAdvance(alphabet);
+  // Average width of a single character
+  double avgCharWidth = static_cast<double>(alphabetWidth) / 52.0;
+  // Horizontal dialog base unit is roughly half the average character width
+  m_dlu_x_factor = avgCharWidth / 4.0;
 }
+#else
+#include <ft2build.h>
+#include <freetype/freetype.h>
+#include <fontconfig/fontconfig.h>
 
+void generator::set_dlu_factors(const std::string& font_name, int font_size, int weight, bool italic) {
+    // 1. Initialize Fontconfig to locate the font file path
+    if (!FcInit()) {
+        throw std::runtime_error("Failed to initialize Fontconfig!");
+    }
+
+    FcPattern* pat = FcPatternCreate();
+    FcPatternAddString(pat, FC_FAMILY, reinterpret_cast<const FcChar8*>(font_name.c_str()));
+
+    // Map Qt weights to Fontconfig weights roughly
+    int fc_weight = FC_WEIGHT_MEDIUM;
+    if (weight >= 700) fc_weight = FC_WEIGHT_BOLD;
+    else if (weight <= 300) fc_weight = FC_WEIGHT_LIGHT;
+    FcPatternAddInteger(pat, FC_WEIGHT, fc_weight);
+
+    int fc_slant = italic ? FC_SLANT_ITALIC : FC_SLANT_ROMAN;
+    FcPatternAddInteger(pat, FC_SLANT, fc_slant);
+
+    FcConfigSubstitute(nullptr, pat, FcMatchPattern);
+    FcDefaultSubstitute(pat);
+
+    FcResult result;
+    FcPattern* match = FcFontMatch(nullptr, pat, &result);
+    FcPatternDestroy(pat);
+
+    if (!match) {
+        FcFini();
+        throw std::runtime_error(std::format("Font \"{}\" not found via Fontconfig!", font_name));
+    }
+
+    FcChar8* file_path = nullptr;
+    if (FcPatternGetString(match, FC_FILE, 0, &file_path) != FcResultMatch) {
+        FcPatternDestroy(match);
+        FcFini();
+        throw std::runtime_error(std::format("Could not extract file path for font \"{}\"", font_name));
+    }
+
+    std::string path_str(reinterpret_cast<char*>(file_path));
+    FcPatternDestroy(match);
+    FcFini();
+
+    // 2. Initialize FreeType and load the font face
+    FT_Library ft_library;
+    if (FT_Init_FreeType(&ft_library)) {
+        throw std::runtime_error("Failed to initialize FreeType library!");
+    }
+
+    FT_Face ft_face;
+    if (FT_New_Face(ft_library, path_str.c_str(), 0, &ft_face)) {
+        FT_Done_FreeType(ft_library);
+        throw std::runtime_error(std::format("Failed to load font file: {}", path_str));
+    }
+
+    // Set font size (FreeType takes size in 26.6 fractional pixels, or pixel sizes directly)
+    // Assuming font_size represents point size at 96 DPI: pixels = point_size * 96 / 72
+    int pixel_height = (font_size * 96 + 36) / 72;
+    if (FT_Set_Pixel_Sizes(ft_face, 0, pixel_height)) {
+        FT_Done_Face(ft_face);
+        FT_Done_FreeType(ft_library);
+        throw std::runtime_error("Failed to set pixel size for FreeType face.");
+    }
+
+    // 3. Extract metrics equivalent to QFontMetrics
+    // ft_face->size->metrics.height is in 26.6 fractional pixels (shift right by 6)
+    double font_height = static_cast<double>(ft_face->size->metrics.height >> 6);
+    m_dlu_y_factor = font_height / 8.0;
+
+    // Calculate horizontal advance for the alphabet string
+    std::string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    double total_width = 0.0;
+
+    // Ensure glyph loader knows to load metrics
+    for (char c : alphabet) {
+        FT_UInt glyph_index = FT_Get_Char_Index(ft_face, static_cast<FT_ULong>(c));
+        // Load glyph metrics (with no rasterization bitmap overhead needed for width)
+        if (FT_Load_Glyph(ft_face, glyph_index, FT_LOAD_DEFAULT) == 0) {
+            total_width += static_cast<double>(ft_face->glyph->advance.x >> 6);
+        }
+    }
+
+    double avgCharWidth = total_width / 52.0;
+    m_dlu_x_factor = avgCharWidth / 4.0;
+
+    // 4. Cleanup FreeType resources
+    FT_Done_Face(ft_face);
+    FT_Done_FreeType(ft_library);
+}
+#endif
 
 const dialog_stmt* generator::find_statement(const dialog_data& dd, const std::string& keyword) const
 {
@@ -1560,10 +1634,11 @@ std::string generator::strip_accelerator(const std::string& text) const
   return text;
 }
 
-std::string generator::map_ms_font(const std::string& ms_font)
+std::string generator::substitute_font(const std::string& font_name)
 {
   static const std::map<std::string, std::string> font_map = {
     {"Arial", "Liberation Sans"},
+    {"Microsoft Sans Serif", "Liberation Sans"},
     {"MS Sans Serif", "Liberation Sans"},
     {"MS Shell Dlg", "Liberation Sans"},
     {"MS Shell Dlg 2", "Liberation Sans"},
@@ -1582,13 +1657,18 @@ std::string generator::map_ms_font(const std::string& ms_font)
     {"Roman", "Liberation Serif"},
     {"Script", "Liberation Sans"},
     {"Modern", "Liberation Mono"},
-    {"Courier 10,12,15", "Liberation Mono"},
   };
 
-  auto it = font_map.find(ms_font);
+  auto it = font_map.find(font_name);
   if(it != font_map.end())
     return it->second;
-  return ms_font;
+  return font_name;
+}
+
+bool generator::load_font_substitution_list(const std::filesystem::path filepath)
+{
+
+  return false;
 }
 
 }

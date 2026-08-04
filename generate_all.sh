@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-
+set -x
 RC2QT="./build/rc2qt"
 OUTDIR="temporary_files"
 TESTDIR="test"
