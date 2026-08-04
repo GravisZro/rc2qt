@@ -214,6 +214,19 @@ std::vector<token> tokenize(const std::string& input)
       continue;
     }
 
+    if(c == '0' && pos + 1 < src.size() && (src[pos + 1] == 'o' || src[pos + 1] == 'O'))
+    {
+      pos += 2;
+      std::string value = "0o";
+      while(pos < src.size() && src[pos] >= '0' && src[pos] <= '7')
+      {
+        value.push_back(src[pos]);
+        ++pos;
+      }
+      tokens.push_back({token_type::integer_literal, value, line});
+      continue;
+    }
+
     if(std::isdigit(static_cast<unsigned char>(c)))
     {
       std::string value = read_number(src, pos);

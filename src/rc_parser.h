@@ -47,6 +47,7 @@ private:
   void parse_typelib_resource(resource& res);
   void parse_unused_resource(resource& res);
   void parse_user_resource(resource& res);
+  void parse_user_data_block(resource& res);
   void decode_binary_resource(resource& res);
 
   style_expr parse_style_expr();

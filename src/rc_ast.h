@@ -136,6 +136,19 @@ struct dlginit_entry
   std::string text;
 };
 
+struct user_data_entry
+{
+  std::string value;      // text of the item: string content or numeric literal
+  bool is_string = false; // true for quoted strings
+  bool is_wide = false;   // true for L"" wide-character strings
+  bool is_dword = false;  // true for integers qualified with an "L" suffix
+};
+
+struct user_data
+{
+  std::vector<user_data_entry> items;
+};
+
 struct resource
 {
   std::string id;
@@ -152,7 +165,8 @@ struct resource
     std::vector<accelerator_entry>,
     std::vector<string_table_entry>,
     version_info,
-    std::vector<dlginit_entry>
+    std::vector<dlginit_entry>,
+    user_data
   > data;
 };
 

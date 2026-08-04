@@ -2192,6 +2192,88 @@ static void test_versioninfo_macro_values()
   }
 }
 
+static void test_user_resource_filename()
+{
+  try
+  {
+    auto file = parse_all(
+      "array   MYRES   data.res\n"
+      "14      300     custom.res\n"
+      "1       11      \"MSG00409.bin\"\n"
+    );
+    assert(file.resources.size() == 3);
+    assert(file.resources[0].id == "array");
+    assert(file.resources[0].type == "MYRES");
+    assert(file.resources[0].filename == "data.res");
+    assert(file.resources[1].id == "14");
+    assert(file.resources[1].type == "300");
+    assert(file.resources[1].filename == "custom.res");
+    assert(file.resources[2].id == "1");
+    assert(file.resources[2].type == "11");
+    assert(file.resources[2].filename == "MSG00409.bin");
+    record_result("user_resource_filename", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("user_resource_filename", false, e.what());
+  }
+}
+
+static void test_user_resource_attributes()
+{
+  try
+  {
+    auto res = parse_single_resource(
+      "IDR_COMMAND_MODE_CFG  SRGRAMMAR DISCARDABLE   \"chs_cmdmode.cfg\"\n"
+    );
+    assert(res.id == "IDR_COMMAND_MODE_CFG");
+    assert(res.type == "SRGRAMMAR");
+    assert(res.filename == "chs_cmdmode.cfg");
+    assert(res.attributes.size() == 1);
+    assert(res.attributes[0] == "DISCARDABLE");
+    record_result("user_resource_attributes", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("user_resource_attributes", false, e.what());
+  }
+}
+
+static void test_user_resource_raw_data()
+{
+  try
+  {
+    auto res = parse_single_resource(
+      "18 MYRES2\n"
+      "{\n"
+      "   \"Here is an ANSI string\\0\",\n"
+      "   L\"Here is a Unicode string\\0\",\n"
+      "   1024,\n"
+      "   7L,\n"
+      "   0x029a,\n"
+      "   0o733,\n"
+      "}\n"
+    );
+    const auto& ud = std::get<rc::user_data>(res.data);
+    assert(ud.items.size() == 6);
+    assert(ud.items[0].value == std::string("Here is an ANSI string") + '\0');
+    assert(ud.items[0].is_string && !ud.items[0].is_wide && !ud.items[0].is_dword);
+    assert(ud.items[1].value == std::string("Here is a Unicode string") + '\0');
+    assert(ud.items[1].is_string && ud.items[1].is_wide && !ud.items[1].is_dword);
+    assert(ud.items[2].value == "1024");
+    assert(!ud.items[2].is_string && !ud.items[2].is_dword);
+    assert(ud.items[3].value == "7");
+    assert(!ud.items[3].is_string && ud.items[3].is_dword);
+    assert(ud.items[4].value == "0x029a");
+    assert(ud.items[5].value == "0o733");
+    record_result("user_resource_raw_data", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("user_resource_raw_data", false, e.what());
+  }
+}
+
 // ============================================================================
 // Multiple resources
 // ============================================================================
@@ -2455,6 +2537,9 @@ int main()
   test_stringtable_basic();
   test_versioninfo_basic();
   test_versioninfo_macro_values();
+  test_user_resource_filename();
+  test_user_resource_attributes();
+  test_user_resource_raw_data();
 
   std::cout << "\n--- Widget Class Tests ---\n";
   test_comboboxex32();

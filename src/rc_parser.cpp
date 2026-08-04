@@ -1147,13 +1147,87 @@ void parser::decode_binary_resource(resource& res)
 }
 
 
+// void parser::parse_user_resource(resource& res)
+// {
+//   while(is_current_type_attribute())
+//     advance();
+//   res.filename = next_val();
+//   info("Saving user resource:\n\tID: {}\n\ttype: {}\n\tfilename: {}", res.id, res.type, res.filename);
+//   parse_unused_resource(res);
+// }
+
 void parser::parse_user_resource(resource& res)
 {
   while(is_current_type_attribute())
-    advance();
-  res.filename = next_val();
-  info("Saving user resource:\n\tID: {}\n\ttype: {}\n\tfilename: {}", res.id, res.type, res.filename);
-  parse_unused_resource(res);
+    res.attributes.push_back(next_val());
+
+  skip_newlines();
+  if(current() != token_type::begin)
+  {
+    // File form: nameID typeID filename
+    res.filename = next_val();
+    info("Saving user resource:\n\tID: {}\n\ttype: {}\n\tfilename: {}", res.id, res.type, res.filename);
+    parse_unused_resource(res);
+  }
+  else
+  {
+    // Inline form: nameID typeID { raw-data }
+    parse_user_data_block(res);
+  }
+}
+
+void parser::parse_user_data_block(resource& res)
+{
+  user_data ud;
+
+  if(match(token_type::begin))
+  {
+    skip_newlines();
+    while(current() != token_list { token_type::end, token_type::eof })
+    {
+      user_data_entry entry;
+
+      if(current() == token_type::string_literal)
+      {
+        entry.value = next_val();
+        entry.is_string = true;
+      }
+      else if(current() == token_type::identifier &&
+              to_upper(current().value) == "L" &&
+              peek(1) == token_type::string_literal)
+      {
+        // Wide-character string, e.g. L"text"
+        advance();
+        entry.value = next_val();
+        entry.is_string = true;
+        entry.is_wide = true;
+      }
+      else if(current() == token_type::identifier ||
+              current() == token_type::integer_literal ||
+              current() == token_type::hex_literal)
+      {
+        entry.value = next_val();
+        if(current() == token_type::identifier && current() == version_number_suffixes)
+        {
+          // "L" suffix stores the integer as a DWORD
+          advance();
+          entry.is_dword = true;
+        }
+      }
+      else
+      {
+        advance();
+        continue;
+      }
+
+      ud.items.push_back(std::move(entry));
+      match(token_type::comma);
+      skip_newlines();
+    }
+    match(token_type::end);
+  }
+
+  res.data = ud;
 }
 
 resource parser::parse_resource()
@@ -1163,6 +1237,8 @@ resource parser::parse_resource()
   skip_newlines();
 
   if(current() == token_type::identifier)
+    res.type = next_val();
+  else if(current() == token_type::integer_literal || current() == token_type::hex_literal)
     res.type = next_val();
 
   std::map<std::string, void (parser::*)(resource&)> funcmap =
