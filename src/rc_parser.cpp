@@ -31,10 +31,12 @@ static const std::map<std::string_view, const_flags> const_flag_data
   { "CURSOR",       const_flags::resource_type },
   { "DIALOG",       const_flags::resource_type },
   { "DIALOGEX",     const_flags::resource_type },
-  { "FONT",         const_flags::resource_type },
+  // { "FONT",         const_flags::resource_type },
+  { "FONT",         const_flags::resource_type | const_flags::dialog_keyword },
   { "HTML",         const_flags::resource_type },
-  { "ICON",         const_flags::resource_type },
-  { "MENU",         const_flags::resource_type },
+  // { "ICON",         const_flags::resource_type },
+  { "ICON",         const_flags::resource_type | const_flags::control_keyword | const_flags::has_text_flag },
+  { "MENU",         const_flags::resource_type | const_flags::dialog_keyword },
   { "MENUEX",       const_flags::resource_type },
   { "MESSAGETABLE", const_flags::resource_type },
   { "POPUP",        const_flags::resource_type },
@@ -68,15 +70,16 @@ static const std::map<std::string_view, const_flags> const_flag_data
   { "COMBOBOX",         const_flags::control_keyword },
   { "CONTROL",          const_flags::control_keyword },
   { "CTEXT",            const_flags::control_keyword | const_flags::has_text_flag },
-  { "DEFPUSHBUTTON",    const_flags::control_keyword },
+  // { "DEFPUSHBUTTON",    const_flags::control_keyword },
+  { "DEFPUSHBUTTON",    const_flags::control_keyword | const_flags::has_text_flag },
   { "EDITTEXT",         const_flags::control_keyword },
   { "GROUPBOX",         const_flags::control_keyword | const_flags::has_text_flag },
-  { "ICON",             const_flags::control_keyword | const_flags::has_text_flag },
+  // { "ICON",             const_flags::control_keyword | const_flags::has_text_flag },
   { "LISTBOX",          const_flags::control_keyword },
   { "LTEXT",            const_flags::control_keyword | const_flags::has_text_flag },
   { "PUSHBOX",          const_flags::control_keyword | const_flags::has_text_flag },
   { "PUSHBUTTON",       const_flags::control_keyword | const_flags::has_text_flag },
-  { "DEFPUSHBUTTON",    const_flags::control_keyword | const_flags::has_text_flag },
+  // { "DEFPUSHBUTTON",    const_flags::control_keyword | const_flags::has_text_flag },
   { "RADIOBUTTON",      const_flags::control_keyword | const_flags::has_text_flag },
   { "RTEXT",            const_flags::control_keyword | const_flags::has_text_flag },
   { "SCROLLBAR",        const_flags::control_keyword },
@@ -86,12 +89,12 @@ static const std::map<std::string_view, const_flags> const_flag_data
   { "CAPTION",          const_flags::dialog_keyword },
   { "CLASS",            const_flags::dialog_keyword },
   { "EXSTYLE",          const_flags::dialog_keyword },
-  { "FONT",             const_flags::dialog_keyword },
+  // { "FONT",             const_flags::dialog_keyword },
   { "LANGUAGE",         const_flags::dialog_keyword },
   { "STYLE",            const_flags::dialog_keyword },
   { "VERSION",          const_flags::dialog_keyword },
   { "CHARACTERISTICS",  const_flags::dialog_keyword },
-  { "MENU",             const_flags::dialog_keyword },
+  // { "MENU",             const_flags::dialog_keyword },
 
   { "GRAYED",           const_flags::popup_flag },
   { "INACTIVE",         const_flags::popup_flag },
@@ -304,7 +307,7 @@ control parser::parse_control()
   }
   else
   {
-    if(has_flag(ctrl.keyword, const_flags::control_keyword))
+    if(has_flag(ctrl.keyword, const_flags::has_text_flag))
     {
       if(current() == tt_IIHS)
         ctrl.text = next_val();
