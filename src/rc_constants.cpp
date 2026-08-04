@@ -60,8 +60,20 @@ category_t constant_registry::resolve_category(const std::string& name)
     { "MSCTLS_PROGRESS32", category_t::progressbar_style },
     { "MSCTLS_UPDOWN32", category_t::updown_style },
     { "SYSDATETIMEPICK32", category_t::datetime_style },
-    { "SYSMONTHCAL32", category_t::datetime_style },
+    { "SYSMONTHCAL32", category_t::month_calendar_style },
     { "SYSTABCONTROL32", category_t::tabcontrol_style },
+    { "SYSPAGER", category_t::pager_style },
+    { "SYSMONTHCAL", category_t::month_calendar_style },
+    { "SYSHEADER32", category_t::header_style },
+    { "SYSANIMATE32", category_t::animate_style },
+    { "TOOLBARCLASSNAME", category_t::toolbar_style },
+    { "TOOLBARWINDOW32", category_t::toolbar_style },
+    { "TOOLTIPS_CLASS32", category_t::tooltip_style },
+    { "TOOLTIPS_CLASS", category_t::tooltip_style },
+    { "REBARCLASSNAME", category_t::rebar_style },
+    { "REBARWINDOW32", category_t::rebar_style },
+    { "MSCTLS_STATUSBAR32", category_t::statusbar_style },
+    { "STATUSCLASSNAME", category_t::statusbar_style },
 
     // Edit-based controls
     { "RICHEDIT", category_t::edit_style },
@@ -442,17 +454,18 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::datetime_style, 0x0004, "DTS_LONGDATEFORMAT", "Uses the long date format string as specified in the user's locale settings.");
   add(category_t::datetime_style, 0x0020, "DTS_RIGHTALIGN", "Right-aligns the drop-down calendar with the control.");
   add(category_t::datetime_style, 0x0002, "DTS_SHOWNONE", "Displays a check box next to the control; when unchecked, no date is selected.");
-  add(category_t::datetime_style, 0x0008, "DTS_TIMEFORMAT", "Uses the time format string as specified in the user's locale settings.");
+  // add(category_t::datetime_style, 0x0008, "DTS_TIMEFORMAT", "Uses the time format string as specified in the user's locale settings.");
+  add(category_t::datetime_style, 0x0009, "DTS_TIMEFORMAT", "Uses the time format string as specified in the user's locale settings.");
   add(category_t::datetime_style, 0x0001, "DTS_UPDOWN", "Displays an up-down control rather than a drop-down calendar for date selection.");
   add(category_t::datetime_style, 0x0000, "DTS_SHORTDATEFORMAT", "Uses the short date format as specified in the user's locale settings (default).");
-  add(category_t::datetime_style, 0x0020, "DTS_MONTHCAL", "Displays a month calendar control as a drop-down rather than a simple drop-down list.");
+  // add(category_t::datetime_style, 0x0020, "DTS_MONTHCAL", "Displays a month calendar control as a drop-down rather than a simple drop-down list."); // Not defined in CommCtrl.h; conflicts with DTS_RIGHTALIGN.
   add(category_t::datetime_style, 0x000C, "DTS_SHORTDATECENTURYFORMAT", "Similar to DTS_SHORTDATEFORMAT, except the year is a four-digit field.");
 
   /* ── TCS_* Tab Control Styles ────────────────────────────────── */
   add(category_t::tabcontrol_style, 0x0002, "TCS_BOTTOM", "Places tabs at the bottom of the control.");
   add(category_t::tabcontrol_style, 0x0002, "TCS_BUTTONS", "Displays tabs as push buttons.");
-  add(category_t::tabcontrol_style, 0x00000001, "TCS_EX_FLATSEPARATORS", "Draws flat separators between tabs in the tab control.");
-  add(category_t::tabcontrol_style, 0x00000002, "TCS_EX_REGISTERDROP", "Enables tab items to receive WM_QUERYDROPPOSITION notifications.");
+  // add(category_t::tabcontrol_style, 0x00000001, "TCS_EX_FLATSEPARATORS", "Draws flat separators between tabs in the tab control.");
+  // add(category_t::tabcontrol_style, 0x00000002, "TCS_EX_REGISTERDROP", "Enables tab items to receive WM_QUERYDROPPOSITION notifications.");
   add(category_t::tabcontrol_style, 0x0040, "TCS_FIXEDWIDTH", "All tabs are the same width; individual text length is ignored.");
   add(category_t::tabcontrol_style, 0x0008, "TCS_FLATBUTTONS", "Displays tabs as flat push buttons in tab controls without borders.");
   add(category_t::tabcontrol_style, 0x0800, "TCS_FOCUSNEVER", "Prevents the tab control from receiving input focus.");
@@ -474,6 +487,10 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::tabcontrol_style, 0x0000, "TCS_TABS", "Displays tabs as normal tabs (default).");
   add(category_t::tabcontrol_style, 0x0080, "TCS_VERTICAL", "Displays tabs vertically.");
 
+  /* ── TCS_EX_* Extended Tab Control Styles ─────────────────────── */
+  add(category_t::tabcontrol_ex_style, 0x00000001, "TCS_EX_FLATSEPARATORS", "Draws flat separators between tabs in the tab control.");
+  add(category_t::tabcontrol_ex_style, 0x00000002, "TCS_EX_REGISTERDROP", "Enables tab items to receive WM_QUERYDROPPOSITION notifications.");
+
   /* ── SB_* Scroll Bar Constants ───────────────────────────────── */
   add(category_t::scrollbar_style, 0x0000, "SB_HORZ", "Identifies a horizontal scroll bar for scroll bar messages.");
   add(category_t::scrollbar_style, 0x0001, "SB_VERT", "Identifies a vertical scroll bar for scroll bar messages.");
@@ -481,20 +498,179 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::scrollbar_style, 0x0003, "SB_BOTH", "Identifies both horizontal and vertical scroll bars for scroll bar messages.");
 
   /* ── SBARS_* Status Bar Styles ──────────────────────────────── */
-  add(category_t::scrollbar_style, 0x0100, "SBARS_SIZEGRIP", "Displays a size grip in the lower-right corner of the status bar window.");
-  add(category_t::scrollbar_style, 0x0800, "SBARS_TOOLTIPS", "Enables tooltips for status bar parts when the mouse hovers over them.");
+  // add(category_t::scrollbar_style, 0x0100, "SBARS_SIZEGRIP", "Displays a size grip in the lower-right corner of the status bar window.");
+  // add(category_t::scrollbar_style, 0x0800, "SBARS_TOOLTIPS", "Enables tooltips for status bar parts when the mouse hovers over them.");
+  add(category_t::statusbar_style, 0x0100, "SBARS_SIZEGRIP", "Displays a size grip in the lower-right corner of the status bar window.");
+  add(category_t::statusbar_style, 0x0800, "SBARS_TOOLTIPS", "Enables tooltips for status bar parts when the mouse hovers over them.");
+  add(category_t::statusbar_style, 0x0800, "SBT_TOOLTIPS", "Identical to SBARS_TOOLTIPS; use for version 5.00 or later.");
 
   /* ── MCS_* Month Calendar Styles ─────────────────────────────── */
-  add(category_t::datetime_style, 0x0001, "MCS_DAYSTATE", "Requests the parent to supply day state information to display bolded dates.");
-  add(category_t::datetime_style, 0x0002, "MCS_MULTISELECT", "Enables selection of a range of dates in the month calendar control.");
-  add(category_t::datetime_style, 0x0004, "MCS_WEEKNUMBERS", "Displays week numbers along the left edge of the calendar.");
-  add(category_t::datetime_style, 0x0008, "MCS_NOTODAYCIRCLE", "Disables the circle that highlights today's date in the month calendar.");
-  add(category_t::datetime_style, 0x0010, "MCS_NOTODAY", "Hides the today selection row at the bottom of the month calendar control.");
-  add(category_t::datetime_style, 0x0020, "MCS_NORROWHEAD", "Hides the left column that shows the week numbers in the month calendar.");
-  add(category_t::datetime_style, 0x0040, "MCS_NODATEPICK", "Hides the date picker at the top of the month calendar control.");
-  add(category_t::datetime_style, 0x0100, "MCS_NOSELCHANGEONNAV", "The selection is not changed when the user navigates next or previous in the calendar.");
-  add(category_t::datetime_style, 0x0040, "MCS_NOTRAILINGDATES", "Dates from the previous and next months are not displayed in the current month's calendar.");
-  add(category_t::datetime_style, 0x0080, "MCS_SHORTDAYSOFWEEK", "Short day names are displayed in the header.");
+  // add(category_t::datetime_style, 0x0001, "MCS_DAYSTATE", "Requests the parent to supply day state information to display bolded dates.");
+  // add(category_t::datetime_style, 0x0002, "MCS_MULTISELECT", "Enables selection of a range of dates in the month calendar control.");
+  // add(category_t::datetime_style, 0x0004, "MCS_WEEKNUMBERS", "Displays week numbers along the left edge of the calendar.");
+  // add(category_t::datetime_style, 0x0008, "MCS_NOTODAYCIRCLE", "Disables the circle that highlights today's date in the month calendar.");
+  // add(category_t::datetime_style, 0x0010, "MCS_NOTODAY", "Hides the today selection row at the bottom of the month calendar control.");
+  // add(category_t::datetime_style, 0x0020, "MCS_NORROWHEAD", "Hides the left column that shows the week numbers in the month calendar."); // Not defined in CommCtrl.h.
+  // add(category_t::datetime_style, 0x0040, "MCS_NODATEPICK", "Hides the date picker at the top of the month calendar control."); // Not defined in CommCtrl.h; conflicts with MCS_NOTRAILINGDATES.
+  // add(category_t::datetime_style, 0x0100, "MCS_NOSELCHANGEONNAV", "The selection is not changed when the user navigates next or previous in the calendar.");
+  // add(category_t::datetime_style, 0x0040, "MCS_NOTRAILINGDATES", "Dates from the previous and next months are not displayed in the current month's calendar.");
+  // add(category_t::datetime_style, 0x0080, "MCS_SHORTDAYSOFWEEK", "Short day names are displayed in the header.");
+  add(category_t::month_calendar_style, 0x0001, "MCS_DAYSTATE", "Requests the parent to supply day state information to display bolded dates.");
+  add(category_t::month_calendar_style, 0x0002, "MCS_MULTISELECT", "Enables selection of a range of dates in the month calendar control.");
+  add(category_t::month_calendar_style, 0x0004, "MCS_WEEKNUMBERS", "Displays week numbers along the left edge of the calendar.");
+  add(category_t::month_calendar_style, 0x0008, "MCS_NOTODAYCIRCLE", "Disables the circle that highlights today's date in the month calendar.");
+  add(category_t::month_calendar_style, 0x0010, "MCS_NOTODAY", "Hides the today selection row at the bottom of the month calendar control.");
+  add(category_t::month_calendar_style, 0x0040, "MCS_NOTRAILINGDATES", "Dates from the previous and next months are not displayed in the current month's calendar.");
+  add(category_t::month_calendar_style, 0x0080, "MCS_SHORTDAYSOFWEEK", "Short day names are displayed in the header.");
+  add(category_t::month_calendar_style, 0x0100, "MCS_NOSELCHANGEONNAV", "The selection is not changed when the user navigates next or previous in the calendar.");
+
+  /* ── CCS_* Common Control Styles ─────────────────────────────── */
+  // docs/win32/desktop-src/Controls/common-control-styles.md
+  add(category_t::common_control_style, 0x00000020, "CCS_ADJUSTABLE", "Enables a toolbar's built-in customization features.");
+  add(category_t::common_control_style, 0x00000003, "CCS_BOTTOM", "Positions the control at the bottom of the parent window's client area.");
+  add(category_t::common_control_style, 0x00000081, "CCS_LEFT", "Displays the control vertically on the left side of the parent window.");
+  add(category_t::common_control_style, 0x00000040, "CCS_NODIVIDER", "Prevents a two-pixel highlight from being drawn at the top of the control.");
+  add(category_t::common_control_style, 0x00000082, "CCS_NOMOVEX", "Resizes and moves the control vertically, but not horizontally, in response to WM_SIZE.");
+  add(category_t::common_control_style, 0x00000002, "CCS_NOMOVEY", "Resizes and moves the control horizontally, but not vertically, in response to WM_SIZE.");
+  add(category_t::common_control_style, 0x00000008, "CCS_NOPARENTALIGN", "Prevents the control from automatically moving to the top or bottom of the parent window.");
+  add(category_t::common_control_style, 0x00000004, "CCS_NORESIZE", "Prevents the control from using the default width and height when setting its size.");
+  add(category_t::common_control_style, 0x00000083, "CCS_RIGHT", "Displays the control vertically on the right side of the parent window.");
+  add(category_t::common_control_style, 0x00000001, "CCS_TOP", "Positions the control at the top of the parent window's client area.");
+  add(category_t::common_control_style, 0x00000080, "CCS_VERT", "Displays the control vertically.");
+
+  /* ── HDS_* Header Control Styles ─────────────────────────────── */
+  // docs/win32/desktop-src/Controls/header-control-styles.md
+  add(category_t::header_style, 0x0002, "HDS_BUTTONS", "Each item in the control looks and behaves like a push button.");
+  add(category_t::header_style, 0x0400, "HDS_CHECKBOXES", "Allows the placing of checkboxes on header items.");
+  add(category_t::header_style, 0x0040, "HDS_DRAGDROP", "Allows drag-and-drop reordering of header items.");
+  add(category_t::header_style, 0x0100, "HDS_FILTERBAR", "Includes a filter bar as part of the standard header control.");
+  add(category_t::header_style, 0x0200, "HDS_FLAT", "Causes the header control to be drawn flat in classic mode.");
+  add(category_t::header_style, 0x0080, "HDS_FULLDRAG", "Displays column contents even while the user resizes a column.");
+  add(category_t::header_style, 0x0008, "HDS_HIDDEN", "Indicates a header control that is intended to be hidden.");
+  add(category_t::header_style, 0x0000, "HDS_HORZ", "Creates a header control with a horizontal orientation.");
+  add(category_t::header_style, 0x0004, "HDS_HOTTRACK", "Enables hot tracking.");
+  add(category_t::header_style, 0x0800, "HDS_NOSIZING", "The user cannot drag the divider on the header control.");
+  add(category_t::header_style, 0x1000, "HDS_OVERFLOW", "Displays a button when not all items fit within the header control's rectangle.");
+
+  /* ── LVS_EX_* Extended List-View Styles ──────────────────────── */
+  // docs/win32/desktop-src/Controls/extended-list-view-styles.md
+  add(category_t::listview_ex_style, 0x01000000, "LVS_EX_AUTOAUTOARRANGE", "Automatically arranges icons if no icon positions have been set.");
+  add(category_t::listview_ex_style, 0x08000000, "LVS_EX_AUTOCHECKSELECT", "Automatically selects check boxes on single click.");
+  add(category_t::listview_ex_style, 0x10000000, "LVS_EX_AUTOSIZECOLUMNS", "Automatically sizes listview columns.");
+  add(category_t::listview_ex_style, 0x00008000, "LVS_EX_BORDERSELECT", "Changes border color when an item is selected instead of highlighting the item.");
+  add(category_t::listview_ex_style, 0x00000004, "LVS_EX_CHECKBOXES", "Enables check boxes for items in a list-view control.");
+  add(category_t::listview_ex_style, 0x80000000, "LVS_EX_COLUMNOVERFLOW", "Displays an overflow button in icon/tile view when there is not enough client width.");
+  add(category_t::listview_ex_style, 0x40000000, "LVS_EX_COLUMNSNAPPOINTS", "Snaps to minimum column width when the user resizes a column.");
+  add(category_t::listview_ex_style, 0x00010000, "LVS_EX_DOUBLEBUFFER", "Paints via double-buffering, which reduces flicker.");
+  add(category_t::listview_ex_style, 0x00000100, "LVS_EX_FLATSB", "Enables flat scroll bars in the list view.");
+  add(category_t::listview_ex_style, 0x00000020, "LVS_EX_FULLROWSELECT", "Highlights the item and all its subitems when selected (LVS_REPORT only).");
+  add(category_t::listview_ex_style, 0x00000001, "LVS_EX_GRIDLINES", "Displays gridlines around items and subitems (LVS_REPORT only).");
+  add(category_t::listview_ex_style, 0x00000010, "LVS_EX_HEADERDRAGDROP", "Enables drag-and-drop reordering of columns (LVS_REPORT only).");
+  add(category_t::listview_ex_style, 0x02000000, "LVS_EX_HEADERINALLVIEWS", "Shows column headers in all view modes.");
+  add(category_t::listview_ex_style, 0x00020000, "LVS_EX_HIDELABELS", "Hides the labels in icon and small icon view.");
+  add(category_t::listview_ex_style, 0x00000400, "LVS_EX_INFOTIP", "Sends LVN_GETINFOTIP to the parent before displaying an item's tooltip.");
+  add(category_t::listview_ex_style, 0x00200000, "LVS_EX_JUSTIFYCOLUMNS", "Icons are lined up in columns that use up the whole view.");
+  add(category_t::listview_ex_style, 0x00004000, "LVS_EX_LABELTIP", "Unfolds partly hidden labels in any list view mode.");
+  add(category_t::listview_ex_style, 0x00002000, "LVS_EX_MULTIWORKAREAS", "Does not autoarrange icons until one or more work areas are defined.");
+  add(category_t::listview_ex_style, 0x00000040, "LVS_EX_ONECLICKACTIVATE", "Sends LVN_ITEMACTIVATE when the user clicks an item; enables hot tracking.");
+  add(category_t::listview_ex_style, 0x00000200, "LVS_EX_REGIONAL", "Sets the list view window region to include only item icons and text.");
+  add(category_t::listview_ex_style, 0x00100000, "LVS_EX_SIMPLESELECT", "Moves the state image to the top right of the large icon rendering in icon view.");
+  add(category_t::listview_ex_style, 0x00040000, "LVS_EX_SINGLEROW", "Reserved; not used.");
+  add(category_t::listview_ex_style, 0x00080000, "LVS_EX_SNAPTOGRID", "Icons automatically snap into a grid in icon view.");
+  add(category_t::listview_ex_style, 0x00000002, "LVS_EX_SUBITEMIMAGES", "Allows images to be displayed for subitems (LVS_REPORT only).");
+  add(category_t::listview_ex_style, 0x00000008, "LVS_EX_TRACKSELECT", "Enables hot-track selection in a list-view control.");
+  add(category_t::listview_ex_style, 0x00400000, "LVS_EX_TRANSPARENTBKGND", "The background is painted by the parent via WM_PRINTCLIENT.");
+  add(category_t::listview_ex_style, 0x00800000, "LVS_EX_TRANSPARENTSHADOWTEXT", "Enables shadow text on transparent backgrounds only.");
+  add(category_t::listview_ex_style, 0x00000080, "LVS_EX_TWOCLICKACTIVATE", "Sends LVN_ITEMACTIVATE when the user double-clicks an item; enables hot tracking.");
+  add(category_t::listview_ex_style, 0x00001000, "LVS_EX_UNDERLINECOLD", "Underlines non-hot items that may be activated (requires LVS_EX_TWOCLICKACTIVATE).");
+  add(category_t::listview_ex_style, 0x00000800, "LVS_EX_UNDERLINEHOT", "Underlines hot items that may be activated (requires click/two-click activate).");
+
+  /* ── TVS_EX_* Extended Tree-View Styles ──────────────────────── */
+  // docs/win32/desktop-src/Controls/tree-view-control-window-extended-styles.md
+  add(category_t::treeview_ex_style, 0x0020, "TVS_EX_AUTOHSCROLL", "Removes the horizontal scroll bar and auto-scrolls depending on mouse position.");
+  add(category_t::treeview_ex_style, 0x0200, "TVS_EX_DIMMEDCHECKBOXES", "Adds a dimmed checkbox state indicating a node selected because its parent is selected.");
+  add(category_t::treeview_ex_style, 0x0004, "TVS_EX_DOUBLEBUFFER", "Specifies how the background is erased or filled.");
+  add(category_t::treeview_ex_style, 0x0400, "TVS_EX_DRAWIMAGEASYNC", "Specifies that images are drawn asynchronously.");
+  add(category_t::treeview_ex_style, 0x0100, "TVS_EX_EXCLUSIONCHECKBOXES", "Adds an exclusion checkbox state (red X) in addition to the normal checkbox states.");
+  add(category_t::treeview_ex_style, 0x0040, "TVS_EX_FADEINOUTEXPANDOS", "Fades expando buttons in or out when the mouse enters or leaves the control.");
+  add(category_t::treeview_ex_style, 0x0002, "TVS_EX_MULTISELECT", "Not supported; do not use.");
+  add(category_t::treeview_ex_style, 0x0008, "TVS_EX_NOINDENTSTATE", "Does not indent the tree view for the expando buttons.");
+  add(category_t::treeview_ex_style, 0x0001, "TVS_EX_NOSINGLECOLLAPSE", "Does not collapse the previously selected item unless it shares the same parent.");
+  add(category_t::treeview_ex_style, 0x0080, "TVS_EX_PARTIALCHECKBOXES", "Adds a partial (square) checkbox state in addition to the normal checkbox states.");
+  add(category_t::treeview_ex_style, 0x0010, "TVS_EX_RICHTOOLTIP", "Allows rich tooltips in the tree view (custom drawn with icon and text).");
+
+  /* ── ES_EX_* Extended Edit Control Styles ────────────────────── */
+  // docs/win32/desktop-src/Controls/edit-control-window-extended-styles.md
+  add(category_t::edit_ex_style, 0x0001, "ES_EX_ALLOWEOL_CR", "Enables support for carriage return (CR) end-of-line characters to break lines.");
+  add(category_t::edit_ex_style, 0x0002, "ES_EX_ALLOWEOL_LF", "Enables support for linefeed (LF) end-of-line characters to break lines.");
+  add(category_t::edit_ex_style, 0x0003, "ES_EX_ALLOWEOL_ALL", "Enables support for both CR and LF end-of-line characters to break lines.");
+  add(category_t::edit_ex_style, 0x0004, "ES_EX_CONVERT_EOL_ON_PASTE", "Converts end-of-line characters in pasted content to match the current document.");
+  add(category_t::edit_ex_style, 0x0010, "ES_EX_ZOOMABLE", "Enables zooming using Ctrl+MouseWheel and the EM_GETZOOM/EM_SETZOOM messages.");
+  add(category_t::edit_ex_style, 0x01000000, "ES_EX_NOCALLOLEINIT", "Prevents the control from calling OleInitialize when created (dialog templates only).");
+
+  /* ── PGS_* Pager Control Styles ──────────────────────────────── */
+  // docs/win32/desktop-src/Controls/pager-control-styles.md
+  add(category_t::pager_style, 0x00000002, "PGS_AUTOSCROLL", "The pager control scrolls when the user hovers the mouse over one of the scroll buttons.");
+  add(category_t::pager_style, 0x00000004, "PGS_DRAGNDROP", "The contained window can be a drag-and-drop target.");
+  add(category_t::pager_style, 0x00000001, "PGS_HORZ", "Creates a pager control that can be scrolled horizontally.");
+  add(category_t::pager_style, 0x00000000, "PGS_VERT", "Creates a pager control that can be scrolled vertically (default).");
+
+  /* ── RBS_* Rebar Control Styles ──────────────────────────────── */
+  // docs/win32/desktop-src/Controls/rebar-control-styles.md
+  add(category_t::rebar_style, 0x00002000, "RBS_AUTOSIZE", "The rebar control automatically changes the layout of the bands when the size changes.");
+  add(category_t::rebar_style, 0x00000400, "RBS_BANDBORDERS", "The rebar control displays narrow lines to separate adjacent bands.");
+  add(category_t::rebar_style, 0x00008000, "RBS_DBLCLKTOGGLE", "A rebar band toggles its maximized/minimized state when double-clicked.");
+  add(category_t::rebar_style, 0x00000800, "RBS_FIXEDORDER", "The rebar control always displays bands in the same order.");
+  add(category_t::rebar_style, 0x00001000, "RBS_REGISTERDROP", "Generates RBN_GETOBJECT notifications when an object is dragged over a band.");
+  add(category_t::rebar_style, 0x00000100, "RBS_TOOLTIPS", "Not yet supported.");
+  add(category_t::rebar_style, 0x00000200, "RBS_VARHEIGHT", "Displays bands at the minimum required height, when possible.");
+  add(category_t::rebar_style, 0x00004000, "RBS_VERTICALGRIPPER", "Displays the size grip vertically in a vertical rebar control.");
+
+  /* ── TTS_* Tooltip Styles ────────────────────────────────────── */
+  // docs/win32/desktop-src/Controls/tooltip-styles.md
+  add(category_t::tooltip_style, 0x01, "TTS_ALWAYSTIP", "The tooltip appears when the cursor is on a tool even if the owner window is inactive.");
+  add(category_t::tooltip_style, 0x40, "TTS_BALLOON", "The tooltip has the appearance of a cartoon balloon with a stem.");
+  add(category_t::tooltip_style, 0x80, "TTS_CLOSE", "Displays a Close button on the tooltip (requires TTS_BALLOON and a title).");
+  add(category_t::tooltip_style, 0x10, "TTS_NOANIMATE", "Disables sliding tooltip animation.");
+  add(category_t::tooltip_style, 0x20, "TTS_NOFADE", "Disables fading tooltip animation.");
+  add(category_t::tooltip_style, 0x02, "TTS_NOPREFIX", "Prevents the system from stripping ampersands and terminating strings at tabs.");
+  add(category_t::tooltip_style, 0x100, "TTS_USEVISUALSTYLE", "Uses themed hyperlinks (requires TTF_PARSELINKS).");
+
+  /* ── TBSTYLE_* / BTNS_* Toolbar Styles ───────────────────────── */
+  // docs/win32/desktop-src/Controls/toolbar-control-and-button-styles.md
+  add(category_t::toolbar_style, 0x0400, "TBSTYLE_ALTDRAG", "Allows users to change a toolbar button's position by dragging with ALT held down.");
+  add(category_t::toolbar_style, 0x0010, "TBSTYLE_AUTOSIZE", "Calculates the button's width based on the width of the text plus the image.");
+  add(category_t::toolbar_style, 0x0000, "TBSTYLE_BUTTON", "Creates a standard button (no other flags set).");
+  add(category_t::toolbar_style, 0x0002, "TBSTYLE_CHECK", "Creates a dual-state push button that toggles between pressed and nonpressed states.");
+  add(category_t::toolbar_style, 0x0006, "TBSTYLE_CHECKGROUP", "Creates a check button that stays pressed until another button in the group is pressed.");
+  add(category_t::toolbar_style, 0x2000, "TBSTYLE_CUSTOMERASE", "Generates NM_CUSTOMDRAW notification codes when the toolbar processes WM_ERASEBKGND.");
+  add(category_t::toolbar_style, 0x0008, "TBSTYLE_DROPDOWN", "Creates a drop-down style button that can display a list when clicked.");
+  add(category_t::toolbar_style, 0x0800, "TBSTYLE_FLAT", "Creates a flat toolbar with transparent buttons and hot-tracking enabled.");
+  add(category_t::toolbar_style, 0x0004, "TBSTYLE_GROUP", "Creates a button that stays pressed until another button in the group is pressed.");
+  add(category_t::toolbar_style, 0x1000, "TBSTYLE_LIST", "Creates a flat toolbar with button text to the right of the bitmap.");
+  add(category_t::toolbar_style, 0x0020, "TBSTYLE_NOPREFIX", "Specifies that the button text will not have an accelerator prefix.");
+  add(category_t::toolbar_style, 0x4000, "TBSTYLE_REGISTERDROP", "Generates TBN_GETOBJECT notifications to request drop target objects.");
+  add(category_t::toolbar_style, 0x0001, "TBSTYLE_SEP", "Creates a separator, providing a small gap between button groups.");
+  add(category_t::toolbar_style, 0x0100, "TBSTYLE_TOOLTIPS", "Creates a tooltip control for displaying descriptive text for the toolbar buttons.");
+  add(category_t::toolbar_style, 0x8000, "TBSTYLE_TRANSPARENT", "Creates a transparent toolbar where the toolbar is transparent but the buttons are not.");
+  add(category_t::toolbar_style, 0x0200, "TBSTYLE_WRAPABLE", "Creates a toolbar that can wrap buttons onto multiple lines.");
+  add(category_t::toolbar_style, 0x0000, "BTNS_BUTTON", "Creates a standard button (equivalent to TBSTYLE_BUTTON).");
+  add(category_t::toolbar_style, 0x0002, "BTNS_CHECK", "Creates a dual-state push button (equivalent to TBSTYLE_CHECK).");
+  add(category_t::toolbar_style, 0x0006, "BTNS_CHECKGROUP", "Creates a check button that stays pressed until another button in the group is pressed.");
+  add(category_t::toolbar_style, 0x0008, "BTNS_DROPDOWN", "Creates a drop-down style button (equivalent to TBSTYLE_DROPDOWN).");
+  add(category_t::toolbar_style, 0x0004, "BTNS_GROUP", "Creates a button that stays pressed until another button in the group is pressed.");
+  add(category_t::toolbar_style, 0x0020, "BTNS_NOPREFIX", "Specifies that the button text will not have an accelerator prefix.");
+  add(category_t::toolbar_style, 0x0001, "BTNS_SEP", "Creates a separator (equivalent to TBSTYLE_SEP).");
+  add(category_t::toolbar_style, 0x0010, "BTNS_AUTOSIZE", "Calculates the button's width based on text plus image (equivalent to TBSTYLE_AUTOSIZE).");
+  add(category_t::toolbar_style, 0x0040, "BTNS_SHOWTEXT", "Specifies that button text should be displayed.");
+  add(category_t::toolbar_style, 0x0080, "BTNS_WHOLEDROPDOWN", "Specifies that the button will have a drop-down arrow, but not as a separate section.");
+
+  /* ── ACS_* Animation Control Styles ───────────────────────────── */
+  // docs/win32/desktop-src/Controls/animation-control-styles.md
+  add(category_t::animate_style, 0x0004, "ACS_AUTOPLAY", "Starts playing the animation as soon as the AVI clip is opened.");
+  add(category_t::animate_style, 0x0001, "ACS_CENTER", "Centers the animation in the animation control's window.");
+  add(category_t::animate_style, 0x0008, "ACS_TIMER", "Plays the clip using a Win32 timer instead of creating a thread.");
+  add(category_t::animate_style, 0x0002, "ACS_TRANSPARENT", "Matches the animation's background color to that of the underlying window.");
 
   /* ── VK_* Virtual Key Codes ───────────────────────────────────── */
   add(category_t::virtual_key, 0x01, "VK_LBUTTON", "Virtual key code representing the left mouse button.");

@@ -64,10 +64,23 @@ enum class category_t : uint64_t
   mfc_bitmap_id       = 0x20000000, // AFX_IDB_*, IDB_* bitmap IDs
   mfc_icon_id         = 0x40000000, // AFX_IDI_* icon IDs
   mfc_prompt_id       = 0x80000000, // AFX_IDP_* prompt IDs
-  oem_bitmap          = 0x0100000000ULL, // OBM_* OEM bitmap IDs
-  system_resource_id  = 0x0200000000ULL, // ID_* system resource IDs
-  mfc_cursor_id       = 0x0400000000ULL, // AFX_IDC_* cursor IDs
-  mfc_accel_id        = 0x0800000000ULL, // AFX_IDR_* accelerator table IDs
+  oem_bitmap            = 0x00000100000000ULL, // OBM_* OEM bitmap IDs
+  system_resource_id    = 0x00000200000000ULL, // ID_* system resource IDs
+  mfc_cursor_id         = 0x00000400000000ULL, // AFX_IDC_* cursor IDs
+  mfc_accel_id          = 0x00000800000000ULL, // AFX_IDR_* accelerator table IDs
+  header_style          = 0x00001000000000ULL, // HDS_* header control styles
+  common_control_style  = 0x00002000000000ULL, // CCS_* common control styles
+  listview_ex_style     = 0x00004000000000ULL, // LVS_EX_* extended list-view styles
+  edit_ex_style         = 0x00008000000000ULL, // ES_EX_* extended edit control styles
+  treeview_ex_style     = 0x00010000000000ULL, // TVS_EX_* extended tree-view styles
+  month_calendar_style  = 0x00020000000000ULL, // MCS_* month calendar styles
+  pager_style           = 0x00040000000000ULL, // PGS_* pager control styles
+  rebar_style           = 0x00080000000000ULL, // RBS_* rebar control styles
+  tooltip_style         = 0x00100000000000ULL, // TTS_* tooltip control styles
+  toolbar_style         = 0x00200000000000ULL, // TBSTYLE_*, BTNS_* toolbar styles
+  animate_style         = 0x00400000000000ULL, // ACS_* animation control styles
+  statusbar_style       = 0x00800000000000ULL, // SBARS_*, SBT_* status bar styles
+  tabcontrol_ex_style   = 0x01000000000000ULL, // TCS_EX_* extended tab control styles
 };
 
 struct constant_entry
