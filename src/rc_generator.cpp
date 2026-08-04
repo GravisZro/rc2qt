@@ -18,11 +18,11 @@ namespace rc
 {
   using namespace xml;
 
-  static pugi::xml_node add_action(pugi::xml_node node, const std::string& value)
+  static pugi::xml_node add_tag(pugi::xml_node parent, const char* const tag_name, const std::string& name)
   {
-    pugi::xml_node action = node.append_child("addaction");
-    action.append_attribute("name").set_value(value.c_str());
-    return action;
+    pugi::xml_node child = parent.append_child(tag_name);
+    child.append_attribute("name").set_value(name.c_str());
+    return child;
   }
 
   static pugi::xml_node add_widget(pugi::xml_node& parent, const std::string& qt_class, const std::string& name)
@@ -1345,7 +1345,7 @@ void generator::write_menu(pugi::xml_node& parent, const resource& res)
       add_property_string(menu, "title", popup_ptr->text);
       write_menu_entries(menu, popup_ptr->entries);
 
-      add_action(m_menubar_node, menu_name);
+      add_tag(m_menubar_node, "addaction", menu_name);
     }
   }
 }
@@ -1359,13 +1359,13 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       const auto& mi = std::get<menu_item>(entry.item);
 
       if(mi.text == "-" || mi.text.empty())
-        add_action(menu_node, "separator");
+        add_tag(menu_node, "addaction", "separator");
       else
       {
         std::string action_name = mi.id.empty()
           ? std::format("action{}", m_action_counter++)
           : mi.id;
-        add_action(menu_node, action_name);
+        add_tag(menu_node, "addaction", action_name);
       }
     }
     else if(std::holds_alternative<std::shared_ptr<popup>>(entry.item))
@@ -1385,7 +1385,7 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
 
       add_property_string(sub_menu, "title", sub->text);
       write_menu_entries(sub_menu, sub->entries);      
-      add_action(menu_node, sub_name);
+      add_tag(menu_node, "addaction", sub_name);
     }
   }
 }
@@ -1404,9 +1404,9 @@ void generator::write_toolbar(pugi::xml_node& parent, const resource& res)
   for(const auto& entry : td.entries)
   {
     if(entry.is_separator)
-      add_action(toolbar, "separator");
+      add_tag(toolbar, "addaction", "separator");
     else if(!entry.id.empty())
-      add_action(toolbar, entry.id);
+      add_tag(toolbar, "addaction", entry.id);
   }
 }
 
@@ -1445,7 +1445,7 @@ void generator::write_actions(pugi::xml_node& parent, const rc_file& file)
 
   for(const auto& [id, _] : actions_defined)
   {
-    auto action = add_action(parent, id);
+    auto action = add_tag(parent, "action", id);
 
     std::string display_text = id;
     auto text_it = m_menu_text_map.find(id);
