@@ -59,8 +59,8 @@ category_t constant_registry::resolve_category(const std::string& name)
     { "MSCTLS_TRACKBAR32", category_t::trackbar_style },
     { "MSCTLS_PROGRESS32", category_t::progressbar_style },
     { "MSCTLS_UPDOWN32", category_t::updown_style },
-    { "SYSDATETIMEPICK32", category_t::datetimepicker_style },
-    { "SYSMONTHCAL32", category_t::datetimepicker_style },
+    { "SYSDATETIMEPICK32", category_t::datetime_style },
+    { "SYSMONTHCAL32", category_t::datetime_style },
     { "SYSTABCONTROL32", category_t::tabcontrol_style },
 
     // Edit-based controls
@@ -438,15 +438,15 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::updown_style, 0x0100, "UDS_HOTTRACK", "Displays a hot-tracking border on the up-down control when the pointer hovers over it.");
 
   /* ── DTS_* Date/Time Picker Styles ───────────────────────────── */
-  add(category_t::datetimepicker_style, 0x0010, "DTS_APPCANPARSE", "Enables the owner to parse user input in the date/time picker control.");
-  add(category_t::datetimepicker_style, 0x0004, "DTS_LONGDATEFORMAT", "Uses the long date format string as specified in the user's locale settings.");
-  add(category_t::datetimepicker_style, 0x0020, "DTS_RIGHTALIGN", "Right-aligns the drop-down calendar with the control.");
-  add(category_t::datetimepicker_style, 0x0002, "DTS_SHOWNONE", "Displays a check box next to the control; when unchecked, no date is selected.");
-  add(category_t::datetimepicker_style, 0x0008, "DTS_TIMEFORMAT", "Uses the time format string as specified in the user's locale settings.");
-  add(category_t::datetimepicker_style, 0x0001, "DTS_UPDOWN", "Displays an up-down control rather than a drop-down calendar for date selection.");
-  add(category_t::datetimepicker_style, 0x0000, "DTS_SHORTDATEFORMAT", "Uses the short date format as specified in the user's locale settings (default).");
-  add(category_t::datetimepicker_style, 0x0020, "DTS_MONTHCAL", "Displays a month calendar control as a drop-down rather than a simple drop-down list.");
-  add(category_t::datetimepicker_style, 0x000C, "DTS_SHORTDATECENTURYFORMAT", "Similar to DTS_SHORTDATEFORMAT, except the year is a four-digit field.");
+  add(category_t::datetime_style, 0x0010, "DTS_APPCANPARSE", "Enables the owner to parse user input in the date/time picker control.");
+  add(category_t::datetime_style, 0x0004, "DTS_LONGDATEFORMAT", "Uses the long date format string as specified in the user's locale settings.");
+  add(category_t::datetime_style, 0x0020, "DTS_RIGHTALIGN", "Right-aligns the drop-down calendar with the control.");
+  add(category_t::datetime_style, 0x0002, "DTS_SHOWNONE", "Displays a check box next to the control; when unchecked, no date is selected.");
+  add(category_t::datetime_style, 0x0008, "DTS_TIMEFORMAT", "Uses the time format string as specified in the user's locale settings.");
+  add(category_t::datetime_style, 0x0001, "DTS_UPDOWN", "Displays an up-down control rather than a drop-down calendar for date selection.");
+  add(category_t::datetime_style, 0x0000, "DTS_SHORTDATEFORMAT", "Uses the short date format as specified in the user's locale settings (default).");
+  add(category_t::datetime_style, 0x0020, "DTS_MONTHCAL", "Displays a month calendar control as a drop-down rather than a simple drop-down list.");
+  add(category_t::datetime_style, 0x000C, "DTS_SHORTDATECENTURYFORMAT", "Similar to DTS_SHORTDATEFORMAT, except the year is a four-digit field.");
 
   /* ── TCS_* Tab Control Styles ────────────────────────────────── */
   add(category_t::tabcontrol_style, 0x0002, "TCS_BOTTOM", "Places tabs at the bottom of the control.");
@@ -485,16 +485,16 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::scrollbar_style, 0x0800, "SBARS_TOOLTIPS", "Enables tooltips for status bar parts when the mouse hovers over them.");
 
   /* ── MCS_* Month Calendar Styles ─────────────────────────────── */
-  add(category_t::datetimepicker_style, 0x0001, "MCS_DAYSTATE", "Requests the parent to supply day state information to display bolded dates.");
-  add(category_t::datetimepicker_style, 0x0002, "MCS_MULTISELECT", "Enables selection of a range of dates in the month calendar control.");
-  add(category_t::datetimepicker_style, 0x0004, "MCS_WEEKNUMBERS", "Displays week numbers along the left edge of the calendar.");
-  add(category_t::datetimepicker_style, 0x0008, "MCS_NOTODAYCIRCLE", "Disables the circle that highlights today's date in the month calendar.");
-  add(category_t::datetimepicker_style, 0x0010, "MCS_NOTODAY", "Hides the today selection row at the bottom of the month calendar control.");
-  add(category_t::datetimepicker_style, 0x0020, "MCS_NORROWHEAD", "Hides the left column that shows the week numbers in the month calendar.");
-  add(category_t::datetimepicker_style, 0x0040, "MCS_NODATEPICK", "Hides the date picker at the top of the month calendar control.");
-  add(category_t::datetimepicker_style, 0x0100, "MCS_NOSELCHANGEONNAV", "The selection is not changed when the user navigates next or previous in the calendar.");
-  add(category_t::datetimepicker_style, 0x0040, "MCS_NOTRAILINGDATES", "Dates from the previous and next months are not displayed in the current month's calendar.");
-  add(category_t::datetimepicker_style, 0x0080, "MCS_SHORTDAYSOFWEEK", "Short day names are displayed in the header.");
+  add(category_t::datetime_style, 0x0001, "MCS_DAYSTATE", "Requests the parent to supply day state information to display bolded dates.");
+  add(category_t::datetime_style, 0x0002, "MCS_MULTISELECT", "Enables selection of a range of dates in the month calendar control.");
+  add(category_t::datetime_style, 0x0004, "MCS_WEEKNUMBERS", "Displays week numbers along the left edge of the calendar.");
+  add(category_t::datetime_style, 0x0008, "MCS_NOTODAYCIRCLE", "Disables the circle that highlights today's date in the month calendar.");
+  add(category_t::datetime_style, 0x0010, "MCS_NOTODAY", "Hides the today selection row at the bottom of the month calendar control.");
+  add(category_t::datetime_style, 0x0020, "MCS_NORROWHEAD", "Hides the left column that shows the week numbers in the month calendar.");
+  add(category_t::datetime_style, 0x0040, "MCS_NODATEPICK", "Hides the date picker at the top of the month calendar control.");
+  add(category_t::datetime_style, 0x0100, "MCS_NOSELCHANGEONNAV", "The selection is not changed when the user navigates next or previous in the calendar.");
+  add(category_t::datetime_style, 0x0040, "MCS_NOTRAILINGDATES", "Dates from the previous and next months are not displayed in the current month's calendar.");
+  add(category_t::datetime_style, 0x0080, "MCS_SHORTDAYSOFWEEK", "Short day names are displayed in the header.");
 
   /* ── VK_* Virtual Key Codes ───────────────────────────────────── */
   add(category_t::virtual_key, 0x01, "VK_LBUTTON", "Virtual key code representing the left mouse button.");
