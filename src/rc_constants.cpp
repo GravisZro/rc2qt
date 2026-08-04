@@ -492,6 +492,9 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::datetimepicker_style, 0x0010, "MCS_NOTODAY", "Hides the today selection row at the bottom of the month calendar control.");
   add(category_t::datetimepicker_style, 0x0020, "MCS_NORROWHEAD", "Hides the left column that shows the week numbers in the month calendar.");
   add(category_t::datetimepicker_style, 0x0040, "MCS_NODATEPICK", "Hides the date picker at the top of the month calendar control.");
+  add(category_t::datetimepicker_style, 0x0100, "MCS_NOSELCHANGEONNAV", "The selection is not changed when the user navigates next or previous in the calendar.");
+  add(category_t::datetimepicker_style, 0x0040, "MCS_NOTRAILINGDATES", "Dates from the previous and next months are not displayed in the current month's calendar.");
+  add(category_t::datetimepicker_style, 0x0080, "MCS_SHORTDAYSOFWEEK", "Short day names are displayed in the header.");
 
   /* ── VK_* Virtual Key Codes ───────────────────────────────────── */
   add(category_t::virtual_key, 0x01, "VK_LBUTTON", "Virtual key code representing the left mouse button.");
@@ -1205,5 +1208,49 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::oem_bitmap, 0x7ff1, "OBM_ZOOMD", "Pressed state of standard Maximize button");
   add(category_t::system_id,      -1, "IDC_STATIC");
 }
+/*
+DESIGNINFO
+LEFTMARGIN, RIGHTMARGIN, TOPMARGIN, BOTTOMMARGIN
 
+    VERTGUIDE,
+
+"VERTGUIDE", "Defines a vertical alignment reference line placed at a specific coordinate (in dialog units) across the dialog. This allows multiple controls (like text boxes or buttons) to snap to a shared vertical axis."
+"HORZGUIDE", "Defines a horizontal alignment reference line at a specific coordinate. Used to keep rows or groups of controls level with one another."
+
+GUIDELINES DESIGNINFO DISCARDABLE
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+       LEFTMARGIN, 7
+       RIGHTMARGIN, 228
+       TOPMARGIN, 7
+       BOTTOMMARGIN, 62
+    END
+
+    IDD_MAIN_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 313
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 183
+    END
+END
+
+
+<layout class="QVBoxLayout" name="verticalLayout">
+  <property name="leftMargin">
+    <number>9</number>
+  </property>
+  <property name="topMargin">
+    <number>9</number>
+  </property>
+  <property name="rightMargin">
+    <number>9</number>
+  </property>
+  <property name="bottomMargin">
+    <number>9</number>
+  </property>
+</layout>
+
+*/
 }
