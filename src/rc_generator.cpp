@@ -1197,92 +1197,94 @@ void generator::set_dlu_factors(const std::string& font_name, int font_size, int
 #include <freetype/freetype.h>
 #include <fontconfig/fontconfig.h>
 
-void generator::set_dlu_factors(const std::string& font_name, int font_size, int weight, bool italic) {
-    // 1. Initialize Fontconfig to locate the font file path
-    if (!FcInit()) {
-        throw std::runtime_error("Failed to initialize Fontconfig!");
-    }
+// based upon https://jeffpar.github.io/kbarchive/kb/145/Q145994/
+void generator::set_dlu_factors(const std::string &font_name, int font_size, int weight, bool italic)
+{
+  if (!FcInit())
+    throw std::runtime_error("Failed to initialize Fontconfig!");
 
-    FcPattern* pat = FcPatternCreate();
-    FcPatternAddString(pat, FC_FAMILY, reinterpret_cast<const FcChar8*>(font_name.c_str()));
+  FcPattern *pat = FcPatternCreate();
+  FcPatternAddString(pat, FC_FAMILY, reinterpret_cast<const FcChar8 *>(font_name.c_str()));
 
-    // Map Qt weights to Fontconfig weights roughly
-    int fc_weight = FC_WEIGHT_MEDIUM;
-    if (weight >= 700) fc_weight = FC_WEIGHT_BOLD;
-    else if (weight <= 300) fc_weight = FC_WEIGHT_LIGHT;
-    FcPatternAddInteger(pat, FC_WEIGHT, fc_weight);
+  int fc_weight = FC_WEIGHT_MEDIUM; // normal
+  if (weight >= 700) // bold
+    fc_weight = FC_WEIGHT_BOLD;
+  else if (weight <= 300) // light
+    fc_weight = FC_WEIGHT_LIGHT;
+  FcPatternAddInteger(pat, FC_WEIGHT, fc_weight);
 
-    int fc_slant = italic ? FC_SLANT_ITALIC : FC_SLANT_ROMAN;
-    FcPatternAddInteger(pat, FC_SLANT, fc_slant);
+  FcPatternAddInteger(pat, FC_SLANT, italic ? FC_SLANT_ITALIC : FC_SLANT_ROMAN);
+  FcConfigSubstitute(nullptr, pat, FcMatchPattern);
+  FcDefaultSubstitute(pat);
 
-    FcConfigSubstitute(nullptr, pat, FcMatchPattern);
-    FcDefaultSubstitute(pat);
+  FcResult result;
+  FcPattern *match = FcFontMatch(nullptr, pat, &result);
+  FcPatternDestroy(pat);
 
-    FcResult result;
-    FcPattern* match = FcFontMatch(nullptr, pat, &result);
-    FcPatternDestroy(pat);
+  if (!match)
+  {
+    FcFini();
+    throw std::runtime_error(std::format("Font \"{}\" not found via Fontconfig!", font_name));
+  }
 
-    if (!match) {
-        FcFini();
-        throw std::runtime_error(std::format("Font \"{}\" not found via Fontconfig!", font_name));
-    }
-
-    FcChar8* file_path = nullptr;
-    if (FcPatternGetString(match, FC_FILE, 0, &file_path) != FcResultMatch) {
-        FcPatternDestroy(match);
-        FcFini();
-        throw std::runtime_error(std::format("Could not extract file path for font \"{}\"", font_name));
-    }
-
-    std::string path_str(reinterpret_cast<char*>(file_path));
+  FcChar8 *file_path = nullptr;
+  if (FcPatternGetString(match, FC_FILE, 0, &file_path) != FcResultMatch)
+  {
     FcPatternDestroy(match);
     FcFini();
+    throw std::runtime_error(std::format("Could not extract file path for font \"{}\"", font_name));
+  }
 
-    // 2. Initialize FreeType and load the font face
-    FT_Library ft_library;
-    if (FT_Init_FreeType(&ft_library)) {
-        throw std::runtime_error("Failed to initialize FreeType library!");
-    }
+  std::string path_str(reinterpret_cast<char *>(file_path));
+  FcPatternDestroy(match);
+  FcFini();
 
-    FT_Face ft_face;
-    if (FT_New_Face(ft_library, path_str.c_str(), 0, &ft_face)) {
-        FT_Done_FreeType(ft_library);
-        throw std::runtime_error(std::format("Failed to load font file: {}", path_str));
-    }
+  // 2. Initialize FreeType and load the font face
+  FT_Library ft_library;
+  if (FT_Init_FreeType(&ft_library))
+    throw std::runtime_error("Failed to initialize FreeType library!");
 
-    // Set font size (FreeType takes size in 26.6 fractional pixels, or pixel sizes directly)
-    // Assuming font_size represents point size at 96 DPI: pixels = point_size * 96 / 72
-    int pixel_height = (font_size * 96 + 36) / 72;
-    if (FT_Set_Pixel_Sizes(ft_face, 0, pixel_height)) {
-        FT_Done_Face(ft_face);
-        FT_Done_FreeType(ft_library);
-        throw std::runtime_error("Failed to set pixel size for FreeType face.");
-    }
+  FT_Face ft_face;
+  if (FT_New_Face(ft_library, path_str.c_str(), 0, &ft_face)) {
+    FT_Done_FreeType(ft_library);
+    throw std::runtime_error(std::format("Failed to load font file: {}", path_str));
+  }
 
-    // 3. Extract metrics equivalent to QFontMetrics
-    // ft_face->size->metrics.height is in 26.6 fractional pixels (shift right by 6)
-    double font_height = static_cast<double>(ft_face->size->metrics.height >> 6);
-    m_dlu_y_factor = font_height / 8.0;
-
-    // Calculate horizontal advance for the alphabet string
-    std::string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    double total_width = 0.0;
-
-    // Ensure glyph loader knows to load metrics
-    for (char c : alphabet) {
-        FT_UInt glyph_index = FT_Get_Char_Index(ft_face, static_cast<FT_ULong>(c));
-        // Load glyph metrics (with no rasterization bitmap overhead needed for width)
-        if (FT_Load_Glyph(ft_face, glyph_index, FT_LOAD_DEFAULT) == 0) {
-            total_width += static_cast<double>(ft_face->glyph->advance.x >> 6);
-        }
-    }
-
-    double avgCharWidth = total_width / 52.0;
-    m_dlu_x_factor = avgCharWidth / 4.0;
-
-    // 4. Cleanup FreeType resources
+  // Set font size (FreeType takes size in 26.6 fractional pixels, or pixel sizes directly)
+  // Assuming font_size represents point size at 96 DPI: pixels = point_size * 96 / 72
+  int pixel_height = (font_size * 96 + 36) / 72;
+  if (FT_Set_Pixel_Sizes(ft_face, 0, pixel_height))
+  {
     FT_Done_Face(ft_face);
     FT_Done_FreeType(ft_library);
+    throw std::runtime_error("Failed to set pixel size for FreeType face.");
+  }
+
+  // 3. Extract metrics equivalent to QFontMetrics
+  // ft_face->size->metrics.height is in 26.6 fractional pixels (shift right by 6)
+  double font_height = static_cast<double>(ft_face->size->metrics.height >> 6);
+  m_dlu_y_factor = font_height / 8.0;
+
+  // Calculate horizontal advance for the alphabet string
+  std::string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  double total_width = 0.0;
+
+  // Ensure glyph loader knows to load metrics
+  for (char c : alphabet)
+  {
+    FT_UInt glyph_index = FT_Get_Char_Index(ft_face, static_cast<FT_ULong>(c));
+    // Load glyph metrics (with no rasterization bitmap overhead needed for width)
+    if (FT_Load_Glyph(ft_face, glyph_index, FT_LOAD_DEFAULT) == 0) {
+      total_width += static_cast<double>(ft_face->glyph->advance.x >> 6);
+    }
+  }
+
+  double avgCharWidth = total_width / 52.0;
+  m_dlu_x_factor = avgCharWidth / 4.0;
+
+  // 4. Cleanup FreeType resources
+  FT_Done_Face(ft_face);
+  FT_Done_FreeType(ft_library);
 }
 #endif
 
