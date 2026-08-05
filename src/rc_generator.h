@@ -52,8 +52,12 @@ private:
   std::string unique_name(const std::string& id);
   std::string map_vk_to_qt(const std::string& vk_code);
 
-  int dlu_to_pixel_x(int dlu) const;
-  int dlu_to_pixel_y(int dlu) const;
+  int dlu_to_pixel_x(int dlu) const
+    { return static_cast<int>(dlu * m_dlu_x_factor); }
+
+  int dlu_to_pixel_y(int dlu) const
+    { return static_cast<int>(dlu * m_dlu_y_factor); }
+
   void set_dlu_factors(const std::string& font_name, int font_size, int weight, bool italic);
 
   const dialog_stmt* find_statement(const dialog_data& dd, const std::string& keyword) const;
@@ -73,6 +77,7 @@ private:
   std::map<std::string, const dialog_data*> m_ds_control_dialogs;
   std::map<std::string, std::string> m_substitute_fonts;
   pugi::xml_node m_menubar_node;
+
   double m_dlu_x_factor = 1.75;
   double m_dlu_y_factor = 1.75;
   int m_action_counter = 0;

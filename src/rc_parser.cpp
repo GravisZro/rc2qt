@@ -11,17 +11,15 @@
 
 namespace rc
 {
-using token_list = std::initializer_list<token_type>;
-using string_list = std::initializer_list<std::string>;
 
 enum const_flags : uint16_t
 {
-  resource_type = 0x0001,
-  attribute_type = 0x0002,
+  resource_type   = 0x0001,
+  attribute_type  = 0x0002,
   control_keyword = 0x0004,
-  dialog_keyword = 0x0008,
-  popup_flag = 0x0010,
-  has_text_flag = 0x0020,
+  dialog_keyword  = 0x0008,
+  popup_flag      = 0x0010,
+  has_text_flag   = 0x0020,
 };
 
 static const std::map<std::string_view, const_flags> const_flag_data
@@ -130,14 +128,14 @@ const token& parser::peek(size_t offset) const
     return m_tokens[idx];
   if(!m_tokens.empty())
     return m_tokens.back();
-  static const token eof_token{token_type::eof, "", 0};
+  static const token eof_token { token_type::eof, "", 0 };
   return eof_token;
 }
 
 token parser::advance()
 {
   if(m_pos >= m_tokens.size())
-    return {token_type::eof, "", 0};
+    return { token_type::eof, "", 0 };
   return m_tokens[m_pos++];
 }
 
@@ -154,8 +152,8 @@ uint16_t parser::nextu16(void)
 
 bool parser::is_current_type_attribute(void) const
 {
-  return current().type == token_type::identifier &&
-         has_flag(current().value, const_flags::attribute_type);
+  return current() == token_type::identifier &&
+         has_flag(current(), const_flags::attribute_type);
 }
 
 bool parser::is_current_identifier(const std::string& identifier)
@@ -164,24 +162,15 @@ bool parser::is_current_identifier(const std::string& identifier)
          current() == identifier;
 }
 
-
-static constexpr token_list tt_II    = { token_type::identifier, token_type::integer_literal };
-static constexpr token_list tt_IIH   = { token_type::identifier, token_type::integer_literal,
-                                                                token_type::hex_literal };
-static constexpr token_list tt_IIHS  = { token_type::identifier, token_type::integer_literal,
-                                                                token_type::hex_literal, token_type::string_literal };
-static constexpr token_list tt_NEB   = { token_type::newline, token_type::eof, token_type::begin, };
-static constexpr token_list tt_NEE   = { token_type::newline, token_type::eof, token_type::end };
-
 // fixed statement keywords of the VERSIONINFO resource
-static const string_list version_fixed_keywords =
+static const std::initializer_list<std::string> version_fixed_keywords =
 {
   "FILEVERSION", "PRODUCTVERSION", "FILEFLAGSMASK",
   "FILEFLAGS", "FILEOS", "FILETYPE", "FILESUBTYPE",
 };
 
 // number suffix tokens left over from literals such as "0x3fL"
-static const string_list version_number_suffixes =
+static const std::initializer_list<std::string> version_number_suffixes =
 {
   "L", "U", "UL", "LU", "LL", "ULL",
 };
@@ -215,7 +204,7 @@ void parser::skip_newlines()
 
 std::string parser::parse_resource_id()
 {
-  return current() == tt_IIHS ? next_val() : "";
+  return current() == token_type::str_num_ident ? next_val() : "";
 }
 
 style_expr parser::parse_style_expr()
@@ -227,19 +216,19 @@ style_expr parser::parse_style_expr()
     advance();
     skip_newlines();
     std::string flag;
-    if(current() == tt_IIH)
+    if(current() == token_type::num_or_ident)
       flag = next_val();
     if(!flag.empty())
       expr.not_flags.push_back(flag);
     return expr;
   }
 
-  if(current() == tt_IIH)
+  if(current() == token_type::num_or_ident)
     expr.first = next_val();
 
   while(current() == token_type::pipe ||
         (current() == token_type::identifier &&
-         current() == string_list{"||", "OR"}))
+         match_string(current(), { "||", "OR" })))
   {
     std::string op = next_val();
     skip_newlines();
@@ -249,7 +238,7 @@ style_expr parser::parse_style_expr()
       advance();
       skip_newlines();
       std::string flag;
-      if(current() == tt_IIH)
+      if(current() == token_type::num_or_ident)
         flag = next_val();
       if(!flag.empty())
         expr.not_flags.push_back(flag);
@@ -258,7 +247,7 @@ style_expr parser::parse_style_expr()
     }
 
     std::string val;
-    if(current() == tt_IIH)
+    if(current() == token_type::num_or_ident)
       val = next_val();
     else
       break;
@@ -268,9 +257,6 @@ style_expr parser::parse_style_expr()
 
   return expr;
 }
-
-
-
 
 control parser::parse_control()
 {
@@ -316,7 +302,7 @@ control parser::parse_control()
   {
     if(has_flag(ctrl.keyword, const_flags::has_text_flag))
     {
-      if(current() == tt_IIHS)
+      if(current() == token_type::str_num_ident)
         ctrl.text = next_val();
       if(match(token_type::comma))
         ctrl.id = parse_resource_id();
@@ -356,9 +342,9 @@ menu_item parser::parse_menu_item()
   while(match(token_type::comma))
   {
     if(current() == token_type::identifier &&
-       !has_flag(current().value, const_flags::control_keyword) &&
-        current() != string_list{ "POPUP", "END" } &&
-        current() != token_list{ token_type::eof, token_type::newline })
+       !has_flag(current(), const_flags::control_keyword) &&
+        !match_string(current(), { "POPUP", "END" }) &&
+        current() != token_type::newline_eof)
     {
       item.flags.push_back(next_val());
     }
@@ -374,9 +360,11 @@ menu_item parser::parse_menu_item()
 popup* parser::parse_popup()
 {
   auto is_flag = [this]()
-    { return current() == token_type::identifier &&
-            current() != string_list {"BEGIN", "END"} &&
-            current() != token_list { token_type::eof, token_type::newline }; };
+  {
+    return current() == token_type::identifier &&
+           current() != token_type::newline_eof &&
+           !match_string(current(), { "BEGIN", "END" });
+  };
 
   auto* pp = new popup();
   advance();
@@ -384,7 +372,8 @@ popup* parser::parse_popup()
     pp->text = next_val();
   if(match(token_type::comma))
   {
-    if(current() == tt_IIH && !has_flag(current().value, const_flags::popup_flag))
+    if(current() == token_type::num_or_ident &&
+       !has_flag(current(), const_flags::popup_flag))
       pp->id = next_val();
 
     while(is_flag())
@@ -403,9 +392,9 @@ popup* parser::parse_popup()
 
 void parser::parse_menu_body(std::vector<menu_entry>& entries)
 {
-  while(skip_newlines(), current() != token_list { token_type::end, token_type::eof })
+  while(skip_newlines(), current() != token_type::end_eof)
   {
-    if(to_upper(current().value) == "POPUP")
+    if(to_upper(current()) == "POPUP")
     {
       std::shared_ptr<popup> pp(parse_popup());
       menu_entry me;
@@ -463,15 +452,11 @@ dialog_stmt parser::parse_dialog_statement()
         stmt.text_value = next_val();
       if(match(token_type::comma))
       {
-        if(current() == token_list{token_type::identifier, token_type::integer_literal})
+        if(current() == token_type::int_or_ident)
           stmt.numeric_value2 = nextu16();
-        if(match(token_type::comma))
-        {
-          if(current() == token_list{token_type::identifier, token_type::integer_literal})
-          {
-            stmt.italic = nextu16();
-          }
-        }
+        if(match(token_type::comma) &&
+           current() == token_type::int_or_ident)
+          stmt.italic = nextu16();
       }
     }
   }
@@ -504,7 +489,7 @@ void parser::skip_begin_end()
   if(!match(token_type::begin))
     return;
   int depth = 1;
-  while(depth > 0 && current().type != token_type::eof)
+  while(depth > 0 && current() != token_type::eof)
   {
     if(current() == token_type::begin)
       ++depth;
@@ -522,7 +507,8 @@ void parser::parse_simple_resource(resource& res)
 
   if(current() == token_type::string_literal)
     res.filename = next_val();
-  else if(current() == token_type::identifier && !has_flag(current().value, const_flags::resource_type))
+  else if(current() == token_type::identifier &&
+          !has_flag(current(), const_flags::resource_type))
     res.filename = next_val();
 }
 
@@ -533,7 +519,7 @@ void parser::parse_dialog_resource(resource& res)
   while(is_current_type_attribute())
     res.attributes.push_back(next_val());
 
-  if(current() == token_list { token_type::integer_literal, token_type::hex_literal })
+  if(current() == token_type::number_literal)
     dd.x = static_cast<int16_t>(safe_stoi(next_val()));
   if(match(token_type::comma))
   {
@@ -551,31 +537,23 @@ void parser::parse_dialog_resource(resource& res)
     dd.height = static_cast<uint16_t>(safe_stoi(next_val()));
   }
 
-  if(to_upper(res.type) == "DIALOGEX")
-  {
-    if(match(token_type::comma))
-      dd.help_id = parse_resource_id();
-  }
+  if(to_upper(res.type) == "DIALOGEX" &&
+     match(token_type::comma))
+    dd.help_id = parse_resource_id();
 
-  skip_newlines();
-
-  while(current() != token_list { token_type::begin, token_type::eof })
+  while(skip_newlines(), current() != token_type::begin_eof)
   {
-    if(has_flag(current().value, const_flags::dialog_keyword))
+    if(has_flag(current(), const_flags::dialog_keyword))
       dd.statements.push_back(parse_dialog_statement());
     else
       advance();
-    skip_newlines();
   }
 
   if(match(token_type::begin))
   {
-    while(current().type != token_type::end && current().type != token_type::eof)
+    while(skip_newlines(), current() != token_type::end_eof)
     {
-      skip_newlines();
-      if(current() == token_list { token_type::end, token_type::eof })
-        break;
-      if(has_flag(current().value, const_flags::control_keyword))
+      if(has_flag(current(), const_flags::control_keyword))
         dd.controls.push_back(parse_control());
       else
         advance();
@@ -591,7 +569,9 @@ void parser::parse_menu_resource(resource& res)
 {
   menu_data md;
 
-  while(current() == token_type::identifier && (has_flag(current().value, const_flags::attribute_type) || to_upper(current().value) == "EX"))
+  while(current() == token_type::identifier &&
+        (has_flag(current(), const_flags::attribute_type) ||
+          to_upper(current()) == "EX"))
     res.attributes.push_back(next_val());
 
   skip_newlines();
@@ -608,10 +588,12 @@ void parser::parse_toolbar_resource(resource& res)
 {
   toolbar_data td;
 
-  while(current() == token_type::identifier && (has_flag(current().value, const_flags::attribute_type) || current() == "EX"))
+  while(current() == token_type::identifier &&
+        (has_flag(current(), const_flags::attribute_type) ||
+         current() == "EX"))
     res.attributes.push_back(next_val());
 
-  if(current() == token_list { token_type::integer_literal, token_type::hex_literal })
+  if(current() == token_type::number_literal)
     td.width = static_cast<uint16_t>(safe_stoi(next_val()));
   if(match(token_type::comma))
   {
@@ -622,20 +604,16 @@ void parser::parse_toolbar_resource(resource& res)
   skip_newlines();
   if(match(token_type::begin))
   {
-    while(current() != token_list { token_type::end, token_type::eof })
+    while(skip_newlines(), current() != token_type::end_eof)
     {
-      skip_newlines();
-      if(current() == token_list { token_type::end, token_type::eof })
-        break;
-
-      if(to_upper(current().value) == "SEPARATOR")
+      if(to_upper(current()) == "SEPARATOR")
       {
         advance();
         toolbar_entry te;
         te.is_separator = true;
         td.entries.push_back(te);
       }
-      else if(to_upper(current().value) == "BUTTON")
+      else if(to_upper(current()) == "BUTTON")
       {
         advance();
         toolbar_entry te;
@@ -664,24 +642,16 @@ void parser::parse_accelerator_resource(resource& res)
   skip_newlines();
   if(match(token_type::begin))
   {
-    while(current() != token_list { token_type::end, token_type::eof })
+    while(skip_newlines(), current() != token_type::end_eof)
     {
-      skip_newlines();
-      if(current() == token_list { token_type::end, token_type::eof })
-        break;
-
       accelerator_entry ae;
-      if(current() == token_type::string_literal)
-        ae.event = next_val();
-      else if(current() == token_list { token_type::integer_literal, token_type::hex_literal })
-        ae.event = next_val();
-      else if(current() == token_type::identifier)
+      if(current() == token_type::str_num_ident)
         ae.event = next_val();
 
       if(match(token_type::comma))
         ae.id = parse_resource_id();
 
-      while(match(token_type::comma) || match(token_type::pipe))
+      while(match(token_type::comma | token_type::pipe))
       {
         if(current() == token_type::identifier)
           ae.modifiers.push_back(next_val());
@@ -706,7 +676,7 @@ void parser::parse_stringtable_resource(resource& res)
   skip_newlines();
   if(match(token_type::begin))
   {
-    while(skip_newlines(), current() != token_list { token_type::end, token_type::eof })
+    while(skip_newlines(), current() != token_type::end_eof)
     {
       string_table_entry ste;
       ste.id = parse_resource_id();
@@ -724,97 +694,6 @@ void parser::parse_stringtable_resource(resource& res)
   res.data = entries;
 }
 
-// void parser::parse_versioninfo_resource(resource& res)
-// {
-//   version_info vi;
-//
-//   while(is_current_type_attribute())
-//     res.attributes.push_back(next_val());
-//
-//   while(current() != token_list { token_type::begin, token_type::eof})
-//   {
-//     if(current() == token_type::identifier)
-//     {
-//       std::string key = to_upper(next_val());
-//       std::string val;
-//       while(current() == token_list {token_type::newline, token_type::eof, token_type::identifier})
-//       {
-//         if(!val.empty())
-//           val += " ";
-//         val += next_val();
-//         if(current() == token_type::comma)
-//         {
-//           val += next_val();
-//           if(!val.empty())
-//             val += " ";
-//         }
-//       }
-//       if(!val.empty())
-//         vi.values[key] = val;
-//     }
-//     else
-//     {
-//       advance();
-//     }
-//   }
-//
-//   skip_newlines();
-//   if(match(token_type::begin))
-//   {
-//     int depth = 1;
-//     size_t max_iters = m_tokens.size() * 4; // is this an accurate value?
-//     size_t iters = 0;
-//     while(depth > 0 && current() != token_type::eof && iters++ < max_iters)
-//     {
-//       if(current() == token_type::begin)
-//         ++depth;
-//       else if(current() == token_type::end)
-//         --depth;
-//
-//       if(depth >= 2 && current() == token_type::string_literal)
-//       {
-//         advance();
-//       }
-//
-//       if(depth >= 2 && is_current_identifier("VALUE"))
-//       {
-//         advance();
-//         if(current() == token_list { token_type::string_literal, token_type::identifier })
-//         {
-//           std::string key = next_val();
-//           std::string val;
-//           if(match(token_type::comma))
-//           {
-//             skip_newlines();
-//             while(current() != token_list { token_type::newline, token_type::eof })
-//             {
-//               if(!val.empty())
-//                 val += " ";
-//               val += next_val();
-//               if(current() == token_type::comma)
-//               {
-//                 val += next_val();
-//                 if(!val.empty())
-//                   val += " ";
-//               }
-//             }
-//           }
-//           std::string full_key = key;
-//           vi.values[full_key] = val;
-//         }
-//       }
-//
-//       if(depth > 0)
-//         advance();
-//     }
-//     match(token_type::end);
-//     if(iters >= max_iters)
-//       throw std::runtime_error("!! Parsing terminated early.");
-//   }
-//
-//   res.data = vi;
-// }
-
 void parser::parse_versioninfo_resource(resource& res)
 {
   version_info vi;
@@ -824,22 +703,19 @@ void parser::parse_versioninfo_resource(resource& res)
 
   // Fixed statements, e.g. "FILEVERSION 1,0,0,1" or "FILETYPE VFT_DLL".
   skip_newlines();
-  while(current() == token_type::identifier && current() == version_fixed_keywords)
+  while(current() == token_type::identifier &&
+        current() == version_fixed_keywords)
   {
     std::string key = to_upper(next_val());
     std::string val;
     bool first = true;
-    while(current() == tt_IIH)
+    while(current() == token_type::num_or_ident)
     {
-      std::string item;
-      if(current() == token_type::identifier)
-        item = next_val();
-      else
-      {
-        item = next_val();
-        if(current() == token_type::identifier && current() == version_number_suffixes)
-          advance();
-      }
+      std::string item = next_val();
+      if(current() == token_type::identifier &&
+         current() == version_number_suffixes)
+        advance();
+
       if(!first)
         val += ",";
       val += item;
@@ -855,18 +731,15 @@ void parser::parse_versioninfo_resource(resource& res)
   // Body: "BLOCK \"StringFileInfo\"" / "BLOCK \"VarFileInfo\"" subtrees.
   if(match(token_type::begin))
   {
-    while(current() != token_type::end && current() != token_type::eof)
+    while(skip_newlines(), current() != token_type::end_eof)
     {
-      skip_newlines();
-      if(current() == token_type::end || current() == token_type::eof)
-        break;
       if(!match_id("BLOCK"))
       {
         advance();
         continue;
       }
       std::string block_name;
-      if(current() == tt_IIHS)
+      if(current() == token_type::str_num_ident)
         block_name = next_val();
       skip_newlines();
       if(match(token_type::begin))
@@ -874,15 +747,12 @@ void parser::parse_versioninfo_resource(resource& res)
         if(to_upper(block_name) == "STRINGFILEINFO")
         {
           // Nested language blocks, each holding VALUE statements.
-          while(current() != token_type::end && current() != token_type::eof)
+          while(skip_newlines(), current() != token_type::end_eof)
           {
-            skip_newlines();
-            if(current() == token_type::end || current() == token_type::eof)
-              break;
             if(match_id("BLOCK"))
             {
               version_string_block sb;
-              if(current() == tt_IIHS)
+              if(current() == token_type::str_num_ident)
                 sb.language = next_val();
               skip_newlines();
               if(match(token_type::begin))
@@ -918,25 +788,22 @@ void parser::parse_versioninfo_resource(resource& res)
 
 void parser::parse_version_value_list(std::map<std::string, std::string>& out)
 {
-  while(current() != token_type::end && current() != token_type::eof)
+  while(skip_newlines(), current() != token_type::end_eof)
   {
-    skip_newlines();
-    if(current() == token_type::end || current() == token_type::eof)
-      break;
     if(!match_id("VALUE"))
     {
       advance();
       continue;
     }
     std::string key;
-    if(current() == token_type::string_literal || current() == token_type::identifier)
+    if(current() == token_type::string_or_ident)
       key = next_val();
     if(match(token_type::comma))
     {
       std::string val;
       bool first = true;
       skip_newlines();
-      while(current() == tt_IIHS)
+      while(current() == token_type::str_num_ident)
       {
         std::string item;
         if(current() == token_type::string_literal)
@@ -950,7 +817,8 @@ void parser::parse_version_value_list(std::map<std::string, std::string>& out)
         else
         {
           item = next_val();
-          if(current() == token_type::identifier && current() == version_number_suffixes)
+          if(current() == token_type::identifier &&
+             current() == version_number_suffixes)
             advance();
         }
         if(!first)
@@ -976,7 +844,7 @@ void parser::parse_rcdata_resource(resource& res)
   skip_newlines();
   if(match(token_type::begin))
   {
-    while(skip_newlines(), current() != token_list { token_type::eof, token_type::end })
+    while(skip_newlines(), current() != token_type::end_eof)
       advance();
     match(token_type::end);
   }
@@ -998,11 +866,11 @@ void parser::parse_dlginit_resource(resource& res)
     return;
   }
 
-  while(skip_newlines(), current() != token_list { token_type::eof, token_type::end })
+  while(skip_newlines(), current() != token_type::end_eof)
   {
-    if(current() == token_list { token_type::integer_literal, token_type::hex_literal })
+    if(current() == token_type::number_literal)
     {
-      std::string num_str = current().value;
+      std::string num_str = current();
       bool is_zero = (num_str == "0");
       if(!is_zero && num_str.size() > 2 && num_str[0] == '0' &&
          (num_str[1] == 'x' || num_str[1] == 'X'))
@@ -1011,7 +879,7 @@ void parser::parse_dlginit_resource(resource& res)
       if(is_zero)
       {
         advance();
-        while(current() != tt_NEE)
+        while(current() != token_type::newline_end_eof)
           advance();
         continue;
       }
@@ -1025,16 +893,16 @@ void parser::parse_dlginit_resource(resource& res)
 
     if(!match(token_type::comma))
     {
-      while(current() != tt_NEE)
+      while(current() != token_type::newline_end_eof)
         advance();
       continue;
     }
 
     skip_newlines();
 
-    if(current() == token_list { token_type::hex_literal, token_type::integer_literal })
+    if(current() == token_type::number_literal)
     {
-      std::string msg = current().value;
+      std::string msg = current();
       if(msg.size() > 2 && msg[0] == '0' && (msg[1] == 'x' || msg[1] == 'X'))
         entry.message = static_cast<uint16_t>(safe_stoul(msg, 16));
       else
@@ -1042,17 +910,17 @@ void parser::parse_dlginit_resource(resource& res)
       advance();
     }
 
-    while(current() != tt_NEE)
+    while(current() != token_type::newline_end_eof)
       advance();
 
     skip_newlines();
 
     std::string text_data;
-    while(current() != tt_NEE)
+    while(current() != token_type::newline_end_eof)
     {
       if(current() == token_type::hex_literal)
       {
-        std::string hex = current().value;
+        std::string hex = current();
         unsigned val = safe_stoul(hex, 16);
         text_data += static_cast<char>(val & 0xFF);
         text_data += static_cast<char>((val >> 8) & 0xFF);
@@ -1063,7 +931,7 @@ void parser::parse_dlginit_resource(resource& res)
           skip_newlines();
           if(current() == token_type::hex_literal)
           {
-            std::string h2 = current().value;
+            std::string h2 = current();
             unsigned v2 = safe_stoul(h2, 16);
             text_data += static_cast<char>(v2 & 0xFF);
             text_data += static_cast<char>((v2 >> 8) & 0xFF);
@@ -1071,7 +939,7 @@ void parser::parse_dlginit_resource(resource& res)
           }
           else if(current() == token_type::string_literal)
           {
-            std::string s2 = current().value;
+            std::string s2 = current();
             s2.erase(std::remove(s2.begin(), s2.end(), '"'), s2.end());
             for(size_t j = 0; j < s2.size(); ++j)
               text_data += s2[j];
@@ -1083,7 +951,7 @@ void parser::parse_dlginit_resource(resource& res)
       }
       else if(current() == token_type::string_literal)
       {
-        std::string s = current().value;
+        std::string s = current();
         s.erase(std::remove(s.begin(), s.end(), '"'), s.end());
         for(size_t i = 0; i < s.size(); ++i)
           text_data += s[i];
@@ -1128,7 +996,7 @@ void parser::parse_typelib_resource(resource& res)
 
 void parser::parse_unused_resource([[maybe_unused]] resource& res)
 {
-  while(current() != token_list { token_type::newline, token_type::eof })
+  while(current() != token_type::newline_eof)
     advance();
   skip_newlines();
   skip_begin_end();
@@ -1170,7 +1038,7 @@ void parser::parse_user_data_block(resource& res)
   if(match(token_type::begin))
   {
     skip_newlines();
-    while(current() != token_list { token_type::end, token_type::eof })
+    while(current() != token_type::end_eof)
     {
       user_data_entry entry;
 
@@ -1180,7 +1048,7 @@ void parser::parse_user_data_block(resource& res)
         entry.is_string = true;
       }
       else if(current() == token_type::identifier &&
-              to_upper(current().value) == "L" &&
+              to_upper(current()) == "L" &&
               peek(1) == token_type::string_literal)
       {
         // Wide-character string, e.g. L"text"
@@ -1189,12 +1057,11 @@ void parser::parse_user_data_block(resource& res)
         entry.is_string = true;
         entry.is_wide = true;
       }
-      else if(current() == token_type::identifier ||
-              current() == token_type::integer_literal ||
-              current() == token_type::hex_literal)
+      else if(current() == token_type::num_or_ident)
       {
         entry.value = next_val();
-        if(current() == token_type::identifier && current() == version_number_suffixes)
+        if(current() == token_type::identifier &&
+           current() == version_number_suffixes)
         {
           // "L" suffix stores the integer as a DWORD
           advance();
@@ -1225,7 +1092,7 @@ resource parser::parse_resource()
 
   if(current() == token_type::identifier)
     res.type = next_val();
-  else if(current() == token_type::integer_literal || current() == token_type::hex_literal)
+  else if(current() == token_type::number_literal)
     res.type = next_val();
 
   std::map<std::string, void (parser::*)(resource&)> funcmap =
@@ -1297,13 +1164,13 @@ rc_file parser::parse()
     {
       advance();
       skip_newlines();
-      if(current() == tt_II)
+      if(current() == token_type::int_or_ident)
         advance();
       skip_newlines();
       if(current() == token_type::comma)
         advance();
       skip_newlines();
-      if(current() == tt_II)
+      if(current() == token_type::int_or_ident)
         advance();
       skip_newlines();
       continue;
@@ -1319,7 +1186,7 @@ rc_file parser::parse()
       continue;
     }
 
-    if(current() == tt_II)
+    if(current() == token_type::int_or_ident)
     {
       resource res = parse_resource();
       file.resources.push_back(res);

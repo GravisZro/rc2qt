@@ -634,33 +634,30 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
 void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd)
 {
-  std::string font_family;
+  std::string orginal_font_name = "MS Sans Serif";
   if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
-    font_family = stmt->text_value;
-  if(font_family.empty())
-    font_family = "MS Sans Serif";
+    orginal_font_name = stmt->text_value;
 
-  font_family = substitute_font(font_family);
-
+  std::string font_name = substitute_font(orginal_font_name);
   int font_size = 8;
-  if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
-  {
-    if(stmt->value.resolved_value >= 0)
-      font_size = static_cast<int>(stmt->value.resolved_value);
-    else if(stmt->numeric_value > 0)
-      font_size = static_cast<int>(stmt->numeric_value);
-  }
   int font_weight = -1; // -1 is a sentinel value
-  if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
-  {
-    if(stmt->numeric_value2 > 0)
-      font_weight = static_cast<int>(stmt->numeric_value2);
-  }
   bool font_bold = (font_weight >= 700);
   bool font_italic = false;
-  if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
-    font_italic = stmt->italic;
-  set_dlu_factors(font_family, font_size > 0 ? font_size : 8, font_weight, font_italic);
+
+  if(const dialog_stmt* font_stmt = find_statement(dd, "FONT"))
+  {
+    if(font_stmt->value.resolved_value >= 0)
+      font_size = static_cast<int>(font_stmt->value.resolved_value);
+    else if(font_stmt->numeric_value > 0)
+      font_size = static_cast<int>(font_stmt->numeric_value);
+
+    if(font_stmt->numeric_value2 > 0)
+      font_weight = static_cast<int>(font_stmt->numeric_value2);
+
+    font_italic = font_stmt->italic;
+  }
+
+  set_dlu_factors(font_name, font_size > 0 ? font_size : 8, font_weight, font_italic);
 
   int px = dlu_to_pixel_x(dd.x);
   int py = dlu_to_pixel_y(dd.y);
@@ -675,33 +672,53 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     add_property_string(widget, "windowTitle", caption);
 
   if(font_size > 0)
-    add_property_font(widget, font_family, font_size, font_bold, font_italic);
+    add_property_font(widget, font_name, font_size, font_bold, font_italic);
 
   std::vector<std::string> flags;
   bool is_fixed_size = false;
 
-  if(has_dialog_flag(dd, "STYLE", "DS_MODALFRAME") ||
-     has_dialog_flag(dd, "EXSTYLE", "WS_EX_DLGMODALFRAME"))
+  if(const dialog_stmt* stmt = find_statement(dd, "STYLE"))
   {
-    flags.push_back("Qt::Dialog");
-    flags.push_back("Qt::WindowCloseButtonHint");
-    is_fixed_size = true;
+    const style_expr& style = stmt->value;
+
+    if(has_style(style, "WS_MINIMIZEBOX"))
+      flags.push_back("Qt::WindowMinimizeButtonHint");
+
+    if(has_style(style, "WS_MAXIMIZEBOX"))
+      flags.push_back("Qt::WindowMaximizeButtonHint");
+
+    if(has_style(style, "DS_MODALFRAME"))
+    {
+      flags.push_back("Qt::Dialog");
+      flags.push_back("Qt::WindowCloseButtonHint");
+      is_fixed_size = true;
+    }
+
+    if(has_style(style, "WS_VISIBLE"))
+      add_property_bool(widget, "visible", true);
+
+    add_property_bool(widget, "enabled", !has_style(style, "WS_DISABLED"));
   }
 
-  if(has_dialog_flag(dd, "STYLE", "WS_MINIMIZEBOX"))
-    flags.push_back("Qt::WindowMinimizeButtonHint");
+  if(const dialog_stmt* stmt = find_statement(dd, "EXSTYLE"))
+  {
+    const style_expr& style = stmt->value;
+    if(has_style(style, "WS_EX_CONTEXTHELP"))
+      flags.push_back("Qt::WindowContextHelpButtonHint");
 
-  if(has_dialog_flag(dd, "STYLE", "WS_MAXIMIZEBOX"))
-    flags.push_back("Qt::WindowMaximizeButtonHint");
+    if(has_style(style, "WS_EX_TOPMOST"))
+      flags.push_back("Qt::WindowStaysOnTopHint");
 
-  if(has_dialog_flag(dd, "EXSTYLE", "WS_EX_CONTEXTHELP"))
-    flags.push_back("Qt::WindowContextHelpButtonHint");
+    if(has_style(style, "WS_EX_TOOLWINDOW"))
+      flags.push_back("Qt::Tool");
 
-  if(has_dialog_flag(dd, "EXSTYLE", "WS_EX_TOPMOST"))
-    flags.push_back("Qt::WindowStaysOnTopHint");
-
-  if(has_dialog_flag(dd, "EXSTYLE", "WS_EX_TOOLWINDOW"))
-    flags.push_back("Qt::Tool");
+    if(has_style(style, "WS_EX_DLGMODALFRAME"))
+    {
+      flags.push_back("Qt::Dialog");
+      flags.push_back("Qt::WindowCloseButtonHint");
+      is_fixed_size = true;
+    }
+  }
 
   if(!flags.empty())
   {
@@ -719,27 +736,24 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     add_property_size(widget, "maximumSize", pw, ph);
   }
 
-  bool visible = has_dialog_flag(dd, "STYLE", "WS_VISIBLE");
-  if(visible)
-    add_property_bool(widget, "visible", true);
 
-  bool enabled = !has_dialog_flag(dd, "STYLE", "WS_DISABLED");
-  add_property_bool(widget, "enabled", enabled);
+
+}
+
+static std::string get_suffix(const std::string& id)
+{
+  const auto prefixes = {"IDD_", "DLG_", "IDC_", "IDM_"};
+  std::string upper = to_upper(id);
+  if(std::ranges::any_of(prefixes, [&upper](auto& prefix) { return upper.starts_with(prefix); }))
+    upper = upper.substr(4);
+
+  return upper;
 }
 
 std::set<std::string> generator::id_words(const std::string& id) const
 {
   std::set<std::string> words;
-  std::string upper = to_upper(id);
-
-  for(const auto& prefix : {"IDD_", "DLG_", "IDC_", "IDM_"})
-  {
-    if(upper.size() > strlen(prefix) && upper.substr(0, strlen(prefix)) == prefix)
-    {
-      upper = upper.substr(strlen(prefix));
-      break;
-    }
-  }
+  std::string upper = get_suffix(id);
 
   std::string word;
   for(char c : upper)
@@ -772,36 +786,13 @@ bool generator::share_common_word(const std::string& id1, const std::string& id2
       return true;
   }
 
-  std::string upper1 = to_upper(id1);
-  std::string upper2 = to_upper(id2);
+  std::string upper1 = get_suffix(id1);
+  std::string upper2 = get_suffix(id2);
 
-  for(const auto& prefix : {"IDD_", "DLG_", "IDC_", "IDM_"})
-  {
-    if(upper1.size() > strlen(prefix) && upper1.substr(0, strlen(prefix)) == prefix)
-    {
-      upper1 = upper1.substr(strlen(prefix));
-      break;
-    }
-  }
-  for(const auto& prefix : {"IDD_", "DLG_", "IDC_", "IDM_"})
-  {
-    if(upper2.size() > strlen(prefix) && upper2.substr(0, strlen(prefix)) == prefix)
-    {
-      upper2 = upper2.substr(strlen(prefix));
-      break;
-    }
-  }
-
-  for(const auto& w : words1)
-  {
-    if(upper2.find(w) != std::string::npos)
-      return true;
-  }
-  for(const auto& w : words2)
-  {
-    if(upper1.find(w) != std::string::npos)
-      return true;
-  }
+  if(words1.contains(upper2))
+    return true;
+  if(words2.contains(upper1))
+    return true;
 
   return false;
 }
@@ -1161,15 +1152,7 @@ std::string generator::unique_name(const std::string& id)
   return std::format("{}_{}", base, count);
 }
 
-int generator::dlu_to_pixel_x(int dlu) const
-{
-  return static_cast<int>(dlu * m_dlu_x_factor);
-}
 
-int generator::dlu_to_pixel_y(int dlu) const
-{
-  return static_cast<int>(dlu * m_dlu_y_factor);
-}
 
 #ifdef HAVE_QT
 #include <QFont>
