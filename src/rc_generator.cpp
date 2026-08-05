@@ -249,7 +249,8 @@ namespace rc
 generator::generator(void)
 {
 #ifndef HAVE_QT
-
+  if(FT_Init_FreeType(&m_ft_library))
+    throw std::runtime_error("Failed to initialize FreeType library!");
 #endif
 }
 
@@ -257,7 +258,10 @@ generator::generator(void)
 generator::~generator(void)
 {
 #ifndef HAVE_QT
-
+  if(m_ft_face)
+    FT_Done_Face(m_ft_face);
+  if(m_ft_library)
+    FT_Done_FreeType(m_ft_library);
 #endif
 }
 
@@ -1199,6 +1203,7 @@ std::pair<int, int> generator::text_dimensions(const std::string& text)
 # include <ft2build.h>
 # include <freetype/freetype.h>
 # include <fontconfig/fontconfig.h>
+# include <cmath>
 
 // based upon https://jeffpar.github.io/kbarchive/kb/145/Q145994/
 void generator::set_current_font(const std::string &font_name, int font_size, int weight, bool italic)
@@ -1242,30 +1247,28 @@ void generator::set_current_font(const std::string &font_name, int font_size, in
   FcPatternDestroy(match);
   FcFini();
 
-  // 2. Initialize FreeType and load the font face
-  FT_Library ft_library;
-  if (FT_Init_FreeType(&ft_library))
-    throw std::runtime_error("Failed to initialize FreeType library!");
-
-  FT_Face ft_face;
-  if (FT_New_Face(ft_library, path_str.c_str(), 0, &ft_face)) {
-    FT_Done_FreeType(ft_library);
-    throw std::runtime_error(std::format("Failed to load font file: {}", path_str));
+  // 2. Load the font face using the FreeType library initialized in the constructor
+  if(m_ft_face)
+  {
+    FT_Done_Face(m_ft_face);
+    m_ft_face = nullptr;
   }
+  if(FT_New_Face(m_ft_library, path_str.c_str(), 0, &m_ft_face))
+    throw std::runtime_error(std::format("Failed to load font file: {}", path_str));
 
   // Set font size (FreeType takes size in 26.6 fractional pixels, or pixel sizes directly)
   // Assuming font_size represents point size at 96 DPI: pixels = point_size * 96 / 72
   int pixel_height = (font_size * 96 + 36) / 72;
-  if (FT_Set_Pixel_Sizes(ft_face, 0, pixel_height))
+  if(FT_Set_Pixel_Sizes(m_ft_face, 0, pixel_height))
   {
-    FT_Done_Face(ft_face);
-    FT_Done_FreeType(ft_library);
+    FT_Done_Face(m_ft_face);
+    m_ft_face = nullptr;
     throw std::runtime_error("Failed to set pixel size for FreeType face.");
   }
 
   // 3. Extract metrics equivalent to QFontMetrics
   // ft_face->size->metrics.height is in 26.6 fractional pixels (shift right by 6)
-  double font_height = static_cast<double>(ft_face->size->metrics.height >> 6);
+  double font_height = static_cast<double>(m_ft_face->size->metrics.height >> 6);
   m_dlu_y_factor = font_height / 8.0;
 
   // Calculate horizontal advance for the alphabet string
@@ -1273,21 +1276,38 @@ void generator::set_current_font(const std::string &font_name, int font_size, in
   double total_width = 0.0;
 
   // Ensure glyph loader knows to load metrics
-  for (char c : alphabet)
+  for(char c : alphabet)
   {
-    FT_UInt glyph_index = FT_Get_Char_Index(ft_face, static_cast<FT_ULong>(c));
+    FT_UInt glyph_index = FT_Get_Char_Index(m_ft_face, static_cast<FT_ULong>(c));
     // Load glyph metrics (with no rasterization bitmap overhead needed for width)
-    if (FT_Load_Glyph(ft_face, glyph_index, FT_LOAD_DEFAULT) == 0) {
-      total_width += static_cast<double>(ft_face->glyph->advance.x >> 6);
-    }
+    if(FT_Load_Glyph(m_ft_face, glyph_index, FT_LOAD_DEFAULT) == 0)
+      total_width += static_cast<double>(m_ft_face->glyph->advance.x >> 6);
   }
 
   double avgCharWidth = total_width / 52.0;
   m_dlu_x_factor = avgCharWidth / 4.0;
 
-  // 4. Cleanup FreeType resources
-  FT_Done_Face(ft_face);
-  FT_Done_FreeType(ft_library);
+  // 4. The font face is kept alive in m_ft_face for text_dimensions();
+  //    it is released in the destructor
+}
+
+std::pair<int, int> generator::text_dimensions(const std::string& text)
+{
+  if(m_ft_face)
+  {
+    double total_width = 0.0;
+    for(char c : text)
+    {
+      FT_UInt glyph_index = FT_Get_Char_Index(m_ft_face, static_cast<FT_ULong>(c));
+      if(FT_Load_Glyph(m_ft_face, glyph_index, FT_LOAD_DEFAULT) == 0)
+        total_width += static_cast<double>(m_ft_face->glyph->advance.x >> 6);
+    }
+
+    double font_height = static_cast<double>(m_ft_face->size->metrics.height >> 6);
+    return { static_cast<int>(std::ceil(total_width / 4.0)),
+             static_cast<int>(std::ceil(font_height / 8.0)) };
+  }
+  return { 0, 0 };
 }
 #endif
 

@@ -13,7 +13,8 @@
 #ifdef HAVE_QT
 # include <QFont>
 #else
-
+# include <ft2build.h>
+# include <freetype/freetype.h>
 #endif
 
 namespace rc
@@ -95,7 +96,8 @@ private:
   #ifdef HAVE_QT
   QFont m_current_font;
   #else
-
+  FT_Library m_ft_library = nullptr;
+  FT_Face m_ft_face = nullptr;
   #endif
 };
 
