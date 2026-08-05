@@ -10,7 +10,7 @@ You are an expert C++23 developer tasked with building a robust translator that 
 
 ## 3. Directory and File Restrictions
 
-* **Project Root:** `/home/gravis/project/gimconvert` (all project files and subdirectories must remain strictly within this path).
+* **Project Root:** `/home/gravis/project/rc2qt` (all project files and subdirectories must remain strictly within this path).
 * **Test Files:** Locate sample `.rc` resource-definition files in the `test/` subdirectory.
 * **Temporary Storage:** Use the `temporary_files/` subdirectory for any temporary file operations instead of `/tmp`.
 * **Access Control:** Access outside the project root directory is strictly prohibited unless explicitly authorized.
