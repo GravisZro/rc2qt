@@ -55,9 +55,9 @@ static std::string read_file(const std::string& path)
 static void print_usage(const char* program_name)
 {
   std::cerr << "Usage: " << program_name << " [options] <file.rc|file.exe>" << std::endl;
-  std::cerr << "  -o <dir>       Output directory (default: input file directory)" << std::endl;
+  std::cerr << "  -o <dir>       Output directory (default: current directory)" << std::endl;
   std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
-  std::cerr << "  -q <file.qrc>  Generate .qrc resource file" << std::endl;
+  std::cerr << "  -q <file.qrc>  .qrc output filename (default: <input basename>.qrc)" << std::endl;
   std::cerr << "  -h             Show this help" << std::endl;
 }
 
@@ -116,8 +116,8 @@ int main(int argc, char** argv)
       else
         out_dir = p.parent_path();
     }
-    if(out_dir.empty())
-      out_dir = std::filesystem::path(input_path).parent_path();
+    // if(out_dir.empty())
+    //   out_dir = std::filesystem::path(input_path).parent_path();
     if(out_dir.empty())
       out_dir = ".";
     std::filesystem::path rc_stem = std::filesystem::path(input_path).stem();
@@ -343,7 +343,7 @@ int main(int argc, char** argv)
     }
   }
 
-  if(!output_path.empty() || !qrc_path.empty())
+  // if(!output_path.empty() || !qrc_path.empty())
   {
     rc::generator gen;
 
@@ -356,8 +356,8 @@ int main(int argc, char** argv)
       else
         out_dir = p.parent_path();
     }
-    if(out_dir.empty())
-      out_dir = std::filesystem::path(input_path).parent_path();
+    // if(out_dir.empty())
+    //   out_dir = std::filesystem::path(input_path).parent_path();
     if(out_dir.empty())
       out_dir = ".";
     std::filesystem::path rc_stem = std::filesystem::path(input_path).stem();
@@ -372,8 +372,10 @@ int main(int argc, char** argv)
     std::filesystem::path qrc_path_fs;
     if(!qrc_path.empty())
       qrc_path_fs = qrc_path;
+    // else
+    //   qrc_path_fs = out_dir / res_dir_name / (rc_basename + ".qrc");
     else
-      qrc_path_fs = out_dir / res_dir_name / (rc_basename + ".qrc");
+      qrc_path_fs = out_dir / (rc_basename + ".qrc");
 
     std::vector<std::string> ui_files;
     std::filesystem::path sub_dir = out_dir / res_dir_name;
