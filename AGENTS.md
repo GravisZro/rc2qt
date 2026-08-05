@@ -26,14 +26,8 @@ You are an expert C++23 developer tasked with building a robust translator that 
 ## 5. Coding Conventions for LLM
 
 1. **Build System**: Use CMake as the build system.
-2. **C++ Refactoring**: The decompiled source is predominantly C. Re-organize it into proper C++ classes.
-3. **Code Replacement**: Do not delete replaced code. Instead, comment out the old code and place the new code directly after it.
-4. **Function Signatures**: When modifying a function signature, retain a copy of the original signature directly above the new one and comment it out.
 5. **Target Platform & OS Functions**: The target platform is POSIX. Do not use OS-specific functions unless explicitly instructed to do so.
 6. **OS Structures**: Replace OS-specific structures with either POSIX-compatible or generic C++ structures.
-7. **Exception Handling**: Replace Windows exceptions with a 'throw std::runtime_error()' statement.
-8. **Calling Conventions**: Use Windows function declaration specifiers (e.g., '__stdcall', '__thiscall') to understand program structure, but discard these specifiers once their information has been applied.
-9. **Variable and Function Naming**: Rename auto-generated variable and function names to meaningful, descriptive names as soon as their purpose is identified.
 
 ## 6. Code Style Guidelines for LLM
 
