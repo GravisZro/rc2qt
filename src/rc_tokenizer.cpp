@@ -148,7 +148,8 @@ std::vector<token> tokenize(const std::string& input)
 
     if(c == '\n')
     {
-      tokens.push_back({token_type::newline, "\\n", line});
+      if(!tokens.empty() && tokens.back() != (token_type::comma | token_type::pipe))
+        tokens.push_back({token_type::newline, "\\n", line});
       ++pos;
       ++line;
       continue;
