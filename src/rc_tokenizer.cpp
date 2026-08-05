@@ -20,7 +20,12 @@ static bool is_id_char(char c)
   return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.' || c == '~';
 }
 
-static std::string read_string(const std::string& input, size_t& pos, size_t& line)
+// PREVIOUS read_string -- replaced with rc.exe-compliant version per
+// https://www.ryanliptak.com/blog/every-rc-exe-bug-quirk-probably/#that-s-not-my-a
+// Kept (commented) for reference; details on what the new version
+// implements are in the function body below.
+#if 0
+static std::string read_string_prev(const std::string& input, size_t& pos, size_t& line)
 {
   std::string value;
   while(pos < input.size())
@@ -42,6 +47,121 @@ static std::string read_string(const std::string& input, size_t& pos, size_t& li
         case '"': value.push_back('"'); break;
         case '0': value.push_back('\0'); break;
         default: value.push_back(esc); break;
+      }
+    }
+    else
+    {
+      if(c == '\n')
+        ++line;
+      value.push_back(c);
+    }
+  }
+  return value;
+}
+#endif
+
+static std::string read_string(const std::string& input, size_t& pos, size_t& line)
+{
+  // Compliant with rc.exe string-literal escape handling per Ryan Liptak's
+  // "That's not my \a" section (#that-s-not-my-a). Notable rules:
+  //   * Supported escapes: \a, \n, \r, \t, \nnn (octal, up to 3 digits),
+  //     \xhh (hex, up to 2 digits). \a is 0x08 (Backspace), NOT C's 0x07.
+  //     \a and \t are case-insensitive; \n and \r are case-sensitive.
+  //   * Unsupported escapes (e.g. \b, \e, \f, \v, \?, \k, \N, \T...) are
+  //     preserved literally -- both the backslash and the character end up
+  //     in the parsed string (\k -> \k).
+  //
+  // Note: rc.exe's quote-escaping (`""` to embed a quote) and the special
+  // case for `\"` are documented in adjacent sections of the article and
+  // are intentionally NOT changed here, to preserve existing tokenizer
+  // behaviour at the raw-lex level.
+  std::string value;
+  while(pos < input.size())
+  {
+    char c = input[pos++];
+    if(c == '"')
+      break;
+    if(c == '\\')
+    {
+      if(pos >= input.size())
+      {
+        value.push_back('\\');
+        break;
+      }
+      char esc = input[pos++];
+      switch(esc)
+      {
+        case 'a':
+        case 'A':
+          value.push_back('\x08');
+          break;
+        case 'n':
+          value.push_back('\n');
+          break;
+        case 'r':
+          value.push_back('\r');
+          break;
+        case 't':
+        case 'T':
+          value.push_back('\t');
+          break;
+        case '\\':
+          value.push_back('\\');
+          break;
+        case '0': case '1': case '2': case '3':
+        case '4': case '5': case '6': case '7':
+        {
+          // rc.exe octal escape: up to three octal digits, one byte,
+          // accumulated modulo 256 (clamped to a byte for .res storage).
+          unsigned int v = static_cast<unsigned int>(esc - '0');
+          for(int n = 0; n < 2 && pos < input.size() &&
+                         input[pos] >= '0' && input[pos] <= '7'; ++n)
+            v = (v << 3) | static_cast<unsigned int>(input[pos++] - '0');
+          value.push_back(static_cast<char>(v & 0xFF));
+          break;
+        }
+        case 'x':
+        {
+          // rc.exe hex escape: up to two hex digits, one byte.
+          // If no hex digits follow, the escape is unsupported -> keep
+          // the backslash and 'x' literally, matching the general rule.
+          unsigned int v = 0;
+          int n = 0;
+          while(n < 2 && pos < input.size())
+          {
+            char d = input[pos];
+            unsigned int dv;
+            if(d >= '0' && d <= '9')      dv = static_cast<unsigned int>(d - '0');
+            else if(d >= 'a' && d <= 'f') dv = 10u + static_cast<unsigned int>(d - 'a');
+            else if(d >= 'A' && d <= 'F') dv = 10u + static_cast<unsigned int>(d - 'A');
+            else break;
+            v = (v << 4) | dv;
+            ++pos;
+            ++n;
+          }
+          if(n == 0)
+          {
+            value.push_back('\\');
+            value.push_back('x');
+          }
+          else
+            value.push_back(static_cast<char>(v & 0xFF));
+          break;
+        }
+        case '"':
+          // Backslash-quote is treated as a literal `"`; the enclosing
+          // string is terminated by the next unescaped `"`. Preserved from
+          // prior tokenizer behaviour; rc.exe's full special case (where
+          // the `\` drops out and `""` becomes an escaped quote) is left
+          // for a future change -- see the quote-escaping section.
+          value.push_back('"');
+          break;
+        default:
+          // Unrecognized escape: keep backslash and character literally,
+          // e.g. `\b`, `\e`, `\f`, `\v`, `\?`, `\k`, `\N`, `\R`, `\X`...
+          value.push_back('\\');
+          value.push_back(esc);
+          break;
       }
     }
     else

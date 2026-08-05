@@ -2315,6 +2315,58 @@ static void test_user_resource_raw_data()
   }
 }
 
+// Verifies that string-literal escape sequences are parsed in a way that
+// matches rc.exe (see Ryan Liptak's "That's not my \a" section,
+// #that-s-not-my-a). We use a STRINGTABLE so that the raw parsed string
+// value is preserved (no truncation/stripping happens downstream).
+static void test_string_escape_sequences()
+{
+  try
+  {
+    auto res = parse_single_resource(
+      "STRINGTABLE\n"
+      "BEGIN\n"
+      "  IDS_BASIC,    \"A\\nB\\rC\\tD\"\n"
+      "  IDS_BELL,     \"\\a\\A\"\n"
+      "  IDS_OCTAL,    \"\\0\\7\\52\\123\"\n"
+      "  IDS_HEX,      \"\\x00\\x7f\\xff\\x4\"\n"
+      "  IDS_HEX_NODIG,\"\\x\"\n"
+      "  IDS_BAD,      \"\\k\\b\\N\\R\\X\"\n"
+      "  IDS_LITERAL,  \"\\n then X then \\t\"\n"
+      "  IDS_LONE_NL,  \"line1\\nline2\"\n"
+      "END\n"
+    );
+    const auto& tbl = std::get<std::vector<rc::string_table_entry>>(res.data);
+    const auto get = [&](const std::string& id)
+      -> const std::string&
+      {
+        for(const auto& s : tbl)
+          if(s.id == id) return s.value;
+        throw std::runtime_error("missing id " + id);
+      };
+
+    assert(get("IDS_BASIC") == std::string("A\nB\rC\tD"));
+    assert(get("IDS_BELL") == std::string("\x08\x08"));
+    {
+      const char expected[] = {'\x00', '\x07', '\x2A', 'S'};
+      assert(get("IDS_OCTAL") == std::string(expected, sizeof(expected)));
+    }
+    {
+      const char expected[] = {'\x00', '\x7f', '\xFF', '\x04'};
+      assert(get("IDS_HEX") == std::string(expected, sizeof(expected)));
+    }
+    assert(get("IDS_HEX_NODIG") == std::string("\\x"));
+    assert(get("IDS_BAD") == std::string("\\k\\b\\N\\R\\X"));
+    assert(get("IDS_LITERAL") == std::string("\n then X then \t"));
+    assert(get("IDS_LONE_NL") == std::string("line1\nline2"));
+    record_result("string_escape_sequences", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("string_escape_sequences", false, e.what());
+  }
+}
+
 // ============================================================================
 // Multiple resources
 // ============================================================================
@@ -2582,6 +2634,7 @@ int main()
   test_user_resource_filename();
   test_user_resource_attributes();
   test_user_resource_raw_data();
+  test_string_escape_sequences();
 
   std::cout << "\n--- Widget Class Tests ---\n";
   test_comboboxex32();
