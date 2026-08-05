@@ -10,6 +10,12 @@
 
 #include <pugixml.hpp>
 
+#ifdef HAVE_QT
+# include <QFont>
+#else
+
+#endif
+
 namespace rc
 {
 
@@ -30,6 +36,8 @@ struct string_table_entry;
 class generator
 {
 public:
+  generator(void);
+  ~generator(void);
   bool generate_all(const rc_file& file, const std::string& output_dir, const std::string& rc_basename);
   bool generate_qrc(const rc_file& file, const std::string& output_path, const std::vector<std::string>& ui_paths = {});
   bool generate_qrc(const rc_file& file, const std::string& output_path, const std::string& ui_path = "");
@@ -58,7 +66,9 @@ private:
   int dlu_to_pixel_y(int dlu) const
     { return static_cast<int>(dlu * m_dlu_y_factor); }
 
-  void set_dlu_factors(const std::string& font_name, int font_size, int weight, bool italic);
+  std::pair<int, int> text_dimensions(const std::string& text);
+
+  void set_current_font(const std::string& font_name, int font_size, int weight, bool italic);
 
   const dialog_stmt* find_statement(const dialog_data& dd, const std::string& keyword) const;
   bool has_dialog_flag(const dialog_data& dd, const std::string& keyword, const std::string& flag) const;
@@ -81,6 +91,12 @@ private:
   double m_dlu_x_factor = 1.75;
   double m_dlu_y_factor = 1.75;
   int m_action_counter = 0;
+
+  #ifdef HAVE_QT
+  QFont m_current_font;
+  #else
+
+  #endif
 };
 
 }

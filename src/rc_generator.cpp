@@ -245,6 +245,22 @@ namespace rc
     return "QWidget";
   }
 
+
+generator::generator(void)
+{
+#ifndef HAVE_QT
+
+#endif
+}
+
+
+generator::~generator(void)
+{
+#ifndef HAVE_QT
+
+#endif
+}
+
 bool generator::generate_all(const rc_file& file, const std::string& output_dir, const std::string& rc_basename)
 {
   collect_global_data(file);
@@ -657,7 +673,7 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     font_italic = font_stmt->italic;
   }
 
-  set_dlu_factors(font_name, font_size > 0 ? font_size : 8, font_weight, font_italic);
+  set_current_font(font_name, font_size > 0 ? font_size : 8, font_weight, font_italic);
 
   int px = dlu_to_pixel_x(dd.x);
   int py = dlu_to_pixel_y(dd.y);
@@ -1155,33 +1171,37 @@ std::string generator::unique_name(const std::string& id)
 
 
 #ifdef HAVE_QT
-#include <QFont>
-#include <QFontMetrics>
-#include <QFontDatabase>
-
-void generator::set_dlu_factors(const std::string& font_name, int font_size, int weight, bool italic)
-{
-  if(QFontDatabase db; !db.families().contains(QString::fromStdString(font_name), Qt::CaseInsensitive))
-  { throw std::runtime_error(std::format("Font \"{}\" not found!", font_name)); }
-
-  QFont font(QString::fromStdString(font_name), font_size, weight, italic);
-  QFontMetrics fm(font);
-  m_dlu_y_factor = static_cast<double>(fm.height()) / 8.0;
-
-  QString alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  int alphabetWidth = fm.horizontalAdvance(alphabet);
-  // Average width of a single character
-  double avgCharWidth = static_cast<double>(alphabetWidth) / 52.0;
-  // Horizontal dialog base unit is roughly half the average character width
-  m_dlu_x_factor = avgCharWidth / 4.0;
-}
-#else
-#include <ft2build.h>
-#include <freetype/freetype.h>
-#include <fontconfig/fontconfig.h>
+# include <QFontDatabase>
+# include <QFontMetrics>
 
 // based upon https://jeffpar.github.io/kbarchive/kb/145/Q145994/
-void generator::set_dlu_factors(const std::string &font_name, int font_size, int weight, bool italic)
+void generator::set_current_font(const std::string& font_name, int font_size, int weight, bool italic)
+{
+  if(QFontDatabase db; !db.families().contains(QString::fromStdString(font_name), Qt::CaseInsensitive))
+    { throw std::runtime_error(std::format("Font \"{}\" not found!", font_name)); }
+
+  m_current_font = QFont(QString::fromStdString(font_name), font_size, weight, italic);
+  QFontMetrics fm(m_current_font);
+
+  QString alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  m_dlu_x_factor = static_cast<double>(fm.horizontalAdvance(alphabet)) / 52.0 / 4.00;
+  m_dlu_y_factor = static_cast<double>(fm.height()) / 8.0;
+}
+
+std::pair<int, int> generator::text_dimensions(const std::string& text)
+{
+  QFontMetrics fm(m_current_font);
+
+  return { qCeil(static_cast<double>(fm.horizontalAdvance(QString::fromStdString(text))) / 4.00),
+           qCeil(static_cast<double>(fm.height()) / 8.0) };
+}
+#else
+# include <ft2build.h>
+# include <freetype/freetype.h>
+# include <fontconfig/fontconfig.h>
+
+// based upon https://jeffpar.github.io/kbarchive/kb/145/Q145994/
+void generator::set_current_font(const std::string &font_name, int font_size, int weight, bool italic)
 {
   if (!FcInit())
     throw std::runtime_error("Failed to initialize Fontconfig!");
