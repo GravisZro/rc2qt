@@ -69,6 +69,11 @@ private:
 
   std::pair<int, int> text_dimensions(const std::string& text);
 
+  std::vector<std::string> wrap_text(const std::string& text, int width_dlu);
+
+  void ensure_text_fits(const std::string& text, int& width_dlu, int& height_dlu,
+                        pugi::xml_node& widget, const std::string& widget_class);
+
   void set_current_font(const std::string& font_name, int font_size, int weight, bool italic);
 
   const dialog_stmt* find_statement(const dialog_data& dd, const std::string& keyword) const;
@@ -92,6 +97,12 @@ private:
   double m_dlu_x_factor = 1.75;
   double m_dlu_y_factor = 1.75;
   int m_action_counter = 0;
+
+  std::string m_original_font_name;
+  std::string m_mapped_font_name;
+  int m_font_size = 8;
+  int m_font_weight = -1;
+  bool m_font_italic = false;
 
   #ifdef HAVE_QT
   QFont m_current_font;

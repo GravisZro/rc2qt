@@ -677,7 +677,13 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     font_italic = font_stmt->italic;
   }
 
-  set_current_font(font_name, font_size > 0 ? font_size : 8, font_weight, font_italic);
+  m_original_font_name = orginal_font_name;
+  m_mapped_font_name = font_name;
+  m_font_size = font_size > 0 ? font_size : 8;
+  m_font_weight = font_weight;
+  m_font_italic = font_italic;
+
+  set_current_font(m_mapped_font_name, m_font_size, m_font_weight, m_font_italic);
 
   int px = dlu_to_pixel_x(dd.x);
   int py = dlu_to_pixel_y(dd.y);
@@ -855,10 +861,14 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   std::string name = unique_name(name_id);
   pugi::xml_node widget = add_widget(parent, qt_class, name);
 
+  int ctrl_w_dlu = ctrl.width;
+  int ctrl_h_dlu = ctrl.height;
+  ensure_text_fits(ctrl.text, ctrl_w_dlu, ctrl_h_dlu, widget, qt_class);
+
   int px = dlu_to_pixel_x(ctrl.x);
   int py = dlu_to_pixel_y(ctrl.y);
-  int pw = dlu_to_pixel_x(ctrl.width);
-  int ph = dlu_to_pixel_y(ctrl.height);
+  int pw = dlu_to_pixel_x(ctrl_w_dlu);
+  int ph = dlu_to_pixel_y(ctrl_h_dlu);
   apply_combo_dropdown_height(widget, ctrl, qt_class == "QComboBox", ph);
   add_property_rect(widget, px, py, pw, ph);
 
@@ -1085,11 +1095,6 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
 
       for(const auto& child_ctrl : dd.controls)
       {
-        int cx = dlu_to_pixel_x(child_ctrl.x);
-        int cy = dlu_to_pixel_y(child_ctrl.y);
-        int cw = dlu_to_pixel_x(child_ctrl.width);
-        int ch = dlu_to_pixel_y(child_ctrl.height);
-
         std::string child_class = map_keyword_to_widget(child_ctrl.keyword);
         if(child_class.empty() && child_ctrl.keyword == "CONTROL")
           child_class = map_class_to_widget(child_ctrl.class_name, child_ctrl.style);
@@ -1098,6 +1103,15 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
 
         std::string child_name = unique_name(child_ctrl.id);
         pugi::xml_node child_widget = add_widget(tab_widget, child_class, child_name);
+
+        int child_w_dlu = child_ctrl.width;
+        int child_h_dlu = child_ctrl.height;
+        ensure_text_fits(child_ctrl.text, child_w_dlu, child_h_dlu, child_widget, child_class);
+
+        int cx = dlu_to_pixel_x(child_ctrl.x);
+        int cy = dlu_to_pixel_y(child_ctrl.y);
+        int cw = dlu_to_pixel_x(child_w_dlu);
+        int ch = dlu_to_pixel_y(child_h_dlu);
         apply_combo_dropdown_height(child_widget, child_ctrl, child_class == "QComboBox", ch);
         add_property_rect(child_widget, cx, cy, cw, ch);
 
@@ -1196,8 +1210,12 @@ std::pair<int, int> generator::text_dimensions(const std::string& text)
 {
   QFontMetrics fm(m_current_font);
 
-  return { qCeil(static_cast<double>(fm.horizontalAdvance(QString::fromStdString(text))) / 4.00),
-           qCeil(static_cast<double>(fm.height()) / 8.0) };
+  // Convert the measured pixels into dialog units using the same base-unit
+  // factors that dlu_to_pixel_x/y are derived from, so that the result can be
+  // compared directly against the DLU box sizes from the RC file.
+  int width_dlu = qCeil(static_cast<double>(fm.horizontalAdvance(QString::fromStdString(text))) / m_dlu_x_factor);
+  int height_dlu = qCeil(static_cast<double>(fm.height()) / m_dlu_y_factor);
+  return { width_dlu, height_dlu };
 }
 #else
 # include <ft2build.h>
@@ -1304,12 +1322,127 @@ std::pair<int, int> generator::text_dimensions(const std::string& text)
     }
 
     double font_height = static_cast<double>(m_ft_face->size->metrics.height >> 6);
-    return { static_cast<int>(std::ceil(total_width / 4.0)),
-             static_cast<int>(std::ceil(font_height / 8.0)) };
+    // Convert the measured pixels into dialog units using the same base-unit
+    // factors that dlu_to_pixel_x/y are derived from, so that the result can
+    // be compared directly against the DLU box sizes from the RC file.
+    int width_dlu = static_cast<int>(std::ceil(total_width / m_dlu_x_factor));
+    int height_dlu = static_cast<int>(std::ceil(font_height / m_dlu_y_factor));
+    return { width_dlu, height_dlu };
   }
   return { 0, 0 };
 }
 #endif
+
+static bool supports_word_wrap(const std::string& widget_class)
+{
+  // Only QLabel has a wordWrap property; QAbstractButton-derived widgets
+  // (QPushButton, QCheckBox, QRadioButton) do not support wrapping.
+  return widget_class == "QLabel";
+}
+
+std::vector<std::string> generator::wrap_text(const std::string& text, int width_dlu)
+{
+  std::vector<std::string> lines;
+  std::string current;
+  std::istringstream stream(text);
+  std::string word;
+
+  while(stream >> word)
+  {
+    std::string candidate = current.empty() ? word : current + " " + word;
+    if(text_dimensions(candidate).first <= width_dlu)
+    {
+      current = candidate;
+    }
+    else
+    {
+      if(!current.empty())
+      {
+        lines.push_back(current);
+        current = word;
+      }
+      else
+      {
+        lines.push_back(word);
+      }
+    }
+  }
+
+  if(!current.empty())
+    lines.push_back(current);
+
+  return lines;
+}
+
+void generator::ensure_text_fits(const std::string& text, int& width_dlu, int& height_dlu,
+                                 pugi::xml_node& widget, const std::string& widget_class)
+{
+  if(text.empty())
+    return;
+
+  const auto [mapped_w, mapped_h] = text_dimensions(text);
+  if(mapped_w <= width_dlu && mapped_h <= height_dlu)
+    return;
+
+  // The mapped (substituted) font may be wider than the original RC font.
+  // Check whether the text fits inside the bounding box when wrapped with the
+  // original font; if it does, the original layout relies on multi-line text
+  // and the widget is reflowed to the mapped font with word wrapping enabled.
+  // Otherwise the bounding box is expanded to the single-line dimensions of
+  // the mapped font.
+  bool wrapped_in_original = false;
+  bool can_word_wrap = supports_word_wrap(widget_class);
+
+  try
+  {
+    set_current_font(m_original_font_name, m_font_size, m_font_weight, m_font_italic);
+
+    std::vector<std::string> original_lines = wrap_text(text, width_dlu);
+    int original_line_height = text_dimensions(text).second;
+    int original_height = static_cast<int>(original_lines.size()) * original_line_height;
+    wrapped_in_original = original_height <= height_dlu;
+  }
+  catch(const std::runtime_error&)
+  {
+    // The original font cannot be resolved; fall back to the mapped font below.
+  }
+
+  set_current_font(m_mapped_font_name, m_font_size, m_font_weight, m_font_italic);
+
+  if(wrapped_in_original && can_word_wrap)
+  {
+    std::vector<std::string> lines = wrap_text(text, width_dlu);
+    int line_height = text_dimensions(text).second;
+
+    int max_line_width = 0;
+    for(const auto& line : lines)
+      max_line_width = std::max(max_line_width, text_dimensions(line).first);
+
+    if(max_line_width > width_dlu)
+      width_dlu = max_line_width;
+
+    int needed_height = static_cast<int>(lines.size()) * line_height;
+    if(needed_height > height_dlu)
+      height_dlu = needed_height;
+
+    add_property_bool(widget, "wordWrap", true);
+  }
+  else
+  {
+    if(mapped_w > width_dlu)
+      width_dlu = mapped_w;
+    if(mapped_h > height_dlu)
+      height_dlu = mapped_h;
+
+    const auto [final_w, final_h] = text_dimensions(text);
+    if(final_w > width_dlu || final_h > height_dlu)
+    {
+      throw std::runtime_error(std::format(
+        "Text \"{}\" needs {}x{} DLU but its bounding box is {}x{} DLU",
+        text, final_w, final_h, width_dlu, height_dlu));
+    }
+  }
+}
 
 const dialog_stmt* generator::find_statement(const dialog_data& dd, const std::string& keyword) const
 {
