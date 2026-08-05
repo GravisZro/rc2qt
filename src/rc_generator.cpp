@@ -265,7 +265,7 @@ generator::~generator(void)
 #endif
 }
 
-bool generator::generate_all(const rc_file& file, const std::string& output_dir, const std::string& rc_basename)
+bool generator::generate_all(const rc_file& file, const std::string& output_dir, const std::string& res_dir_name)
 {
   collect_global_data(file);
 
@@ -285,7 +285,7 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     if(!created_output_dir)
     {
-      std::filesystem::create_directories(std::filesystem::path(output_dir) / rc_basename);
+      std::filesystem::create_directories(std::filesystem::path(output_dir) / res_dir_name);
       created_output_dir = true;
     }
 
@@ -311,7 +311,7 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
       unique_short_id = std::format("{}_{}", short_id, suffix++);
     used_short_ids.insert(unique_short_id);
 
-    std::filesystem::path filename = std::filesystem::path(output_dir) / rc_basename / (unique_short_id + ".ui");
+    std::filesystem::path filename = std::filesystem::path(output_dir) / res_dir_name / (unique_short_id + ".ui");
 
     m_name_counts.clear();
     m_action_counter = 0;
@@ -503,14 +503,6 @@ void generator::collect_global_data(const rc_file& file)
         m_ds_control_dialogs[res.id] = &dd;
     }
   }
-}
-
-bool generator::generate_qrc(const rc_file& file, const std::string& output_path, const std::string& ui_path)
-{
-  std::vector<std::string> paths;
-  if(!ui_path.empty())
-    paths.push_back(ui_path);
-  return generate_qrc(file, output_path, paths);
 }
 
 bool generator::generate_qrc(const rc_file& file, const std::string& output_path, const std::vector<std::string>& ui_paths)

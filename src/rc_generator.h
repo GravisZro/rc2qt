@@ -39,9 +39,8 @@ class generator
 public:
   generator(void);
   ~generator(void);
-  bool generate_all(const rc_file& file, const std::string& output_dir, const std::string& rc_basename);
+  bool generate_all(const rc_file& file, const std::string& output_dir, const std::string& res_dir_name);
   bool generate_qrc(const rc_file& file, const std::string& output_path, const std::vector<std::string>& ui_paths = {});
-  bool generate_qrc(const rc_file& file, const std::string& output_path, const std::string& ui_path = "");
 
 private:
   void collect_global_data(const rc_file& file);
