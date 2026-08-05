@@ -128,6 +128,47 @@ static void test_pushbutton_not_visible()
   }
 }
 
+static void test_control_multiline_continuation()
+{
+  try
+  {
+    auto res = parse_single_resource(
+      "IDD_ABOUTBOX DIALOG DISCARDABLE 0, 0, 199, 99\n"
+      "STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU\n"
+      "CAPTION \"About\"\n"
+      "FONT 8, \"MS Sans Serif\"\n"
+      "BEGIN\n"
+      "    LTEXT \"Copyright 1996-1998 Outrage Entertainment, Inc.  All rights reserved.\",\n"
+      "            IDC_STATIC,20,35,145,25\n"
+      "    DEFPUSHBUTTON \"OK\",IDOK,\n"
+      "            140,68,32,14\n"
+      "END\n"
+    );
+    const auto& dlg = std::get<rc::dialog_data>(res.data);
+    assert(dlg.controls.size() == 2);
+    const auto& label = dlg.controls[0];
+    assert(label.keyword == "LTEXT");
+    assert(label.id == "IDC_STATIC");
+    assert(label.text == "Copyright 1996-1998 Outrage Entertainment, Inc.  All rights reserved.");
+    assert(label.x == 20);
+    assert(label.y == 35);
+    assert(label.width == 145);
+    assert(label.height == 25);
+    const auto& button = dlg.controls[1];
+    assert(button.keyword == "DEFPUSHBUTTON");
+    assert(button.id == "IDOK");
+    assert(button.x == 140);
+    assert(button.y == 68);
+    assert(button.width == 32);
+    assert(button.height == 14);
+    record_result("control_multiline_continuation", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("control_multiline_continuation", false, e.what());
+  }
+}
+
 static void test_pushbutton_multiline_not()
 {
   try
@@ -2422,6 +2463,7 @@ int main()
   test_pushbutton_with_style();
   test_pushbutton_not_visible();
   test_pushbutton_multiline_not();
+  test_control_multiline_continuation();
 
   std::cout << "\n--- Defpushbutton Tests ---\n";
   test_defpushbutton_basic();

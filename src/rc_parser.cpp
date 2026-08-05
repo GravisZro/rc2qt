@@ -298,6 +298,37 @@ control parser::parse_control()
       }
     }
   }
+  // else
+  // {
+  //   if(has_flag(ctrl.keyword, const_flags::has_text_flag))
+  //   {
+  //     if(current() == token_type::str_num_ident)
+  //       ctrl.text = next_val();
+  //     if(match(token_type::comma))
+  //       ctrl.id = parse_resource_id();
+  //   }
+  //   else
+  //     ctrl.id = parse_resource_id();
+  //
+  //   if(match(token_type::comma))
+  //     ctrl.x = next16();
+  //   if(match(token_type::comma))
+  //     ctrl.y = next16();
+  //   if(match(token_type::comma))
+  //     ctrl.width = next16();
+  //   if(match(token_type::comma))
+  //     ctrl.height = next16();
+  //   if(match(token_type::comma))
+  //   {
+  //     skip_newlines();
+  //     ctrl.style = parse_style_expr();
+  //   }
+  //   if(match(token_type::comma))
+  //   {
+  //     skip_newlines();
+  //     ctrl.ext_style = parse_style_expr();
+  //   }
+  // }
   else
   {
     if(has_flag(ctrl.keyword, const_flags::has_text_flag))
@@ -305,19 +336,37 @@ control parser::parse_control()
       if(current() == token_type::str_num_ident)
         ctrl.text = next_val();
       if(match(token_type::comma))
+      {
+        skip_newlines();
         ctrl.id = parse_resource_id();
+      }
     }
     else
+    {
+      skip_newlines();
       ctrl.id = parse_resource_id();
+    }
 
     if(match(token_type::comma))
+    {
+      skip_newlines();
       ctrl.x = next16();
+    }
     if(match(token_type::comma))
+    {
+      skip_newlines();
       ctrl.y = next16();
+    }
     if(match(token_type::comma))
+    {
+      skip_newlines();
       ctrl.width = next16();
+    }
     if(match(token_type::comma))
+    {
+      skip_newlines();
       ctrl.height = next16();
+    }
     if(match(token_type::comma))
     {
       skip_newlines();
