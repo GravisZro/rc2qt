@@ -67,6 +67,12 @@ uint64_t safe_stoul(const std::string& s, int base = 0, uint64_t default_value =
 std::string utf16le_to_utf8(const std::string& input);
 std::string cp1252_to_utf8(const std::string& input);
 
+#ifdef HAVE_ICU
+void set_codepage(std::string& codepage_num);
+void set_codepage(uint32_t codepage);
+std::string codepage_to_utf8(const std::string& input);
+#endif
+
 bool match_string(const std::string& needle, std::initializer_list<std::string> haystack);
 std::string escape_string(const std::string& s);
 

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
-option(BUILD_WITH_QT "Build the project using Qt (slower execution)" OFF)
+option(BUILD_WITH_QT  "Build the project using Qt (slower execution)" OFF)
+option(BUILD_WITH_ICU "Build the project with unlimited code page support" ON)
+
 
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON" FORCE)
 
@@ -15,37 +17,51 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# check for missing headers
+
+set(EXTRA_DIRS "")
+set(EXTRA_LIBS "")
+set(EXTRA_DEFS "")
+
+# check for missing format header (G++ 12)
 include(CheckIncludeFileCXX)
 check_include_file_cxx(format HAVE_STDFORMAT_HEADER)
 
-if(HAVE_STDFORMAT_HEADER)
-  set(EXTRA_DIRS "")
-  set(EXTRA_LIBS "")
-else()
+if(NOT HAVE_STDFORMAT_HEADER)
   find_package(fmt REQUIRED)
-  set(EXTRA_DIRS polyfill)
-  set(EXTRA_LIBS fmt::fmt)
+  list(APPEND EXTRA_DIRS polyfill)
+  list(APPEND EXTRA_LIBS fmt::fmt)
+  list(APPEND EXTRA_DEFS HAVE_FORMAT)
 endif()
 
 if(BUILD_WITH_QT)
   set(CMAKE_AUTOMOC ON)
-  target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_QT)
   find_package(Qt5 REQUIRED COMPONENTS Widgets)
   list(APPEND EXTRA_LIBS Qt5::Widgets)
+  list(APPEND EXTRA_DEFS HAVE_QT)
+
   # temporary until Qt transition
   find_package(pugixml REQUIRED)
   list(APPEND EXTRA_LIBS pugixml::pugixml)
+  list(APPEND EXTRA_DEFS HAVE_PUGIXML)
 else()
 #xml stuff
   find_package(pugixml REQUIRED)
   list(APPEND EXTRA_LIBS pugixml::pugixml)
+  list(APPEND EXTRA_DEFS HAVE_PUGIXML)
+
 # font stuff
   find_package(Freetype REQUIRED)
   find_package(Fontconfig REQUIRED)
   list(APPEND EXTRA_LIBS Freetype::Freetype)
   list(APPEND EXTRA_LIBS Fontconfig::Fontconfig)
   list(APPEND EXTRA_DIRS ${FREETYPE_INCLUDE_DIRS})
+  list(APPEND EXTRA_DEFS HAVE_FREETYPE)
+endif()
+
+if(BUILD_WITH_ICU)
+  find_package(ICU REQUIRED COMPONENTS uc i18n)
+  list(APPEND EXTRA_LIBS ICU::uc ICU::i18n)
+  list(APPEND EXTRA_DEFS HAVE_ICU)
 endif()
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic")
@@ -87,6 +103,7 @@ add_executable(${TARGET_NAME} ${HEADERS} ${SOURCES})
 
 target_include_directories(${TARGET_NAME} PRIVATE src ${EXTRA_DIRS})
 target_link_libraries(${TARGET_NAME} PRIVATE pefile ${EXTRA_LIBS})
+target_compile_definitions(${TARGET_NAME} PRIVATE ${EXTRA_DEFS})
 
 # Parser unit tests
 set(TEST_SOURCES
@@ -101,6 +118,7 @@ set(TEST_SOURCES
 add_executable(test_parser ${TEST_SOURCES})
 target_include_directories(test_parser PRIVATE src ${EXTRA_DIRS})
 target_link_libraries(test_parser PRIVATE ${EXTRA_LIBS})
+target_compile_definitions(test_parser PRIVATE ${EXTRA_DEFS})
 
 enable_testing()
 add_test(NAME parser_tests COMMAND test_parser)

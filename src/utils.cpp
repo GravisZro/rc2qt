@@ -4,6 +4,12 @@
 #include <cctype>
 #include <array>
 #include <ranges>
+#include <vector>
+
+#ifdef HAVE_ICU
+#include <unicode/utypes.h>
+#include <unicode/ucnv.h>
+#endif
 
 
 
@@ -34,6 +40,62 @@ uint64_t safe_stoul(const std::string& s, int base, uint64_t default_value)
     return default_value;
   }
 }
+
+#ifdef HAVE_ICU
+static std::string g_codepage;
+
+void set_codepage(std::string& codepage_num)
+{
+  uint64_t val = safe_stoul(codepage_num, 0, UINT64_MAX);
+  if(val == UINT64_MAX)
+    throw std::runtime_error(std::format("set_codepage::codepage_num must be a numeric value. Got \"{}\"", codepage_num));
+  if(val > UINT32_MAX)
+    throw std::runtime_error(std::format("set_codepage::codepage_num cannot exceed {}. Got \"{}\"", UINT32_MAX, val));
+  set_codepage(static_cast<uint32_t>(val));
+}
+
+void set_codepage(uint32_t codepage)
+{
+  g_codepage = std::format("cp{}", codepage);
+}
+
+std::string codepage_to_utf8(const char* codepage, const std::string& input)
+{
+  std::vector<char> dest(input.size() * 4 + 1, '\0'); // for worst case scenario
+
+  UErrorCode status = U_ZERO_ERROR;
+  // Perform the conversion directly from source encoding to UTF-8
+  // ucnv_convert acts as a convenience function that pivots through Unicode internally.
+  ucnv_convert(
+      "utf-8",        // Target encoding name
+      codepage,       // Source encoding name (e.g., "cp932", "cp1252")
+      dest.data(),    // Output buffer
+      dest.size(),    // Output buffer capacity in bytes
+      input.c_str(),  // Input string
+      -1,             // Input string length (-1 if null-terminated)
+      &status         // ICU error code
+      );
+
+  if(U_FAILURE(status))
+    throw std::runtime_error(__FILE__ ": Something went wrong with the codepage conversion!");
+
+  return std::string(dest.data());
+}
+
+std::string codepage_to_utf8(const std::string& input)
+{
+  if(g_codepage.empty())
+    throw std::runtime_error("You must call set_codepage() before calling codepage_to_utf8()");
+  return codepage_to_utf8(g_codepage.c_str(), input);
+}
+
+std::string utf16le_to_utf8(const std::string& input)
+  { return codepage_to_utf8("utf-16le", input); }
+
+std::string cp1252_to_utf8(const std::string& input)
+  { return codepage_to_utf8("cp1252", input); }
+
+#else
 
 std::string utf16le_to_utf8(const std::string& input)
 {
@@ -104,6 +166,9 @@ std::string cp1252_to_utf8(const std::string& input)
   }
   return utf16le_to_utf8(result);
 }
+#endif
+
+
 
 bool match_string(const std::string& needle, std::initializer_list<std::string> haystack)
 {
