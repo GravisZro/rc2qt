@@ -174,6 +174,68 @@ static std::string read_string(const std::string& input, size_t& pos, size_t& li
   return value;
 }
 
+static bool is_expr_operator(char c)
+{
+  return c == '+' || c == '-' || c == '*' || c == '/' ||
+         c == '&' || c == '|' || c == '^';
+}
+
+static std::pair<token_type, std::string> read_numeric(const std::string& input, size_t& pos)
+{
+  std::string value;
+  token_type type = token_type::integer_literal;
+
+  // Hex literal: 0x / 0X prefix.
+  if(pos + 1 < input.size() && input[pos] == '0' &&
+     (input[pos + 1] == 'x' || input[pos + 1] == 'X'))
+  {
+    type = token_type::hex_literal;
+    value = "0x";
+    pos += 2;
+    while(pos < input.size() &&
+          std::isxdigit(static_cast<unsigned char>(input[pos])))
+    {
+      value.push_back(input[pos]);
+      ++pos;
+    }
+  }
+  else
+  {
+    while(pos < input.size() &&
+          std::isdigit(static_cast<unsigned char>(input[pos])))
+    {
+      value.push_back(input[pos]);
+      ++pos;
+    }
+  }
+
+  // Detect a trailing arithmetic expression, e.g. "200 - 8" or "295-7".
+  // Expressions use the operators + - * / & | ^ and always end at a comma
+  // or a newline; the raw text of the whole expression is stored as-is
+  // and marked with the expression token type.
+  size_t probe = pos;
+  while(probe < input.size() &&
+        std::isspace(static_cast<unsigned char>(input[probe])))
+    ++probe;
+  if(probe < input.size() && is_expr_operator(input[probe]))
+  {
+    type = token_type::expression;
+    while(pos < input.size() && input[pos] != ',' && input[pos] != '\n')
+    {
+      value.push_back(input[pos]);
+      ++pos;
+    }
+    while(!value.empty() &&
+          std::isspace(static_cast<unsigned char>(value.back())))
+      value.pop_back();
+  }
+
+  return {type, value};
+}
+
+// PREVIOUS read_hex / read_number -- superseded by read_numeric above,
+// which additionally recognizes arithmetic expressions such as "295-7".
+#if 0
 static std::string read_hex(const std::string& input, size_t& pos)
 {
   std::string value = "0x";
@@ -207,6 +269,7 @@ static std::string read_number(const std::string& input, size_t& pos)
   }
   return value;
 }
+#endif
 
 static std::string read_identifier(const std::string& input, size_t& pos)
 {
@@ -327,14 +390,6 @@ std::vector<token> tokenize(const std::string& input)
       continue;
     }
 
-    if(c == '0' && pos + 1 < src.size() && (src[pos + 1] == 'x' || src[pos + 1] == 'X'))
-    {
-      pos += 2;
-      std::string value = read_hex(src, pos);
-      tokens.push_back({token_type::hex_literal, value, line});
-      continue;
-    }
-
     if(c == '0' && pos + 1 < src.size() && (src[pos + 1] == 'o' || src[pos + 1] == 'O'))
     {
       pos += 2;
@@ -350,8 +405,8 @@ std::vector<token> tokenize(const std::string& input)
 
     if(std::isdigit(static_cast<unsigned char>(c)))
     {
-      std::string value = read_number(src, pos);
-      tokens.push_back({token_type::integer_literal, value, line});
+      auto [type, value] = read_numeric(src, pos);
+      tokens.push_back({type, value, line});
       continue;
     }
 
