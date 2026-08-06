@@ -41,7 +41,6 @@ uint64_t safe_stoul(const std::string& s, int base, uint64_t default_value)
   }
 }
 
-#ifdef HAVE_ICU
 static std::string g_codepage;
 
 void set_codepage(std::string& codepage_num)
@@ -59,6 +58,7 @@ void set_codepage(uint32_t codepage)
   g_codepage = std::format("cp{}", codepage);
 }
 
+#ifdef HAVE_ICU
 std::string codepage_to_utf8(const char* codepage, const std::string& input)
 {
   std::vector<char> dest(input.size() * 4 + 1, '\0'); // for worst case scenario
@@ -88,12 +88,6 @@ std::string codepage_to_utf8(const std::string& input)
     throw std::runtime_error("You must call set_codepage() before calling codepage_to_utf8()");
   return codepage_to_utf8(g_codepage.c_str(), input);
 }
-
-std::string utf16le_to_utf8(const std::string& input)
-  { return codepage_to_utf8("utf-16le", input); }
-
-std::string cp1252_to_utf8(const std::string& input)
-  { return codepage_to_utf8("cp1252", input); }
 
 #else
 
@@ -166,8 +160,21 @@ std::string cp1252_to_utf8(const std::string& input)
   }
   return utf16le_to_utf8(result);
 }
-#endif
 
+std::string codepage_to_utf8(const std::string& input)
+{
+  if(g_codepage.empty())
+    throw std::runtime_error("You must call set_codepage() before calling codepage_to_utf8()");
+
+  if(g_codepage != "cp1200" &&
+     g_codepage != "cp1252")
+    throw std::runtime_error("Without building with ICU support, the only code pages supported are 1200 (UTF-16LE) and 1252 (Windows-1252)");
+
+  if(g_codepage == "cp1200")
+    return utf16le_to_utf8(input);
+  return cp1252_to_utf8(input);
+}
+#endif
 
 
 bool match_string(const std::string& needle, std::initializer_list<std::string> haystack)

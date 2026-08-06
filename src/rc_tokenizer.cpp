@@ -282,29 +282,23 @@ static std::string read_identifier(const std::string& input, size_t& pos)
   return value;
 }
 
-std::vector<token> tokenize(const std::string& input)
+std::vector<token> tokenize(const std::string& input, uint32_t code_page)
 {
-  std::string converted;
-  if(input.size() >= 2)
+  if(code_page != UINT32_MAX)
+    set_codepage(code_page);
+  else if(input.size() >= 4)
   {
     const auto* data = reinterpret_cast<const unsigned char*>(input.data());
 
-    if(input.size() >= 4)
-    {
-      bool is_utf32le = (data[0] == 0xFF && data[1] == 0xFE &&
-                         data[2] == 0x00 && data[3] == 0x00);
-      bool is_utf32be = (data[0] == 0x00 && data[1] == 0x00 &&
-                         data[2] == 0xFE && data[3] == 0xFF);
-      if(is_utf32le || is_utf32be)
-        throw std::runtime_error("UTF-32 encoded .rc files are not supported");
-    }
-
-    bool is_utf16be = (data[0] == 0xFE && data[1] == 0xFF);
-    if(is_utf16be)
-      throw std::runtime_error("UTF-16 BE encoded .rc files are not supported");
-
-    bool is_utf16le = (data[0] == 0xFF && data[1] == 0xFE);
-    if(!is_utf16le)
+    if(data[0] == 0xFF && data[1] == 0xFE && data[2] == 0x00 && data[3] == 0x00)
+      set_codepage(12000); // UTF-32LE
+    else if(data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xFE && data[3] == 0xFF)
+      set_codepage(12001); // UTF-32BE
+    else if(data[0] == 0xFE && data[1] == 0xFF)
+      set_codepage(1201); // UTF16-LE
+    else if(data[0] == 0xFF && data[1] == 0xFE)
+      set_codepage(1200); // UTF16-LE
+    else
     {
       size_t nulls = 0;
       size_t check = std::min(input.size(), static_cast<size_t>(64));
@@ -312,15 +306,13 @@ std::vector<token> tokenize(const std::string& input)
         if(data[i] == 0)
           ++nulls;
       if(nulls > check / 4)
-        is_utf16le = true;
+        set_codepage(1201); // UTF16-LE
+      else
+        set_codepage(1252); // default is 1252
     }
-    if(is_utf16le)
-      converted = utf16le_to_utf8(input);
-    else
-      converted = cp1252_to_utf8(input);
   }
 
-  const std::string& src = converted;
+  const std::string& src = codepage_to_utf8(input);
   std::vector<token> tokens;
   size_t pos = 0;
   size_t line = 1;
