@@ -81,6 +81,7 @@ enum class category_t : uint64_t
   animate_style         = 0x00004000ULL << 32, // ACS_* animation control styles
   statusbar_style       = 0x00008000ULL << 32, // SBARS_*, SBT_* status bar styles
   tabcontrol_ex_style   = 0x00010000ULL << 32, // TCS_EX_* extended tab control styles
+  controlbar_style      = 0x00020000ULL << 32, // CBRS_* control bar styles
 };
 
 struct constant_entry

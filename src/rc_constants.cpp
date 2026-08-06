@@ -464,8 +464,6 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   /* ── TCS_* Tab Control Styles ────────────────────────────────── */
   add(category_t::tabcontrol_style, 0x0002, "TCS_BOTTOM", "Places tabs at the bottom of the control.");
   add(category_t::tabcontrol_style, 0x0002, "TCS_BUTTONS", "Displays tabs as push buttons.");
-  // add(category_t::tabcontrol_style, 0x00000001, "TCS_EX_FLATSEPARATORS", "Draws flat separators between tabs in the tab control.");
-  // add(category_t::tabcontrol_style, 0x00000002, "TCS_EX_REGISTERDROP", "Enables tab items to receive WM_QUERYDROPPOSITION notifications.");
   add(category_t::tabcontrol_style, 0x0040, "TCS_FIXEDWIDTH", "All tabs are the same width; individual text length is ignored.");
   add(category_t::tabcontrol_style, 0x0008, "TCS_FLATBUTTONS", "Displays tabs as flat push buttons in tab controls without borders.");
   add(category_t::tabcontrol_style, 0x0800, "TCS_FOCUSNEVER", "Prevents the tab control from receiving input focus.");
@@ -498,23 +496,11 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::scrollbar_style, 0x0003, "SB_BOTH", "Identifies both horizontal and vertical scroll bars for scroll bar messages.");
 
   /* ── SBARS_* Status Bar Styles ──────────────────────────────── */
-  // add(category_t::scrollbar_style, 0x0100, "SBARS_SIZEGRIP", "Displays a size grip in the lower-right corner of the status bar window.");
-  // add(category_t::scrollbar_style, 0x0800, "SBARS_TOOLTIPS", "Enables tooltips for status bar parts when the mouse hovers over them.");
   add(category_t::statusbar_style, 0x0100, "SBARS_SIZEGRIP", "Displays a size grip in the lower-right corner of the status bar window.");
   add(category_t::statusbar_style, 0x0800, "SBARS_TOOLTIPS", "Enables tooltips for status bar parts when the mouse hovers over them.");
   add(category_t::statusbar_style, 0x0800, "SBT_TOOLTIPS", "Identical to SBARS_TOOLTIPS; use for version 5.00 or later.");
 
   /* ── MCS_* Month Calendar Styles ─────────────────────────────── */
-  // add(category_t::datetime_style, 0x0001, "MCS_DAYSTATE", "Requests the parent to supply day state information to display bolded dates.");
-  // add(category_t::datetime_style, 0x0002, "MCS_MULTISELECT", "Enables selection of a range of dates in the month calendar control.");
-  // add(category_t::datetime_style, 0x0004, "MCS_WEEKNUMBERS", "Displays week numbers along the left edge of the calendar.");
-  // add(category_t::datetime_style, 0x0008, "MCS_NOTODAYCIRCLE", "Disables the circle that highlights today's date in the month calendar.");
-  // add(category_t::datetime_style, 0x0010, "MCS_NOTODAY", "Hides the today selection row at the bottom of the month calendar control.");
-  // add(category_t::datetime_style, 0x0020, "MCS_NORROWHEAD", "Hides the left column that shows the week numbers in the month calendar."); // Not defined in CommCtrl.h.
-  // add(category_t::datetime_style, 0x0040, "MCS_NODATEPICK", "Hides the date picker at the top of the month calendar control."); // Not defined in CommCtrl.h; conflicts with MCS_NOTRAILINGDATES.
-  // add(category_t::datetime_style, 0x0100, "MCS_NOSELCHANGEONNAV", "The selection is not changed when the user navigates next or previous in the calendar.");
-  // add(category_t::datetime_style, 0x0040, "MCS_NOTRAILINGDATES", "Dates from the previous and next months are not displayed in the current month's calendar.");
-  // add(category_t::datetime_style, 0x0080, "MCS_SHORTDAYSOFWEEK", "Short day names are displayed in the header.");
   add(category_t::month_calendar_style, 0x0001, "MCS_DAYSTATE", "Requests the parent to supply day state information to display bolded dates.");
   add(category_t::month_calendar_style, 0x0002, "MCS_MULTISELECT", "Enables selection of a range of dates in the month calendar control.");
   add(category_t::month_calendar_style, 0x0004, "MCS_WEEKNUMBERS", "Displays week numbers along the left edge of the calendar.");
@@ -982,6 +968,8 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::resource_type, 22, "RT_ANIICON");
   add(category_t::resource_type, 23, "RT_HTML");
   add(category_t::resource_type, 24, "RT_MANIFEST");
+  add(category_t::resource_type, 240, "RT_DLGINIT", "MFC resource type for dialog initialization data");
+  add(category_t::resource_type, 241, "RT_TOOLBAR", "MFC resource type for toolbar definitions");
 
   /* ── ID* Dialog Button Identifiers ────────────────────────────── */
   add(category_t::dialog_id, 1, "IDOK");
@@ -998,6 +986,7 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::dialog_id, 32000, "IDTIMEOUT");
 
   /* ── IDC_* System Control Identifiers ─────────────────────────── */
+  add(category_t::system_id, -1, "IDC_STATIC", "Standard identifier for static controls");
 
   /* ── AFX_IDC_* MFC Control Identifiers ──────────────────────── */
   add(category_t::control_id, 0x4b3, "AFX_IDC_BROWSE", "Control ID for file browse button");
@@ -1062,6 +1051,17 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::mfc_dialog_id, 0x7807, "AFX_IDD_PASTESPECIAL", "Dialog Template ID for OLE Paste Special dialog");
   add(category_t::mfc_dialog_id, 0x7803, "AFX_IDD_PREVIEW_TOOLBAR", "Dialog Template ID for Print Preview toolbar");
   add(category_t::mfc_dialog_id, 0x7802, "AFX_IDD_PRINTDLG", "Dialog Template ID for Print Status dialog");
+  add(category_t::mfc_dialog_id, 0x7004, "AFX_IDD_FILEOPEN", "Dialog Template ID for the standard File Open common dialog");
+  add(category_t::mfc_dialog_id, 0x7005, "AFX_IDD_FILESAVE", "Dialog Template ID for the standard File Save common dialog");
+  add(category_t::mfc_dialog_id, 0x7006, "AFX_IDD_FONT", "Dialog Template ID for the standard Font common dialog");
+  add(category_t::mfc_dialog_id, 0x7007, "AFX_IDD_COLOR", "Dialog Template ID for the standard Color common dialog");
+  add(category_t::mfc_dialog_id, 0x7008, "AFX_IDD_PRINT", "Dialog Template ID for the standard Print common dialog");
+  add(category_t::mfc_dialog_id, 0x7009, "AFX_IDD_PRINTSETUP", "Dialog Template ID for the standard Print Setup common dialog");
+  add(category_t::mfc_dialog_id, 0x700a, "AFX_IDD_FIND", "Dialog Template ID for the standard Find common dialog");
+  add(category_t::mfc_dialog_id, 0x700b, "AFX_IDD_REPLACE", "Dialog Template ID for the standard Replace common dialog");
+  add(category_t::mfc_dialog_id, 0x7e01, "AFX_IDD_PROPPAGE_COLOR", "Dialog Template ID for the OLE control Color property page");
+  add(category_t::mfc_dialog_id, 0x7e02, "AFX_IDD_PROPPAGE_FONT", "Dialog Template ID for the OLE control Font property page");
+  add(category_t::mfc_dialog_id, 0x7e03, "AFX_IDD_PROPPAGE_PICTURE", "Dialog Template ID for the OLE control Picture property page");
 
   /* ── AFX_IDB_* MFC Bitmap IDs ───────────────────────────────── */
   add(category_t::mfc_bitmap_id, 0x7801, "AFX_IDB_CHECKBOX", "Standard MFC bitmap strip providing checkbox glyph states");
@@ -1090,6 +1090,7 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::mfc_bitmap_id, 0x7811, "AFX_IDB_TASKPANE_EXPAND", "Expand/collapse indicator arrows used within CMFCTasksPane");
   add(category_t::mfc_bitmap_id, 0x7805, "AFX_IDB_TASKPANE_SCROLL_BTNS", "Up and down scroll arrow buttons for scrollable task pane containers");
   add(category_t::mfc_bitmap_id, 0x7813, "AFX_IDB_TEAR", "Visual indicator graphic marking detachable tear-off menus and toolbars");
+  add(category_t::mfc_bitmap_id, 0x7e80, "AFX_IDB_TRUETYPE", "Bitmap ID for the TrueType font indicator");
 
   /* ── IDB_* Standard Common Controls Bitmap IDs ───────────────── */
   add(category_t::mfc_bitmap_id, 0xe, "IDB_HIST_DISABLED", "Explorer travel buttons and favorites bitmaps in disabled state");
@@ -1146,6 +1147,95 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::mfc_prompt_id, 0xf10c, "AFX_IDP_UNREG_FAILURE", "Prompt ID for Unregistration failed message");
   add(category_t::mfc_prompt_id, 0xf022, "AFX_IDS_RESOURCE_EXCEPTION", "Error message string displayed when a general resource exception occurs");
   add(category_t::mfc_prompt_id, 0xf024, "AFX_IDS_USER_EXCEPTION", "Standard string prompt for generic user-initiated exceptions");
+
+  /* ── AFX_IDP_* General File/Device Error Prompts ─────────────── */
+  add(category_t::mfc_prompt_id, 0xf120, "AFX_IDP_FAILED_INVALID_FORMAT", "Prompt ID for failing to read from a file with an invalid format");
+  add(category_t::mfc_prompt_id, 0xf121, "AFX_IDP_FAILED_INVALID_PATH", "Prompt ID for a file operation on an invalid path");
+  add(category_t::mfc_prompt_id, 0xf122, "AFX_IDP_FAILED_DISK_FULL", "Prompt ID for failing to write because the disk is full");
+  add(category_t::mfc_prompt_id, 0xf123, "AFX_IDP_FAILED_ACCESS_READ", "Prompt ID for failing to access a file for reading");
+  add(category_t::mfc_prompt_id, 0xf124, "AFX_IDP_FAILED_ACCESS_WRITE", "Prompt ID for failing to access a file for writing");
+  add(category_t::mfc_prompt_id, 0xf125, "AFX_IDP_FAILED_IO_ERROR_READ", "Prompt ID for a file I/O error while reading");
+  add(category_t::mfc_prompt_id, 0xf126, "AFX_IDP_FAILED_IO_ERROR_WRITE", "Prompt ID for a file I/O error while writing");
+
+  /* ── AFX_IDP_* OLE Error / Prompt Strings ────────────────────── */
+  add(category_t::mfc_prompt_id, 0xf180, "AFX_IDP_STATIC_OBJECT", "Prompt ID for an operation that failed on a static OLE object");
+  add(category_t::mfc_prompt_id, 0xf181, "AFX_IDP_FAILED_TO_CONNECT", "Prompt ID for failure to connect to an OLE object");
+  add(category_t::mfc_prompt_id, 0xf182, "AFX_IDP_SERVER_BUSY", "Prompt ID for an OLE server that is too busy to respond");
+  add(category_t::mfc_prompt_id, 0xf183, "AFX_IDP_BAD_VERB", "Prompt ID for an invalid OLE verb");
+  add(category_t::mfc_prompt_id, 0xf185, "AFX_IDP_FAILED_TO_NOTIFY", "Prompt ID for failure to notify an OLE object of an operation");
+  add(category_t::mfc_prompt_id, 0xf186, "AFX_IDP_FAILED_TO_LAUNCH", "Prompt ID for failure to launch an OLE server application");
+  add(category_t::mfc_prompt_id, 0xf187, "AFX_IDP_ASK_TO_UPDATE", "Prompt ID asking the user whether to update a linked OLE object");
+  add(category_t::mfc_prompt_id, 0xf188, "AFX_IDP_FAILED_TO_UPDATE", "Prompt ID for failure to update a linked OLE object");
+  add(category_t::mfc_prompt_id, 0xf189, "AFX_IDP_FAILED_TO_REGISTER", "Prompt ID for failure to register an OLE object");
+  add(category_t::mfc_prompt_id, 0xf18a, "AFX_IDP_FAILED_TO_AUTO_REGISTER", "Prompt ID for failure to automatically register an OLE object");
+  add(category_t::mfc_prompt_id, 0xf18b, "AFX_IDP_FAILED_TO_CONVERT", "Prompt ID for failure to convert an OLE object to a different type");
+  add(category_t::mfc_prompt_id, 0xf18c, "AFX_IDP_GET_NOT_SUPPORTED", "Prompt ID for attempting to get a property that is not supported");
+  add(category_t::mfc_prompt_id, 0xf18d, "AFX_IDP_SET_NOT_SUPPORTED", "Prompt ID for attempting to set a property that is not supported");
+  add(category_t::mfc_prompt_id, 0xf18e, "AFX_IDP_ASK_TO_DISCARD", "Prompt ID asking the user whether to discard changes to an OLE object");
+  add(category_t::mfc_prompt_id, 0xf18f, "AFX_IDP_FAILED_TO_CREATE", "Prompt ID for failure to create an OLE object");
+
+  /* ── AFX_IDP_* MAPI Error Prompts ────────────────────────────── */
+  add(category_t::mfc_prompt_id, 0xf190, "AFX_IDP_FAILED_MAPI_LOAD", "Prompt ID for failure to load the MAPI messaging DLL");
+  add(category_t::mfc_prompt_id, 0xf191, "AFX_IDP_INVALID_MAPI_DLL", "Prompt ID for an invalid MAPI DLL");
+  add(category_t::mfc_prompt_id, 0xf192, "AFX_IDP_FAILED_MAPI_SEND", "Prompt ID for failure to send mail via MAPI");
+
+  /* ── AFX_IDP_SQL_* / AFX_IDP_DAO_* Database Error Prompts ────── */
+  add(category_t::mfc_prompt_id, 0xf280, "AFX_IDP_SQL_FIRST", "First prompt ID in the AFX_IDP_SQL_* range");
+  add(category_t::mfc_prompt_id, 0xf2b0, "AFX_IDP_DAO_FIRST", "First prompt ID in the AFX_IDP_DAO_* range");
+  add(category_t::mfc_prompt_id, 0xf2b0, "AFX_IDP_DAO_ENGINE_INITIALIZATION", "Prompt ID for failure to initialize the DAO database engine");
+  add(category_t::mfc_prompt_id, 0xf2b1, "AFX_IDP_DAO_DFX_BIND", "Prompt ID for a DAO field exchange (DFX) binding error");
+  add(category_t::mfc_prompt_id, 0xf2b2, "AFX_IDP_DAO_OBJECT_NOT_OPEN", "Prompt ID for a DAO operation on an object that is not open");
+  add(category_t::mfc_prompt_id, 0xf2b3, "AFX_IDP_DAO_ROWTOOSHORT", "Prompt ID for a DAO GetRows row that is too short");
+  add(category_t::mfc_prompt_id, 0xf2b4, "AFX_IDP_DAO_BADBINDINFO", "Prompt ID for invalid DAO binding information");
+  add(category_t::mfc_prompt_id, 0xf2b5, "AFX_IDP_DAO_COLUMNUNAVAILABLE", "Prompt ID for a DAO column that is not available");
+
+  /* ── AFX_IDP_PICTURE* OLE Control Picture Error Prompts ──────── */
+  add(category_t::mfc_prompt_id, 0xfe83, "AFX_IDP_PICTURECANTOPEN", "Prompt ID for failing to open a picture file");
+  add(category_t::mfc_prompt_id, 0xfe84, "AFX_IDP_PICTURECANTLOAD", "Prompt ID for failing to load a picture");
+  add(category_t::mfc_prompt_id, 0xfe85, "AFX_IDP_PICTURETOOLARGE", "Prompt ID for a picture that is too large to display");
+  add(category_t::mfc_prompt_id, 0xfe86, "AFX_IDP_PICTUREREADFAILED", "Prompt ID for failing to read picture data");
+
+  /* ── AFX_IDP_E_* OLE Control Error Strings ───────────────────── */
+  add(category_t::mfc_prompt_id, 0xfea0, "AFX_IDP_E_ILLEGALFUNCTIONCALL", "OLE control error: Illegal function call");
+  add(category_t::mfc_prompt_id, 0xfea1, "AFX_IDP_E_OVERFLOW", "OLE control error: Overflow");
+  add(category_t::mfc_prompt_id, 0xfea2, "AFX_IDP_E_OUTOFMEMORY", "OLE control error: Out of memory");
+  add(category_t::mfc_prompt_id, 0xfea3, "AFX_IDP_E_DIVISIONBYZERO", "OLE control error: Division by zero");
+  add(category_t::mfc_prompt_id, 0xfea4, "AFX_IDP_E_OUTOFSTRINGSPACE", "OLE control error: Out of string space");
+  add(category_t::mfc_prompt_id, 0xfea5, "AFX_IDP_E_OUTOFSTACKSPACE", "OLE control error: Out of stack space");
+  add(category_t::mfc_prompt_id, 0xfea6, "AFX_IDP_E_BADFILENAMEORNUMBER", "OLE control error: Bad file name or number");
+  add(category_t::mfc_prompt_id, 0xfea7, "AFX_IDP_E_FILENOTFOUND", "OLE control error: File not found");
+  add(category_t::mfc_prompt_id, 0xfea8, "AFX_IDP_E_BADFILEMODE", "OLE control error: Bad file mode");
+  add(category_t::mfc_prompt_id, 0xfea9, "AFX_IDP_E_FILEALREADYOPEN", "OLE control error: File already open");
+  add(category_t::mfc_prompt_id, 0xfeaa, "AFX_IDP_E_DEVICEIOERROR", "OLE control error: Device I/O error");
+  add(category_t::mfc_prompt_id, 0xfeab, "AFX_IDP_E_FILEALREADYEXISTS", "OLE control error: File already exists");
+  add(category_t::mfc_prompt_id, 0xfeac, "AFX_IDP_E_BADRECORDLENGTH", "OLE control error: Bad record length");
+  add(category_t::mfc_prompt_id, 0xfead, "AFX_IDP_E_DISKFULL", "OLE control error: Disk full");
+  add(category_t::mfc_prompt_id, 0xfeae, "AFX_IDP_E_BADRECORDNUMBER", "OLE control error: Bad record number");
+  add(category_t::mfc_prompt_id, 0xfeaf, "AFX_IDP_E_BADFILENAME", "OLE control error: Bad file name");
+  add(category_t::mfc_prompt_id, 0xfeb0, "AFX_IDP_E_TOOMANYFILES", "OLE control error: Too many files");
+  add(category_t::mfc_prompt_id, 0xfeb1, "AFX_IDP_E_DEVICEUNAVAILABLE", "OLE control error: Device unavailable");
+  add(category_t::mfc_prompt_id, 0xfeb2, "AFX_IDP_E_PERMISSIONDENIED", "OLE control error: Permission denied");
+  add(category_t::mfc_prompt_id, 0xfeb3, "AFX_IDP_E_DISKNOTREADY", "OLE control error: Disk not ready");
+  add(category_t::mfc_prompt_id, 0xfeb4, "AFX_IDP_E_PATHFILEACCESSERROR", "OLE control error: Path/file access error");
+  add(category_t::mfc_prompt_id, 0xfeb5, "AFX_IDP_E_PATHNOTFOUND", "OLE control error: Path not found");
+  add(category_t::mfc_prompt_id, 0xfeb6, "AFX_IDP_E_INVALIDPATTERNSTRING", "OLE control error: Invalid pattern string");
+  add(category_t::mfc_prompt_id, 0xfeb7, "AFX_IDP_E_INVALIDUSEOFNULL", "OLE control error: Invalid use of NULL");
+  add(category_t::mfc_prompt_id, 0xfeb8, "AFX_IDP_E_INVALIDFILEFORMAT", "OLE control error: Invalid file format");
+  add(category_t::mfc_prompt_id, 0xfeb9, "AFX_IDP_E_INVALIDPROPERTYVALUE", "OLE control error: Invalid property value");
+  add(category_t::mfc_prompt_id, 0xfeba, "AFX_IDP_E_INVALIDPROPERTYARRAYINDEX", "OLE control error: Invalid property array index");
+  add(category_t::mfc_prompt_id, 0xfebb, "AFX_IDP_E_SETNOTSUPPORTEDATRUNTIME", "OLE control error: Set is not supported at runtime");
+  add(category_t::mfc_prompt_id, 0xfebc, "AFX_IDP_E_SETNOTSUPPORTED", "OLE control error: Set is not supported");
+  add(category_t::mfc_prompt_id, 0xfebd, "AFX_IDP_E_NEEDPROPERTYARRAYINDEX", "OLE control error: Property array index required");
+  add(category_t::mfc_prompt_id, 0xfebe, "AFX_IDP_E_SETNOTPERMITTED", "OLE control error: Set is not permitted");
+  add(category_t::mfc_prompt_id, 0xfebf, "AFX_IDP_E_GETNOTSUPPORTEDATRUNTIME", "OLE control error: Get is not supported at runtime");
+  add(category_t::mfc_prompt_id, 0xfec0, "AFX_IDP_E_GETNOTSUPPORTED", "OLE control error: Get is not supported");
+  add(category_t::mfc_prompt_id, 0xfec1, "AFX_IDP_E_PROPERTYNOTFOUND", "OLE control error: Property not found");
+  add(category_t::mfc_prompt_id, 0xfec2, "AFX_IDP_E_INVALIDCLIPBOARDFORMAT", "OLE control error: Invalid clipboard format");
+  add(category_t::mfc_prompt_id, 0xfec3, "AFX_IDP_E_INVALIDPICTURE", "OLE control error: Invalid picture");
+  add(category_t::mfc_prompt_id, 0xfec4, "AFX_IDP_E_PRINTERERROR", "OLE control error: Printer error");
+  add(category_t::mfc_prompt_id, 0xfec5, "AFX_IDP_E_CANTSAVEFILETOTEMP", "OLE control error: Cannot save file to temporary file");
+  add(category_t::mfc_prompt_id, 0xfec6, "AFX_IDP_E_SEARCHTEXTNOTFOUND", "OLE control error: Search text not found");
+  add(category_t::mfc_prompt_id, 0xfec7, "AFX_IDP_E_REPLACEMENTSTOOLONG", "OLE control error: Replacement text too long");
 
   /* ── AFX_IDP_FILE_* / AFX_IDP_ARCH_* File/Archive Exception Prompts */
   add(category_t::mfc_prompt_id, 0xf1b6, "AFX_IDP_ARCH_BADCLASS", "Archive Error: Class bad or unexpected");
@@ -1239,6 +1329,115 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::mfc_string_id, 0xf089, "AFX_IDS_UPDATE_MENU", "Dynamic menu text for updating an embedded OLE object");
   add(category_t::mfc_string_id, 0xf08d, "AFX_IDS_UPDATING_ITEMS", "Status message displayed while links/embedded objects update");
 
+  /* ── AFX_IDS_* Application / Idle Message Strings ────────────── */
+  add(category_t::mfc_string_id, 0xe000, "AFX_IDS_APP_TITLE", "String ID for the application title (defaults to the EXE name)");
+  add(category_t::mfc_string_id, 0xe001, "AFX_IDS_IDLEMESSAGE", "String ID for the idle message bar line");
+  add(category_t::mfc_string_id, 0xe002, "AFX_IDS_HELPMODEMESSAGE", "String ID for the message bar line in Shift+F1 help mode");
+  add(category_t::mfc_string_id, 0xe003, "AFX_IDS_APP_TITLE_EMBEDDING", "String ID for the document title when editing an OLE embedding");
+  add(category_t::mfc_string_id, 0xe004, "AFX_IDS_COMPANY_NAME", "String ID for the company name");
+  add(category_t::mfc_string_id, 0xe005, "AFX_IDS_OBJ_TITLE_INPLACE", "String ID for the object title while an OLE server is in-place");
+
+  /* ── AFX_IDS_SC* System Command / Task List Strings ──────────── */
+  add(category_t::mfc_string_id, 0xef00, "AFX_IDS_SCFIRST", "First string ID in the AFX_IDS_SC* range");
+  add(category_t::mfc_string_id, 0xef00, "AFX_IDS_SCSIZE", "String ID for the Size system command");
+  add(category_t::mfc_string_id, 0xef01, "AFX_IDS_SCMOVE", "String ID for the Move system command");
+  add(category_t::mfc_string_id, 0xef02, "AFX_IDS_SCMINIMIZE", "String ID for the Minimize system command");
+  add(category_t::mfc_string_id, 0xef03, "AFX_IDS_SCMAXIMIZE", "String ID for the Maximize system command");
+  add(category_t::mfc_string_id, 0xef04, "AFX_IDS_SCNEXTWINDOW", "String ID for the Next Window system command");
+  add(category_t::mfc_string_id, 0xef05, "AFX_IDS_SCPREVWINDOW", "String ID for the Previous Window system command");
+  add(category_t::mfc_string_id, 0xef06, "AFX_IDS_SCCLOSE", "String ID for the Close system command");
+  add(category_t::mfc_string_id, 0xef12, "AFX_IDS_SCRESTORE", "String ID for the Restore system command");
+  add(category_t::mfc_string_id, 0xef13, "AFX_IDS_SCTASKLIST", "String ID for the Task List system command");
+  add(category_t::mfc_string_id, 0xef1f, "AFX_IDS_MDICHILD", "String ID for a generic MDI child window");
+  add(category_t::mfc_string_id, 0xefda, "AFX_IDS_DESKACCESSORY", "String ID for a desktop accessory window");
+
+  /* ── AFX_IDS_* General File / Exception Strings ──────────────── */
+  add(category_t::mfc_string_id, 0xf006, "AFX_IDS_UNNAMED_FILE", "String ID for an untitled unnamed file");
+  add(category_t::mfc_string_id, 0xf021, "AFX_IDS_NOT_SUPPORTED_EXCEPTION", "String ID for a not-supported exception message");
+  add(category_t::mfc_string_id, 0xf023, "AFX_IDS_MEMORY_EXCEPTION", "String ID for an out-of-memory exception message");
+
+  /* ── AFX_IDS_* Printing and Print Preview Strings ────────────── */
+  add(category_t::mfc_string_id, 0xf040, "AFX_IDS_PRINTONPORT", "String ID describing the selected printer and port");
+  add(category_t::mfc_string_id, 0xf043, "AFX_IDS_PRINTPAGENUM", "String ID describing the current print page number");
+  add(category_t::mfc_string_id, 0xf044, "AFX_IDS_PREVIEWPAGEDESC", "String ID describing the print preview page");
+  add(category_t::mfc_string_id, 0xf049, "AFX_IDS_PRINTTOFILE", "String ID for the Print to File action");
+
+  /* ── AFX_IDS_* OLE Utility / Data Format Strings ─────────────── */
+  add(category_t::mfc_string_id, 0xf08f, "AFX_IDS_DIB_FORMAT", "String ID for the DIB (device independent bitmap) format name");
+  add(category_t::mfc_string_id, 0xf098, "AFX_IDS_INVALID_CURRENCY", "String ID for an invalid currency value");
+  add(category_t::mfc_string_id, 0xf099, "AFX_IDS_INVALID_DATETIME", "String ID for an invalid date/time value");
+  add(category_t::mfc_string_id, 0xf09a, "AFX_IDS_INVALID_DATETIMESPAN", "String ID for an invalid date/time span value");
+  add(category_t::mfc_string_id, 0xf184, "AFX_IDS_NOT_DOCOBJECT", "String ID for a selection that is not an OLE document object");
+
+  /* ── AFX_IDS_* Miscellaneous / Font Strings ───────────────────── */
+  add(category_t::mfc_string_id, 0xf1c0, "AFX_IDS_OCC_SCALEUNITS_PIXELS", "String ID for pixel-based scaling units in OLE controls");
+  add(category_t::mfc_string_id, 0xf230, "AFX_IDS_STATUS_FONT", "String ID for the status bar font name and point size");
+  add(category_t::mfc_string_id, 0xf231, "AFX_IDS_TOOLTIP_FONT", "String ID for the tooltip font name and point size");
+  add(category_t::mfc_string_id, 0xf232, "AFX_IDS_UNICODE_FONT", "String ID for the Unicode font name and point size");
+  add(category_t::mfc_string_id, 0xf233, "AFX_IDS_MINI_FONT", "String ID for the mini font name and point size");
+  add(category_t::mfc_string_id, 0xf29d, "AFX_IDS_DELETED", "String ID indicating a record has been deleted");
+
+  /* ── AFX_IDS_HTTP_* ISAPI String IDs ─────────────────────────── */
+  add(category_t::mfc_string_id, 0xf2d1, "AFX_IDS_HTTP_TITLE", "String ID for the default ISAPI HTTP error page title");
+  add(category_t::mfc_string_id, 0xf2d2, "AFX_IDS_HTTP_NO_TEXT", "String ID for an empty HTTP error message body");
+  add(category_t::mfc_string_id, 0xf2d3, "AFX_IDS_HTTP_BAD_REQUEST", "String ID for HTTP 400 Bad Request");
+  add(category_t::mfc_string_id, 0xf2d4, "AFX_IDS_HTTP_AUTH_REQUIRED", "String ID for HTTP 401 Authorization Required");
+  add(category_t::mfc_string_id, 0xf2d5, "AFX_IDS_HTTP_FORBIDDEN", "String ID for HTTP 403 Forbidden");
+  add(category_t::mfc_string_id, 0xf2d6, "AFX_IDS_HTTP_NOT_FOUND", "String ID for HTTP 404 Not Found");
+  add(category_t::mfc_string_id, 0xf2d7, "AFX_IDS_HTTP_SERVER_ERROR", "String ID for HTTP 500 Server Error");
+  add(category_t::mfc_string_id, 0xf2d8, "AFX_IDS_HTTP_NOT_IMPLEMENTED", "String ID for HTTP 501 Not Implemented");
+
+  /* ── AFX_IDS_* OLE Control Page Strings ──────────────────────── */
+  add(category_t::mfc_string_id, 0xfe01, "AFX_IDS_PROPPAGE_UNKNOWN", "String ID for an unknown OLE control property page");
+  add(category_t::mfc_string_id, 0xfe04, "AFX_IDS_COLOR_DESKTOP", "String ID for the desktop system color");
+  add(category_t::mfc_string_id, 0xfe05, "AFX_IDS_COLOR_APPWORKSPACE", "String ID for the application workspace system color");
+  add(category_t::mfc_string_id, 0xfe06, "AFX_IDS_COLOR_WNDBACKGND", "String ID for the window background system color");
+  add(category_t::mfc_string_id, 0xfe07, "AFX_IDS_COLOR_WNDTEXT", "String ID for the window text system color");
+  add(category_t::mfc_string_id, 0xfe08, "AFX_IDS_COLOR_MENUBAR", "String ID for the menu bar system color");
+  add(category_t::mfc_string_id, 0xfe09, "AFX_IDS_COLOR_MENUTEXT", "String ID for the menu text system color");
+  add(category_t::mfc_string_id, 0xfe0a, "AFX_IDS_COLOR_ACTIVEBAR", "String ID for the active window title bar system color");
+  add(category_t::mfc_string_id, 0xfe0b, "AFX_IDS_COLOR_INACTIVEBAR", "String ID for the inactive window title bar system color");
+  add(category_t::mfc_string_id, 0xfe0c, "AFX_IDS_COLOR_ACTIVETEXT", "String ID for the active window text system color");
+  add(category_t::mfc_string_id, 0xfe0d, "AFX_IDS_COLOR_INACTIVETEXT", "String ID for the inactive window text system color");
+  add(category_t::mfc_string_id, 0xfe0e, "AFX_IDS_COLOR_ACTIVEBORDER", "String ID for the active window border system color");
+  add(category_t::mfc_string_id, 0xfe0f, "AFX_IDS_COLOR_INACTIVEBORDER", "String ID for the inactive window border system color");
+  add(category_t::mfc_string_id, 0xfe10, "AFX_IDS_COLOR_WNDFRAME", "String ID for the window frame system color");
+  add(category_t::mfc_string_id, 0xfe11, "AFX_IDS_COLOR_SCROLLBARS", "String ID for the scroll bar system color");
+  add(category_t::mfc_string_id, 0xfe12, "AFX_IDS_COLOR_BTNFACE", "String ID for the button face system color");
+  add(category_t::mfc_string_id, 0xfe13, "AFX_IDS_COLOR_BTNSHADOW", "String ID for the button shadow system color");
+  add(category_t::mfc_string_id, 0xfe14, "AFX_IDS_COLOR_BTNTEXT", "String ID for the button text system color");
+  add(category_t::mfc_string_id, 0xfe15, "AFX_IDS_COLOR_BTNHIGHLIGHT", "String ID for the button highlight system color");
+  add(category_t::mfc_string_id, 0xfe16, "AFX_IDS_COLOR_DISABLEDTEXT", "String ID for the disabled text system color");
+  add(category_t::mfc_string_id, 0xfe17, "AFX_IDS_COLOR_HIGHLIGHT", "String ID for the highlight system color");
+  add(category_t::mfc_string_id, 0xfe18, "AFX_IDS_COLOR_HIGHLIGHTTEXT", "String ID for the highlight text system color");
+  add(category_t::mfc_string_id, 0xfe19, "AFX_IDS_REGULAR", "String ID for the Regular font style");
+  add(category_t::mfc_string_id, 0xfe1a, "AFX_IDS_BOLD", "String ID for the Bold font style");
+  add(category_t::mfc_string_id, 0xfe1b, "AFX_IDS_ITALIC", "String ID for the Italic font style");
+  add(category_t::mfc_string_id, 0xfe1c, "AFX_IDS_BOLDITALIC", "String ID for the Bold Italic font style");
+  add(category_t::mfc_string_id, 0xfe1d, "AFX_IDS_SAMPLETEXT", "String ID for the sample text displayed on font property pages");
+  add(category_t::mfc_string_id, 0xfe1e, "AFX_IDS_DISPLAYSTRING_FONT", "String ID for the Font display string on a property page");
+  add(category_t::mfc_string_id, 0xfe1f, "AFX_IDS_DISPLAYSTRING_COLOR", "String ID for the Color display string on a property page");
+  add(category_t::mfc_string_id, 0xfe20, "AFX_IDS_DISPLAYSTRING_PICTURE", "String ID for the Picture display string on a property page");
+  add(category_t::mfc_string_id, 0xfe21, "AFX_IDS_PICTUREFILTER", "String ID for the picture file filter");
+  add(category_t::mfc_string_id, 0xfe22, "AFX_IDS_PICTYPE_UNKNOWN", "String ID for an unknown picture type");
+  add(category_t::mfc_string_id, 0xfe23, "AFX_IDS_PICTYPE_NONE", "String ID for a picture that has no type");
+  add(category_t::mfc_string_id, 0xfe24, "AFX_IDS_PICTYPE_BITMAP", "String ID for the Bitmap picture type");
+  add(category_t::mfc_string_id, 0xfe25, "AFX_IDS_PICTYPE_METAFILE", "String ID for the Metafile picture type");
+  add(category_t::mfc_string_id, 0xfe26, "AFX_IDS_PICTYPE_ICON", "String ID for the Icon picture type");
+  add(category_t::mfc_string_id, 0xfe28, "AFX_IDS_COLOR_PPG", "String ID for the Color property page");
+  add(category_t::mfc_string_id, 0xfe29, "AFX_IDS_COLOR_PPG_CAPTION", "String ID for the Color property page caption");
+  add(category_t::mfc_string_id, 0xfe2a, "AFX_IDS_FONT_PPG", "String ID for the Font property page");
+  add(category_t::mfc_string_id, 0xfe2b, "AFX_IDS_FONT_PPG_CAPTION", "String ID for the Font property page caption");
+  add(category_t::mfc_string_id, 0xfe2c, "AFX_IDS_PICTURE_PPG", "String ID for the Picture property page");
+  add(category_t::mfc_string_id, 0xfe2d, "AFX_IDS_PICTURE_PPG_CAPTION", "String ID for the Picture property page caption");
+  add(category_t::mfc_string_id, 0xfe30, "AFX_IDS_PICTUREBROWSETITLE", "String ID for the picture browse dialog title");
+  add(category_t::mfc_string_id, 0xfe31, "AFX_IDS_BORDERSTYLE_0", "String ID for border style 0 (no border)");
+  add(category_t::mfc_string_id, 0xfe32, "AFX_IDS_BORDERSTYLE_1", "String ID for border style 1 (fixed single border)");
+
+  /* ── AFX_IDS_VERB_* OLE Control Verb Strings ─────────────────── */
+  add(category_t::mfc_string_id, 0xfe40, "AFX_IDS_VERB_EDIT", "String ID for the Edit OLE control verb");
+  add(category_t::mfc_string_id, 0xfe41, "AFX_IDS_VERB_PROPERTIES", "String ID for the Properties OLE control verb");
+
   /* ── AFX_ID_PREVIEW_* Print Preview Command IDs ─────────────── */
   add(category_t::system_resource_id, 0xe300, "AFX_ID_PREVIEW_CLOSE", "Command ID for the Print Preview Close button");
   add(category_t::system_resource_id, 0xe302, "AFX_ID_PREVIEW_NEXT", "Command ID for the Print Preview Next Page button");
@@ -1247,6 +1446,58 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::system_resource_id, 0xe304, "AFX_ID_PREVIEW_PRINT", "Command ID for the Print Preview Print button");
   add(category_t::system_resource_id, 0xe305, "AFX_ID_PREVIEW_ZOOMIN", "Command ID for zooming in during Print Preview");
   add(category_t::system_resource_id, 0xe306, "AFX_ID_PREVIEW_ZOOMOUT", "Command ID for zooming out during Print Preview");
+
+  /* ── AFX_IDW_* Standard Control Bar Window IDs ────────────────── */
+  add(category_t::system_resource_id, 0xe800, "AFX_IDW_CONTROLBAR_FIRST", "First ID reserved for standard MFC control bar windows");
+  add(category_t::system_resource_id, 0xe8ff, "AFX_IDW_CONTROLBAR_LAST", "Last ID reserved for standard MFC control bar windows");
+  add(category_t::system_resource_id, 0xe800, "AFX_IDW_TOOLBAR", "Window ID of the main toolbar");
+  add(category_t::system_resource_id, 0xe801, "AFX_IDW_STATUS_BAR", "Window ID of the status bar");
+  add(category_t::system_resource_id, 0xe802, "AFX_IDW_PREVIEW_BAR", "Window ID of the Print Preview dialog bar");
+  add(category_t::system_resource_id, 0xe803, "AFX_IDW_RESIZE_BAR", "Window ID of the OLE in-place resize bar");
+  add(category_t::system_resource_id, 0xe804, "AFX_IDW_REBAR", "Window ID of the COMCTL32 rebar control");
+  add(category_t::system_resource_id, 0xe805, "AFX_IDW_DIALOGBAR", "Window ID of a CDialogBar");
+  add(category_t::system_resource_id, 0xe81b, "AFX_IDW_DOCKBAR_TOP", "Window ID of the top dock bar");
+  add(category_t::system_resource_id, 0xe81c, "AFX_IDW_DOCKBAR_LEFT", "Window ID of the left dock bar");
+  add(category_t::system_resource_id, 0xe81d, "AFX_IDW_DOCKBAR_RIGHT", "Window ID of the right dock bar");
+  add(category_t::system_resource_id, 0xe81e, "AFX_IDW_DOCKBAR_BOTTOM", "Window ID of the bottom dock bar");
+  add(category_t::system_resource_id, 0xe81f, "AFX_IDW_DOCKBAR_FLOAT", "Window ID of the floating dock bar");
+  add(category_t::system_resource_id, 0xe900, "AFX_IDW_PANE_FIRST", "Window ID of the first splitter pane");
+  add(category_t::system_resource_id, 0xe9ff, "AFX_IDW_PANE_LAST", "Window ID of the last splitter pane");
+  add(category_t::system_resource_id, 0xea00, "AFX_IDW_HSCROLL_FIRST", "Window ID of the first horizontal splitter scrollbar");
+  add(category_t::system_resource_id, 0xea10, "AFX_IDW_VSCROLL_FIRST", "Window ID of the first vertical splitter scrollbar");
+  add(category_t::system_resource_id, 0xea20, "AFX_IDW_SIZE_BOX", "Window ID of the splitter size box");
+  add(category_t::system_resource_id, 0xea21, "AFX_IDW_PANE_SAVE", "Window ID used to shift AFX_IDW_PANE_FIRST");
+
+  /* ── CBRS_* MFC Control Bar Styles ────────────────────────────── */
+  add(category_t::controlbar_style, 0x0000, "CBRS_NOALIGN", "Control bar without an alignment style");
+  add(category_t::controlbar_style, 0x0001, "CBRS_FLOATING", "Control bar is floating");
+  add(category_t::controlbar_style, 0x0002, "CBRS_SIZE_FIXED", "Control bar has a fixed size");
+  add(category_t::controlbar_style, 0x0004, "CBRS_SIZE_DYNAMIC", "Control bar can be dynamically resized");
+  add(category_t::controlbar_style, 0x0008, "CBRS_HIDE_INPLACE", "Hide the control bar during in-place editing");
+  add(category_t::controlbar_style, 0x0010, "CBRS_TOOLTIPS", "Show tooltips for control bar buttons");
+  add(category_t::controlbar_style, 0x0020, "CBRS_FLYBY", "Show tooltips while the pointer flies over buttons");
+  add(category_t::controlbar_style, 0x0040, "CBRS_FLOAT_MULTI", "Allow multiple floating control bars");
+  add(category_t::controlbar_style, 0x0080, "CBRS_BORDER_3D", "Draw a 3D border around the control bar");
+  add(category_t::controlbar_style, 0x0100, "CBRS_BORDER_LEFT", "Draw a left border on the control bar");
+  add(category_t::controlbar_style, 0x0200, "CBRS_BORDER_TOP", "Draw a top border on the control bar");
+  add(category_t::controlbar_style, 0x0400, "CBRS_BORDER_RIGHT", "Draw a right border on the control bar");
+  add(category_t::controlbar_style, 0x0800, "CBRS_BORDER_BOTTOM", "Draw a bottom border on the control bar");
+  add(category_t::controlbar_style, 0x0f00, "CBRS_BORDER_ANY", "Any combination of control bar border styles");
+  add(category_t::controlbar_style, 0x1000, "CBRS_ALIGN_LEFT", "Align the control bar to the left edge");
+  add(category_t::controlbar_style, 0x2000, "CBRS_ALIGN_TOP", "Align the control bar to the top edge");
+  add(category_t::controlbar_style, 0x4000, "CBRS_ALIGN_RIGHT", "Align the control bar to the right edge");
+  add(category_t::controlbar_style, 0x8000, "CBRS_ALIGN_BOTTOM", "Align the control bar to the bottom edge");
+  add(category_t::controlbar_style, 0xf000, "CBRS_ALIGN_ANY", "Any of the control bar alignment styles");
+  add(category_t::controlbar_style, 0xa000, "CBRS_ORIENT_HORZ", "Horizontal orientation (CBRS_ALIGN_TOP|CBRS_ALIGN_BOTTOM)");
+  add(category_t::controlbar_style, 0x5000, "CBRS_ORIENT_VERT", "Vertical orientation (CBRS_ALIGN_LEFT|CBRS_ALIGN_RIGHT)");
+  add(category_t::controlbar_style, 0xf000, "CBRS_ORIENT_ANY", "Any control bar orientation");
+  add(category_t::controlbar_style, 0x0040ffff, "CBRS_ALL", "All control bar style bits combined");
+  add(category_t::controlbar_style, 0x00400000, "CBRS_GRIPPER", "Draw a sizing gripper on the control bar");
+  add(category_t::controlbar_style, 0x1400, "CBRS_LEFT", "Left-aligned bar with a right border (CBRS_ALIGN_LEFT|CBRS_BORDER_RIGHT)");
+  add(category_t::controlbar_style, 0x2800, "CBRS_TOP", "Top-aligned bar with a bottom border (CBRS_ALIGN_TOP|CBRS_BORDER_BOTTOM)");
+  add(category_t::controlbar_style, 0x4100, "CBRS_RIGHT", "Right-aligned bar with a left border (CBRS_ALIGN_RIGHT|CBRS_BORDER_LEFT)");
+  add(category_t::controlbar_style, 0x8200, "CBRS_BOTTOM", "Bottom-aligned bar with a top border (CBRS_ALIGN_BOTTOM|CBRS_BORDER_TOP)");
+  add(category_t::window_style, 0x50800000, "AFX_WS_DEFAULT_VIEW", "Common style for form views (WS_CHILD|WS_VISIBLE|WS_BORDER)");
 
   /* ── ID_* System Resource Identifiers ────────────────────────── */
   add(category_t::system_resource_id, 0xe000, "IDP_OLE_INIT_FAILED", "String resource ID for OLE initialization failure prompt message");
@@ -1301,14 +1552,17 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::system_resource_id, 0xe204, "ID_OLE_EDIT_PROPERTIES", "Displays OLE item properties dialog");
   add(category_t::system_resource_id, 0xe200, "ID_OLE_INSERT_NEW", "Inserts a new OLE embedded object into the document");
   add(category_t::system_resource_id, 0xe210, "ID_OLE_VERB_FIRST", "First ID for dynamically populated OLE object verbs");
+  add(category_t::system_resource_id, 0xe21f, "ID_OLE_VERB_LAST", "Last ID for dynamically populated OLE object verbs");
   add(category_t::system_resource_id, 0xe151, "ID_PREV_PANE", "Switches focus back to the previous window pane");
-  add(category_t::system_resource_id, 0xe243, "ID_RECORD_LAST", "Moves focus/selection to the last record");
-  add(category_t::system_resource_id, 0xe242, "ID_RECORD_NEXT", "Moves focus/selection to the next record");
-  add(category_t::system_resource_id, 0xe241, "ID_RECORD_PREV", "Moves focus/selection to the previous record");
-  add(category_t::system_resource_id, 0xe240, "ID_REC_FIRST", "Alias for ID_RECORD_FIRST; moves to the first record");
+  add(category_t::system_resource_id, 0xe900, "ID_RECORD_FIRST", "Moves focus/selection to the first record");
+  add(category_t::system_resource_id, 0xe901, "ID_RECORD_LAST", "Moves focus/selection to the last record");
+  add(category_t::system_resource_id, 0xe902, "ID_RECORD_NEXT", "Moves focus/selection to the next record");
+  add(category_t::system_resource_id, 0xe903, "ID_RECORD_PREV", "Moves focus/selection to the previous record");
   add(category_t::system_resource_id, 0x0, "ID_SEPARATOR", "Used as a visual separator line in menus and toolbars");
-  add(category_t::system_resource_id, 0xe816, "ID_VIEW_AUTOARRANGE", "Automatically arranges icons in a list/grid view");
+  add(category_t::system_resource_id, 0xe805, "ID_VIEW_AUTOARRANGE", "Automatically arranges icons in a list/grid view");
   add(category_t::system_resource_id, 0xe815, "ID_VIEW_BYNAME", "Sorts list view items alphabetically by name");
+  add(category_t::system_resource_id, 0xe810, "AFX_ID_VIEW_MINIMUM", "Minimum command ID of the view mode range (ID_VIEW_SMALLICON)");
+  add(category_t::system_resource_id, 0xe815, "AFX_ID_VIEW_MAXIMUM", "Maximum command ID of the view mode range (ID_VIEW_BYNAME)");
   add(category_t::system_resource_id, 0xe813, "ID_VIEW_DETAILS", "Displays detailed information about each item");
   add(category_t::system_resource_id, 0xe810, "ID_VIEW_LARGEICON", "Displays items using large icons");
   add(category_t::system_resource_id, 0xe814, "ID_VIEW_LINEUP", "Aligns icons to an invisible grid");
@@ -1321,7 +1575,11 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::system_resource_id, 0xe132, "ID_WINDOW_CASCADE", "Arranges open MDI windows in an overlapping cascade");
   add(category_t::system_resource_id, 0xe130, "ID_WINDOW_NEW", "Opens another window for the active document");
   add(category_t::system_resource_id, 0xe135, "ID_WINDOW_SPLIT", "Splits the active window into multiple panes");
+  add(category_t::system_resource_id, 0xe130, "AFX_IDM_WINDOW_FIRST", "First command ID reserved for standard MFC window menus");
+  add(category_t::system_resource_id, 0xe13f, "AFX_IDM_WINDOW_LAST", "Last command ID reserved for standard MFC window menus");
+  add(category_t::system_resource_id, 0xff00, "AFX_IDM_FIRST_MDICHILD", "First command ID of the MDI child window list");
   add(category_t::system_resource_id, 0xe133, "ID_WINDOW_TILE_HORIZ", "Tiles open MDI windows horizontally");
+  add(category_t::system_resource_id, 0xe133, "ID_WINDOW_TILE_HORZ", "Tiles open MDI windows horizontally (afxres.h spelling)");
   add(category_t::system_resource_id, 0xe134, "ID_WINDOW_TILE_VERT", "Tiles open MDI windows vertically");
   add(category_t::system_resource_id, 0x3023, "ID_WIZBACK", "Wizard control button ID for navigating to the previous page");
   add(category_t::system_resource_id, 0x3025, "ID_WIZFINISH", "Wizard control button ID for completing and closing the wizard");
@@ -1408,8 +1666,8 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
 | RIGHTMARGIN | 278 | Total width calculation or spacer/layout constraint |
 | TOPMARGIN | 7 | Layout property `<property name="topMargin"><number>7</number></property>` |
 | BOTTOMMARGIN | 196 | Total height calculation or spacer/layout constraint |
-| VERTGUIDE | 140 / 210 | Explicit column alignments indicating a `QGridLayout` should be used. |
-| HORZGUIDE | 50 / 100 | Explicit row alignments indicating a `QGridLayout` should be used. |
+| VERTGUIDE | 140 / 210 | Explicit column alignments (can be ignored) |
+| HORZGUIDE | 50 / 100 | Explicit row alignments (can be ignored) |
 
 Example:
 GUIDELINES DESIGNINFO DISCARDABLE
