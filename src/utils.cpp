@@ -9,8 +9,16 @@
 #ifdef HAVE_ICU
 #include <unicode/utypes.h>
 #include <unicode/ucnv.h>
+#include <unicode/ucsdet.h>
 #endif
 
+constexpr std::string to_lower(const std::string& s)
+{
+  std::string result = s;
+  std::transform(result.begin(), result.end(), result.begin(),
+                 [](unsigned char c) { return c & 0x80 ? c : std::tolower(c); });
+  return result;
+}
 
 
 int64_t safe_stoi(const std::string& s, int64_t default_value)
@@ -43,19 +51,15 @@ uint64_t safe_stoul(const std::string& s, int base, uint64_t default_value)
 
 static std::string g_codepage;
 
-void set_codepage(std::string& codepage_num)
+void set_codepage(std::string& codepage)
 {
-  uint64_t val = safe_stoul(codepage_num, 0, UINT64_MAX);
+  uint64_t val = safe_stoul(codepage, 0, UINT64_MAX);
   if(val == UINT64_MAX)
-    throw std::runtime_error(std::format("set_codepage::codepage_num must be a numeric value. Got \"{}\"", codepage_num));
-  if(val > UINT32_MAX)
+    g_codepage = to_lower(codepage);
+  else if(val > UINT32_MAX)
     throw std::runtime_error(std::format("set_codepage::codepage_num cannot exceed {}. Got \"{}\"", UINT32_MAX, val));
-  set_codepage(static_cast<uint32_t>(val));
-}
-
-void set_codepage(uint32_t codepage)
-{
-  g_codepage = std::format("cp{}", codepage);
+  else
+    g_codepage = std::format("cp{}", codepage);
 }
 
 #ifdef HAVE_ICU
@@ -87,6 +91,69 @@ std::string codepage_to_utf8(const std::string& input)
   if(g_codepage.empty())
     throw std::runtime_error("You must call set_codepage() before calling codepage_to_utf8()");
   return codepage_to_utf8(g_codepage.c_str(), input);
+}
+
+struct icu_detector_t
+{
+  icu_detector_t(void)
+  {
+    detector = ucsdet_open(&status);
+    if (U_FAILURE(status))
+      throw std::runtime_error("ICU ucsdet_open() returned and error");
+  }
+  ~icu_detector_t(void)
+  {
+    if(detector != nullptr)
+    {
+      ucsdet_close(detector);
+      detector = nullptr;
+    }
+  }
+
+  std::string detect(const std::string& input)
+  {
+    ucsdet_setText(detector, input.data(), static_cast<int32_t>(input.size()), &status);
+    if (U_FAILURE(status))
+      throw std::runtime_error("ICU ucsdet_setText() returned an error");
+
+    const UCharsetMatch* match = ucsdet_detect(detector, &status);
+    if (U_FAILURE(status) || !match)
+      throw std::runtime_error("ICU ucsdet_detect() returned an error");
+
+    std::string name = to_lower(ucsdet_getName(match, &status));
+    if (U_FAILURE(status))
+      throw std::runtime_error("ICU ucsdet_getName() returned an error");
+
+    int32_t confidence = ucsdet_getConfidence(match, &status);
+    if (U_FAILURE(status))
+      throw std::runtime_error("ICU ucsdet_getConfidence() returned an error");
+
+    if(confidence <= 50 &&
+        (name == "us-ascii" ||
+         name == "macroman" ||
+         name == "ibm850" ||
+         name == "cp850" ||
+         name == "iso-8859-15" ||
+         name == "iso-8859-1"))
+      name = "cp1252"; // this is a more likely match
+
+    return name;
+  }
+
+  void reset(void)
+  {
+    status = U_ZERO_ERROR;
+  }
+
+  UErrorCode status = U_ZERO_ERROR;
+  UCharsetDetector* detector = nullptr;
+};
+
+std::string detect_codepage(const std::string& input)
+{
+  static icu_detector_t d;
+  d.reset();
+  return d.detect(input);
 }
 
 #else
@@ -166,16 +233,51 @@ std::string codepage_to_utf8(const std::string& input)
   if(g_codepage.empty())
     throw std::runtime_error("You must call set_codepage() before calling codepage_to_utf8()");
 
-  if(g_codepage != "cp1200" &&
-     g_codepage != "cp1252")
-    throw std::runtime_error("Without building with ICU support, the only code pages supported are 1200 (UTF-16LE) and 1252 (Windows-1252)");
+  if(g_codepage == "utf-8" ||
+     g_codepage == "cp65001")
+    return input;
 
-  if(g_codepage == "cp1200")
+  if(g_codepage == "cp1200" ||
+     g_codepage == "utf-16le")
     return utf16le_to_utf8(input);
-  return cp1252_to_utf8(input);
+
+  if(g_codepage != "cp1252")
+    return cp1252_to_utf8(input);
+
+  throw std::runtime_error("ICU support is disabled. The only code pages supported are 1200 (UTF-16LE) and 1252 (Windows-1252)");
+}
+
+std::string detect_codepage(const std::string& input)
+{
+  const auto* data = reinterpret_cast<const unsigned char*>(input.data());
+  if(input.size() >= 4)
+  {
+    if(data[0] == 0xFF && data[1] == 0xFE && data[2] == 0x00 && data[3] == 0x00)
+      return "12000"; // UTF-32LE
+    else if(data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xFE && data[3] == 0xFF)
+      return "12001"; // UTF-32BE
+  }
+
+  if(input.size() >= 2)
+  {
+    else if(data[0] == 0xFE && data[1] == 0xFF)
+      return "1201"; // UTF16-LE
+    else if(data[0] == 0xFF && data[1] == 0xFE)
+      return "1200"; // UTF16-LE
+    else
+    {
+      size_t nulls = 0;
+      size_t check = std::min(input.size(), static_cast<size_t>(64));
+      for(size_t i = 1; i < check; i += 2)
+        if(data[i] == 0)
+          ++nulls;
+      if(nulls > check / 4)
+        return "1201"; // UTF16-LE
+    }
+  }
+  return "1252"; // default is 1252
 }
 #endif
-
 
 bool match_string(const std::string& needle, std::initializer_list<std::string> haystack)
 {

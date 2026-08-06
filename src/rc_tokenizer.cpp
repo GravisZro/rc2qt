@@ -282,37 +282,14 @@ static std::string read_identifier(const std::string& input, size_t& pos)
   return value;
 }
 
-std::vector<token> tokenize(const std::string& input, uint32_t code_page)
+std::vector<token> tokenize(const std::string& input, std::string code_page)
 {
-  if(code_page != UINT32_MAX)
-    set_codepage(code_page);
-  else if(input.size() >= 4)
-  {
-    const auto* data = reinterpret_cast<const unsigned char*>(input.data());
+  if(code_page.empty())
+    code_page = detect_codepage(input);
 
-    if(data[0] == 0xFF && data[1] == 0xFE && data[2] == 0x00 && data[3] == 0x00)
-      set_codepage(12000); // UTF-32LE
-    else if(data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xFE && data[3] == 0xFF)
-      set_codepage(12001); // UTF-32BE
-    else if(data[0] == 0xFE && data[1] == 0xFF)
-      set_codepage(1201); // UTF16-LE
-    else if(data[0] == 0xFF && data[1] == 0xFE)
-      set_codepage(1200); // UTF16-LE
-    else
-    {
-      size_t nulls = 0;
-      size_t check = std::min(input.size(), static_cast<size_t>(64));
-      for(size_t i = 1; i < check; i += 2)
-        if(data[i] == 0)
-          ++nulls;
-      if(nulls > check / 4)
-        set_codepage(1201); // UTF16-LE
-      else
-        set_codepage(1252); // default is 1252
-    }
-  }
+  set_codepage(code_page);
 
-  const std::string& src = codepage_to_utf8(input);
+  std::string src = codepage_to_utf8(input);
   std::vector<token> tokens;
   size_t pos = 0;
   size_t line = 1;

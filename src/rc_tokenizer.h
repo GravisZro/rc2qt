@@ -59,7 +59,7 @@ struct token
 
 };
 
-std::vector<token> tokenize(const std::string& input, uint32_t code_page = UINT32_MAX);
+std::vector<token> tokenize(const std::string& input, std::string code_page = "");
 
 }
 

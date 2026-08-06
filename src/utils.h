@@ -55,8 +55,6 @@ constexpr std::string to_upper(const std::string& s)
 {
   std::string result = s;
   std::transform(result.begin(), result.end(), result.begin(),
-                 /* Obsolete: '|' never skips the high bit and makes to_upper a no-op.
-                 [](unsigned char c) { return c | 0x80 ? c : std::toupper(c); }); */
                  [](unsigned char c) { return c & 0x80 ? c : std::toupper(c); });
   return result;
 }
@@ -64,9 +62,10 @@ constexpr std::string to_upper(const std::string& s)
 int64_t safe_stoi(const std::string& s, int64_t default_value = 0);
 uint64_t safe_stoul(const std::string& s, int base = 0, uint64_t default_value = 0);
 
-void set_codepage(std::string& codepage_num);
-void set_codepage(uint32_t codepage);
+void set_codepage(std::string& codepage);
 std::string codepage_to_utf8(const std::string& input);
+
+std::string detect_codepage(const std::string& input);
 
 bool match_string(const std::string& needle, std::initializer_list<std::string> haystack);
 std::string escape_string(const std::string& s);
