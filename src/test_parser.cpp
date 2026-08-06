@@ -2233,6 +2233,116 @@ static void test_versioninfo_macro_values()
   }
 }
 
+static void test_designinfo_basic()
+{
+  try
+  {
+    auto res = parse_single_resource(
+      "GUIDELINES DESIGNINFO DISCARDABLE\n"
+      "BEGIN\n"
+      "    IDD_COMPLEX_DIALOG, DIALOG\n"
+      "    BEGIN\n"
+      "        LEFTMARGIN, 7\n"
+      "        RIGHTMARGIN, 0x12C\n"
+      "        TOPMARGIN, 7\n"
+      "        BOTTOMMARGIN, 196\n"
+      "    END\n"
+      "    IDD_MAIN_DIALOG, DIALOG\n"
+      "    BEGIN\n"
+      "        LEFTMARGIN, 7\n"
+      "        RIGHTMARGIN, 313\n"
+      "    END\n"
+      "END\n"
+    );
+    assert(res.id == "GUIDELINES");
+    assert(res.type == "DESIGNINFO");
+    assert(res.attributes.size() == 1);
+    assert(res.attributes[0] == "DISCARDABLE");
+    const auto& data = std::get<rc::designinfo_data>(res.data);
+    assert(data.dialogs.size() == 2);
+    assert(data.dialogs[0].id == "IDD_COMPLEX_DIALOG");
+    assert(data.dialogs[0].type == "DIALOG");
+    assert(data.dialogs[0].guides.size() == 4);
+    assert(data.dialogs[0].guides[0].key == "LEFTMARGIN");
+    assert(data.dialogs[0].guides[0].value == "7");
+    assert(data.dialogs[0].guides[0].numeric_value == 7);
+    assert(data.dialogs[0].guides[1].key == "RIGHTMARGIN");
+    assert(data.dialogs[0].guides[1].value == "0x12C");
+    assert(data.dialogs[0].guides[1].numeric_value == 0x12C);
+    assert(data.dialogs[0].guides[2].key == "TOPMARGIN");
+    assert(data.dialogs[0].guides[2].numeric_value == 7);
+    assert(data.dialogs[0].guides[3].key == "BOTTOMMARGIN");
+    assert(data.dialogs[0].guides[3].numeric_value == 196);
+    assert(data.dialogs[1].id == "IDD_MAIN_DIALOG");
+    assert(data.dialogs[1].guides.size() == 2);
+    assert(data.dialogs[1].guides[1].key == "RIGHTMARGIN");
+    assert(data.dialogs[1].guides[1].numeric_value == 313);
+    record_result("designinfo_basic", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("designinfo_basic", false, e.what());
+  }
+}
+
+static void test_designinfo_guides()
+{
+  try
+  {
+    auto res = parse_single_resource(
+      "GUIDELINES DESIGNINFO\n"
+      "BEGIN\n"
+      "    IDD_TEST_DIALOG, DIALOG\n"
+      "    BEGIN\n"
+      "        VERTGUIDE, 18\n"
+      "        VERTGUIDE, 154\n"
+      "        HORZGUIDE, 17\n"
+      "        HORZGUIDE, 20\n"
+      "        HORZGUIDE, 30\n"
+      "    END\n"
+      "END\n"
+    );
+    const auto& data = std::get<rc::designinfo_data>(res.data);
+    assert(data.dialogs.size() == 1);
+    const auto& guides = data.dialogs[0].guides;
+    assert(guides.size() == 5);
+    assert(guides[0].key == "VERTGUIDE");
+    assert(guides[0].numeric_value == 18);
+    assert(guides[1].key == "VERTGUIDE");
+    assert(guides[1].numeric_value == 154);
+    assert(guides[2].key == "HORZGUIDE");
+    assert(guides[2].numeric_value == 17);
+    assert(guides[3].key == "HORZGUIDE");
+    assert(guides[3].numeric_value == 20);
+    assert(guides[4].key == "HORZGUIDE");
+    assert(guides[4].numeric_value == 30);
+    record_result("designinfo_guides", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("designinfo_guides", false, e.what());
+  }
+}
+
+static void test_designinfo_empty()
+{
+  try
+  {
+    auto res = parse_single_resource(
+      "GUIDELINES DESIGNINFO\n"
+      "BEGIN\n"
+      "END\n"
+    );
+    const auto& data = std::get<rc::designinfo_data>(res.data);
+    assert(data.dialogs.empty());
+    record_result("designinfo_empty", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("designinfo_empty", false, e.what());
+  }
+}
+
 static void test_user_resource_filename()
 {
   try
@@ -2707,6 +2817,9 @@ int main()
   test_stringtable_basic();
   test_versioninfo_basic();
   test_versioninfo_macro_values();
+  test_designinfo_basic();
+  test_designinfo_guides();
+  test_designinfo_empty();
   test_user_resource_filename();
   test_user_resource_attributes();
   test_user_resource_raw_data();

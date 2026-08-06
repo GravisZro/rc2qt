@@ -149,6 +149,25 @@ struct user_data
   std::vector<user_data_entry> items;
 };
 
+struct designinfo_guide
+{
+  std::string key;              // LEFTMARGIN, RIGHTMARGIN, TOPMARGIN, BOTTOMMARGIN, VERTGUIDE, HORZGUIDE
+  std::string value;            // raw numeric literal text (e.g. "7" or "0x12C")
+  int64_t numeric_value = 0;    // resolved integer value (dialog units)
+};
+
+struct designinfo_dialog
+{
+  std::string id;               // dialog resource ID
+  std::string type;             // resource type, e.g. "DIALOG"
+  std::vector<designinfo_guide> guides;
+};
+
+struct designinfo_data
+{
+  std::vector<designinfo_dialog> dialogs;
+};
+
 struct resource
 {
   std::string id;
@@ -166,7 +185,8 @@ struct resource
     std::vector<string_table_entry>,
     version_info,
     std::vector<dlginit_entry>,
-    user_data
+    user_data,
+    designinfo_data
   > data;
 };
 
