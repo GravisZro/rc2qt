@@ -20,7 +20,8 @@ public:
 private:
   const token& current() const;
   const token& peek(size_t offset = 1) const;
-  token advance();
+  token advance(void);
+  void advance_to_end(void);
   std::string next_val(void) { return advance().value; }
   int16_t next16(void);
   uint16_t nextu16(void);

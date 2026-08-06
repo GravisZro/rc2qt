@@ -139,6 +139,12 @@ token parser::advance()
   return m_tokens[m_pos++];
 }
 
+void parser::advance_to_end(void)
+{
+  while(current() != token_type::newline_end_eof)
+    advance();
+}
+
 int16_t parser::next16(void)
 {
   return static_cast<int16_t>(safe_stoi(next_val()));
@@ -867,8 +873,7 @@ void parser::parse_dlginit_resource(resource& res)
       if(is_zero)
       {
         advance();
-        while(current() != token_type::newline_end_eof)
-          advance();
+        advance_to_end();
         continue;
       }
     }
@@ -881,8 +886,7 @@ void parser::parse_dlginit_resource(resource& res)
 
     if(!match(token_type::comma))
     {
-      while(current() != token_type::newline_end_eof)
-        advance();
+      advance_to_end();
       continue;
     }
 
@@ -898,9 +902,7 @@ void parser::parse_dlginit_resource(resource& res)
       advance();
     }
 
-    while(current() != token_type::newline_end_eof)
-      advance();
-
+    advance_to_end();
     skip_newlines();
 
     std::string text_data;
@@ -912,8 +914,7 @@ void parser::parse_dlginit_resource(resource& res)
         unsigned val = safe_stoul(hex, 16);
         text_data += static_cast<char>(val & 0xFF);
         text_data += static_cast<char>((val >> 8) & 0xFF);
-        advance();
-        while(current() == token_type::comma)
+        while(advance(), current() == token_type::comma)
         {
           advance();
           skip_newlines();
@@ -923,7 +924,6 @@ void parser::parse_dlginit_resource(resource& res)
             unsigned v2 = safe_stoul(h2, 16);
             text_data += static_cast<char>(v2 & 0xFF);
             text_data += static_cast<char>((v2 >> 8) & 0xFF);
-            advance();
           }
           else if(current() == token_type::string_literal)
           {
@@ -931,7 +931,6 @@ void parser::parse_dlginit_resource(resource& res)
             s2.erase(std::remove(s2.begin(), s2.end(), '"'), s2.end());
             for(size_t j = 0; j < s2.size(); ++j)
               text_data += s2[j];
-            advance();
           }
           else
             break;
@@ -1070,8 +1069,7 @@ void parser::parse_designinfo_resource(resource& res)
   {
     if(current() != token_type::num_or_ident)
     {
-      while(current() != token_type::newline_end_eof)
-        advance();
+      advance_to_end();
       continue;
     }
 
@@ -1080,8 +1078,7 @@ void parser::parse_designinfo_resource(resource& res)
 
     if(!match(token_type::comma))
     {
-      while(current() != token_type::newline_end_eof)
-        advance();
+      advance_to_end();
       continue;
     }
 
@@ -1098,8 +1095,7 @@ void parser::parse_designinfo_resource(resource& res)
     {
       if(current() != token_type::identifier)
       {
-        while(current() != token_type::newline_end_eof)
-          advance();
+        advance_to_end();
         continue;
       }
 
@@ -1108,15 +1104,13 @@ void parser::parse_designinfo_resource(resource& res)
 
       if(!match(token_type::comma))
       {
-        while(current() != token_type::newline_end_eof)
-          advance();
+        advance_to_end();
         continue;
       }
 
       skip_newlines();
 
-      if(current() == token_type::number_literal ||
-         current() == token_type::identifier)
+      if(current() == token_type::num_or_ident)
       {
         guide.value = next_val();
         guide.numeric_value = safe_stoi(guide.value);
@@ -1124,8 +1118,7 @@ void parser::parse_designinfo_resource(resource& res)
 
       dialog.guides.push_back(guide);
 
-      while(current() != token_type::newline_end_eof)
-        advance();
+      advance_to_end();
     }
 
     match(token_type::end);
