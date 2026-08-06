@@ -1643,89 +1643,19 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::system_id,      -1, "IDC_STATIC");
 }
 /*
-"DESIGNINFO", "the DESIGNINFO block is adata utilized to manage layout margins, snap lines, and guide coordinates for top dialog boxes"
 
-"LEFTMARGIN", "Defines the inner bounding absolute x-coordinate (in dialog units) relative to the left of the dialog frame, typically acting as padding boundaries for controls."
-"RIGHTMARGIN", "Defines the inner bounding absolute x-coordinate (in dialog units) relative to the right of the dialog frame, typically acting as padding boundaries for controls."
+ BLOCK "StringFileInfo"
 
-"TOPMARGIN", "Defines the inner bounding absolute y-coordinate (in dialog units) from the top edge of the window."
-"BOTTOMMARGIN", "Defines the inner bounding absolute y-coordinate (in dialog units) from the bottom edge of the window."
-
-"VERTGUIDE", "Custom vertical alignment snap-lines added explicitly by developers inside the Visual Studio Dialog Editor to line up multiple controls horizontally."
-"HORZGUIDE", "Custom horizontal alignment snap-lines used to align controls vertically across rows."
-
-"VERTGUIDE", "Defines a vertical alignment reference line placed at a specific coordinate (in dialog units) across the dialog. This allows multiple controls (like text boxes or buttons) to snap to a shared vertical axis."
-"HORZGUIDE", "Defines a horizontal alignment reference line at a specific coordinate. Used to keep rows or groups of controls level with one another."
+CompanyName
+FileDescription
+FileVersion
+InternalName
+LegalCopyright
+OriginalFilename
+ProductName
+ProductVersion
 
 
-### Translation Mapping
-
-| MFC DESIGNINFO | Parameter | Qt .ui Equivalent Concept |
-| :--- | :--- | :--- |
-| LEFTMARGIN | 7 | Layout property `<property name="leftMargin"><number>7</number></property>` |
-| RIGHTMARGIN | 278 | Total width calculation or spacer/layout constraint |
-| TOPMARGIN | 7 | Layout property `<property name="topMargin"><number>7</number></property>` |
-| BOTTOMMARGIN | 196 | Total height calculation or spacer/layout constraint |
-| VERTGUIDE | 140 / 210 | Explicit column alignments (can be ignored) |
-| HORZGUIDE | 50 / 100 | Explicit row alignments (can be ignored) |
-
-Example:
-GUIDELINES DESIGNINFO DISCARDABLE
-BEGIN
-    IDD_COMPLEX_DIALOG, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 278
-        VERTGUIDE, 140
-        VERTGUIDE, 210
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 196
-        HORZGUIDE, 50
-        HORZGUIDE, 100
-    END
-
-    IDD_MAIN_DIALOG, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 313
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 183
-    END
-END
-
-
-Comments have been added to identify translated values
-
-<widget class="QDialog" name="AboutBox">
-  <property name="geometry">
-    <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>170</width>
-      <height>62</height>
-    </rect>
-  </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-    <!-- Translates to LEFTMARGIN, 7 -->
-    <property name="leftMargin">
-      <number>7</number>
-      </property>
-    <!-- Translates to TOPMARGIN, 7 -->
-    <property name="topMargin">
-      <number>7</number>
-    </property>
-    <!-- Translates to calculated Right Margin (170 - 163 = 7) -->
-    <property name="rightMargin">
-      <number>7</number>
-    </property>
-    <!-- Translates to BOTTOMMARGIN (e.g., 62 - 55 = 7) -->
-    <property name="bottomMargin">
-      <number>7</number>
-    </property>
-
-    <!-- Child widgets go here -->
-  </layout>
-</widget>
-
+BLOCK "VarFileInfo"
 */
 }
