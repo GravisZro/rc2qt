@@ -566,7 +566,7 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   set_attr(widget, "class", "QDialog");
   set_attr(widget, "name", dialog_name);
 
-  write_dialog_properties(widget, dd);
+  setup_dialog_font(dd);
 
   std::vector<int> groupbox_indices;
   for(size_t i = 0; i < dd.controls.size(); ++i)
@@ -607,15 +607,63 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
     }
   }
 
+  std::vector<std::string> qt_classes(dd.controls.size());
+  for(size_t i = 0; i < dd.controls.size(); ++i)
+  {
+    const auto& ctrl = dd.controls[i];
+    std::string qt_class = map_keyword_to_widget(ctrl.keyword);
+    if(qt_class.empty() && ctrl.keyword == "CONTROL")
+      qt_class = map_class_to_widget(ctrl.class_name, ctrl.style);
+    if(qt_class.empty())
+      qt_class = "QWidget";
+    qt_classes[i] = qt_class;
+  }
+
+  std::vector<control> top_level;
+  std::vector<std::string> top_classes;
+  std::vector<size_t> top_indices;
+  for(size_t i = 0; i < dd.controls.size(); ++i)
+  {
+    if(parent_groupbox[i] == -1)
+    {
+      top_level.push_back(dd.controls[i]);
+      top_classes.push_back(qt_classes[i]);
+      top_indices.push_back(i);
+    }
+  }
+
+  std::vector<control_layout> top_layout;
+  layout_control_sizes(top_level, top_classes, top_layout);
+
+  int dialog_ph = dlu_to_pixel_y(dd.height);
+  int growth = 0;
+  for(size_t j = 0; j < top_level.size(); ++j)
+  {
+    int bottom = dlu_to_pixel_y(top_level[j].y) + top_layout[j].y_shift_px + top_layout[j].height_px;
+    if(bottom - dialog_ph > growth)
+      growth = bottom - dialog_ph;
+  }
+  if(growth < 0)
+    growth = 0;
+
+  write_dialog_properties(widget, dd, growth);
+
+  std::vector<int> top_shift(dd.controls.size(), 0);
+  for(size_t j = 0; j < top_indices.size(); ++j)
+    top_shift[top_indices[j]] = top_layout[j].y_shift_px;
+
   std::vector<bool> written(dd.controls.size(), false);
 
   for(int gi : groupbox_indices)
   {
-    write_control(widget, dd.controls[gi], dialog_name);
+    write_control(widget, dd.controls[gi], dialog_name, top_shift[gi]);
     written[gi] = true;
 
     pugi::xml_node gb_widget = widget.last_child();
 
+    std::vector<control> children;
+    std::vector<std::string> child_classes;
+    std::vector<size_t> child_indices;
     for(size_t i = 0; i < dd.controls.size(); ++i)
     {
       if(parent_groupbox[i] != gi)
@@ -630,8 +678,18 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
       relative.x = ctrl.x - gb.x;
       relative.y = ctrl.y - gb.y - 4;
 
-      write_control(gb_widget, relative, dialog_name);
-      written[i] = true;
+      children.push_back(relative);
+      child_classes.push_back(qt_classes[i]);
+      child_indices.push_back(i);
+    }
+
+    std::vector<control_layout> child_layout;
+    layout_control_sizes(children, child_classes, child_layout);
+
+    for(size_t j = 0; j < children.size(); ++j)
+    {
+      write_control(gb_widget, children[j], dialog_name, child_layout[j].y_shift_px);
+      written[child_indices[j]] = true;
     }
   }
 
@@ -639,22 +697,21 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   {
     if(!written[i])
     {
-      write_control(widget, dd.controls[i], dialog_name);
+      write_control(widget, dd.controls[i], dialog_name, top_shift[i]);
       written[i] = true;
     }
   }
 }
 
-void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd)
+void generator::setup_dialog_font(const dialog_data& dd)
 {
-  std::string orginal_font_name = "MS Sans Serif";
+  std::string original_font_name = "MS Sans Serif";
   if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
-    orginal_font_name = stmt->text_value;
+    original_font_name = stmt->text_value;
 
-  std::string font_name = substitute_font(orginal_font_name);
+  std::string font_name = substitute_font(original_font_name);
   int font_size = 8;
-  int font_weight = -1; // -1 is a sentinel value
-  bool font_bold = (font_weight >= 700);
+  int font_weight = -1;
   bool font_italic = false;
 
   if(const dialog_stmt* font_stmt = find_statement(dd, "FONT"))
@@ -670,18 +727,21 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     font_italic = font_stmt->italic;
   }
 
-  m_original_font_name = orginal_font_name;
+  m_original_font_name = original_font_name;
   m_mapped_font_name = font_name;
   m_font_size = font_size > 0 ? font_size : 8;
   m_font_weight = font_weight;
   m_font_italic = font_italic;
 
   set_current_font(m_mapped_font_name, m_font_size, m_font_weight, m_font_italic);
+}
 
+void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd, int extra_height)
+{
   int px = dlu_to_pixel_x(dd.x);
   int py = dlu_to_pixel_y(dd.y);
   int pw = dlu_to_pixel_x(dd.width);
-  int ph = dlu_to_pixel_y(dd.height);
+  int ph = dlu_to_pixel_y(dd.height) + extra_height;
   add_property_rect(widget, px, py, pw, ph);
 
   std::string caption;
@@ -690,8 +750,9 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   if(!caption.empty())
     add_property_string(widget, "windowTitle", caption);
 
-  if(font_size > 0)
-    add_property_font(widget, font_name, font_size, font_bold, font_italic);
+  bool font_bold = false;
+  if(m_font_size > 0)
+    add_property_font(widget, m_mapped_font_name, m_font_size, font_bold, m_font_italic);
 
   std::vector<std::string> flags;
   bool is_fixed_size = false;
@@ -750,7 +811,7 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
   if(is_fixed_size)
   {
     int pw = dlu_to_pixel_x(dd.width);
-    int ph = dlu_to_pixel_y(dd.height);
+    int ph = dlu_to_pixel_y(dd.height) + extra_height;
     add_property_size(widget, "minimumSize", pw, ph);
     add_property_size(widget, "maximumSize", pw, ph);
   }
@@ -816,7 +877,7 @@ bool generator::share_common_word(const std::string& id1, const std::string& id2
   return false;
 }
 
-void generator::write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name)
+void generator::write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px)
 {
   std::string qt_class = map_keyword_to_widget(ctrl.keyword);
 
@@ -863,6 +924,12 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   int pw = dlu_to_pixel_x(ctrl_w_dlu);
   int ph = dlu_to_pixel_y(ctrl_h_dlu);
   apply_combo_dropdown_height(widget, ctrl, qt_class == "QComboBox", ph);
+
+  py += y_shift_px;
+  int min_h = min_height_px(qt_class);
+  if(ph < min_h)
+    ph = min_h;
+
   add_property_rect(widget, px, py, pw, ph);
 
   if(!ctrl.text.empty())
@@ -1086,13 +1153,25 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
       tab_rect.append_child("width").text() = dlu_to_pixel_x(dd.width);
       tab_rect.append_child("height").text() = dlu_to_pixel_y(dd.height);
 
-      for(const auto& child_ctrl : dd.controls)
+      std::vector<std::string> child_classes(dd.controls.size());
+      for(size_t i = 0; i < dd.controls.size(); ++i)
       {
+        const auto& child_ctrl = dd.controls[i];
         std::string child_class = map_keyword_to_widget(child_ctrl.keyword);
         if(child_class.empty() && child_ctrl.keyword == "CONTROL")
           child_class = map_class_to_widget(child_ctrl.class_name, child_ctrl.style);
         if(child_class.empty())
           child_class = "QWidget";
+        child_classes[i] = child_class;
+      }
+
+      std::vector<control_layout> child_layout;
+      layout_control_sizes(dd.controls, child_classes, child_layout);
+
+      for(size_t i = 0; i < dd.controls.size(); ++i)
+      {
+        const auto& child_ctrl = dd.controls[i];
+        const std::string& child_class = child_classes[i];
 
         std::string child_name = unique_name(child_ctrl.id);
         pugi::xml_node child_widget = add_widget(tab_widget, child_class, child_name);
@@ -1102,10 +1181,15 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         ensure_text_fits(child_ctrl.text, child_w_dlu, child_h_dlu, child_widget, child_class);
 
         int cx = dlu_to_pixel_x(child_ctrl.x);
-        int cy = dlu_to_pixel_y(child_ctrl.y);
+        int cy = dlu_to_pixel_y(child_ctrl.y) + child_layout[i].y_shift_px;
         int cw = dlu_to_pixel_x(child_w_dlu);
         int ch = dlu_to_pixel_y(child_h_dlu);
         apply_combo_dropdown_height(child_widget, child_ctrl, child_class == "QComboBox", ch);
+
+        int min_h = min_height_px(child_class);
+        if(ch < min_h)
+          ch = min_h;
+
         add_property_rect(child_widget, cx, cy, cw, ch);
 
         if(!child_ctrl.text.empty())
@@ -1157,6 +1241,94 @@ void generator::apply_combo_dropdown_height(pugi::xml_node& widget, const contro
       add_property_int(widget, "maxVisibleItems", max_visible);
     }
     height_px = closed_height;
+  }
+}
+
+int generator::min_height_px(const std::string& qt_class)
+{
+  static const std::map<std::string, int> min_height_map =
+  {
+    { "QCheckBox", 20 },
+  };
+
+  auto it = min_height_map.find(qt_class);
+  if (it == min_height_map.end())
+    return 0;
+  return it->second;
+}
+
+void generator::layout_control_sizes(const std::vector<control>& controls,
+                                     const std::vector<std::string>& qt_classes,
+                                     std::vector<control_layout>& layout)
+{
+  layout.assign(controls.size(), control_layout{});
+
+  if(controls.empty())
+    return;
+
+  std::vector<int> py(controls.size());
+  std::vector<int> bottom(controls.size());
+  std::vector<int> expansion(controls.size());
+
+  for(size_t i = 0; i < controls.size(); ++i)
+  {
+    const control& ctrl = controls[i];
+    const std::string& qt_class = qt_classes[i];
+
+    int height_dlu = ctrl.height;
+    try
+    {
+      int width_dlu = ctrl.width;
+      text_fit_info info = fit_text(ctrl.text, width_dlu, height_dlu, qt_class);
+      height_dlu = info.height_dlu;
+    }
+    catch(const std::runtime_error&)
+    {
+      height_dlu = ctrl.height;
+    }
+
+    int ph_pre = dlu_to_pixel_y(height_dlu);
+    if(qt_class == "QComboBox" &&
+       (has_style(ctrl.style, "CBS_DROPDOWN") || has_style(ctrl.style, "CBS_DROPDOWNLIST")))
+      ph_pre = dlu_to_pixel_y(14);
+
+    int ph_final = std::max(ph_pre, min_height_px(qt_class));
+
+    py[i] = dlu_to_pixel_y(ctrl.y);
+    bottom[i] = py[i] + ph_pre;
+    expansion[i] = ph_final - ph_pre;
+    layout[i].height_px = ph_final;
+  }
+
+  std::vector<std::pair<int, int>> events;
+  for(size_t i = 0; i < controls.size(); ++i)
+  {
+    if(expansion[i] > 0)
+      events.push_back({ bottom[i], expansion[i] });
+  }
+  std::sort(events.begin(), events.end());
+
+  std::vector<size_t> order(controls.size());
+  for(size_t i = 0; i < controls.size(); ++i)
+    order[i] = i;
+
+  std::sort(order.begin(), order.end(), [&](size_t a, size_t b)
+  {
+    if(py[a] != py[b])
+      return py[a] < py[b];
+    return controls[a].x < controls[b].x;
+  });
+
+  int running = 0;
+  size_t event_index = 0;
+  for(size_t idx : order)
+  {
+    while(event_index < events.size() && events[event_index].first <= py[idx])
+    {
+      running += events[event_index].second;
+      ++event_index;
+    }
+    layout[idx].y_shift_px = running;
   }
 }
 
@@ -1369,15 +1541,15 @@ std::vector<std::string> generator::wrap_text(const std::string& text, int width
   return lines;
 }
 
-void generator::ensure_text_fits(const std::string& text, int& width_dlu, int& height_dlu,
-                                 pugi::xml_node& widget, const std::string& widget_class)
+generator::text_fit_info generator::fit_text(const std::string& text, int width_dlu, int height_dlu,
+                                             const std::string& widget_class)
 {
   if(text.empty())
-    return;
+    return { width_dlu, height_dlu, false };
 
   const auto [mapped_w, mapped_h] = text_dimensions(text);
   if(mapped_w <= width_dlu && mapped_h <= height_dlu)
-    return;
+    return { width_dlu, height_dlu, false };
 
   // The mapped (substituted) font may be wider than the original RC font.
   // Check whether the text fits inside the bounding box when wrapped with the
@@ -1420,22 +1592,39 @@ void generator::ensure_text_fits(const std::string& text, int& width_dlu, int& h
     if(needed_height > height_dlu)
       height_dlu = needed_height;
 
-    add_property_bool(widget, "wordWrap", true);
+    return { width_dlu, height_dlu, true };
   }
-  else
-  {
-    if(mapped_w > width_dlu)
-      width_dlu = mapped_w;
-    if(mapped_h > height_dlu)
-      height_dlu = mapped_h;
 
-    const auto [final_w, final_h] = text_dimensions(text);
-    if(final_w > width_dlu || final_h > height_dlu)
-    {
-      throw std::runtime_error(std::format(
-        "Text \"{}\" needs {}x{} DLU but its bounding box is {}x{} DLU",
-        text, final_w, final_h, width_dlu, height_dlu));
-    }
+  if(mapped_w > width_dlu)
+    width_dlu = mapped_w;
+  if(mapped_h > height_dlu)
+    height_dlu = mapped_h;
+
+  return { width_dlu, height_dlu, false };
+}
+
+void generator::ensure_text_fits(const std::string& text, int& width_dlu, int& height_dlu,
+                                 pugi::xml_node& widget, const std::string& widget_class)
+{
+  if(text.empty())
+    return;
+
+  text_fit_info info = fit_text(text, width_dlu, height_dlu, widget_class);
+  width_dlu = info.width_dlu;
+  height_dlu = info.height_dlu;
+
+  if(info.word_wrap)
+  {
+    add_property_bool(widget, "wordWrap", true);
+    return;
+  }
+
+  const auto [final_w, final_h] = text_dimensions(text);
+  if(final_w > width_dlu || final_h > height_dlu)
+  {
+    throw std::runtime_error(std::format(
+      "Text \"{}\" needs {}x{} DLU but its bounding box is {}x{} DLU",
+      text, final_w, final_h, width_dlu, height_dlu));
   }
 }
 

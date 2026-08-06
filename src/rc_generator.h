@@ -43,12 +43,32 @@ public:
   bool generate_qrc(const rc_file& file, const std::string& output_path, const std::vector<std::string>& ui_paths = {});
 
 private:
+  struct text_fit_info
+  {
+    int width_dlu = 0;
+    int height_dlu = 0;
+    bool word_wrap = false;
+  };
+
+  struct control_layout
+  {
+    int y_shift_px = 0;
+    int height_px = 0;
+  };
+
   void collect_global_data(const rc_file& file);
 
   void write_dialog(pugi::xml_node& parent, const resource& res);
-  void write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd);
-  void write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name);
+  void setup_dialog_font(const dialog_data& dd);
+  void write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd, int extra_height = 0);
+  void write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0);
   void apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px);
+
+  text_fit_info fit_text(const std::string& text, int width_dlu, int height_dlu, const std::string& widget_class);
+  static int min_height_px(const std::string& qt_class);
+  void layout_control_sizes(const std::vector<control>& controls,
+                            const std::vector<std::string>& qt_classes,
+                            std::vector<control_layout>& layout);
 
   std::set<std::string> id_words(const std::string& id) const;
   bool share_common_word(const std::string& id1, const std::string& id2) const;
