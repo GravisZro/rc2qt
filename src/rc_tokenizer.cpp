@@ -174,10 +174,10 @@ static std::string read_string(const std::string& input, size_t& pos, size_t& li
   return value;
 }
 
+// treat all binary operators as having completely equal precedence.
 static bool is_expr_operator(char c)
 {
-  return c == '+' || c == '-' || c == '*' || c == '/' ||
-         c == '&' || c == '|' || c == '^';
+  return strchr("+-&|^()", c) != NULL;
 }
 
 static std::pair<token_type, std::string> read_numeric(const std::string& input, size_t& pos)
@@ -372,7 +372,7 @@ std::vector<token> tokenize(const std::string& input, std::string code_page)
       continue;
     }
 
-    if(std::isdigit(static_cast<unsigned char>(c)))
+    if(std::isdigit(static_cast<unsigned char>(c)) || c == '(')
     {
       auto [type, value] = read_numeric(src, pos);
       tokens.push_back({type, value, line});
