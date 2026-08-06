@@ -157,11 +157,13 @@ int main(int argc, char** argv)
       {
         imageio::save_image(decoded.filename, decoded.image_data, img_dir);
 
-        // Add image resource entry to rc_file for .qrc generation
+        // Add image resource entry to rc_file for .qrc generation.
+        // The filename is stored relative to the .qrc output directory
+        // (out_dir); generate_qrc emits resource filenames verbatim.
         rc::resource img_res;
         img_res.id = decoded.id;
         img_res.type = decoded.type;
-        img_res.filename = (out_dir / res_dir_name / decoded.filename).generic_string();
+        img_res.filename = (std::filesystem::path(res_dir_name) / decoded.filename).generic_string();
         img_res.data = rc::empty_data{};
         file.resources.push_back(std::move(img_res));
         continue;

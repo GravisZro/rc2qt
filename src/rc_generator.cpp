@@ -542,11 +542,12 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
     {
       pugi::xml_node file_node = res_node.append_child("file");
       set_attr(file_node, "alias", res.id);
-      std::string normalized = res.filename;
-      std::replace(normalized.begin(), normalized.end(), '\\', '/');
-      std::filesystem::path abs_path = std::filesystem::absolute(normalized);
-      std::filesystem::path rel = abs_path.lexically_relative(qrc_dir_fs);
-      std::string rel_str = rel.empty() ? normalized : rel.generic_string();
+      // Paths in an .rc file are relative to the .rc file's own directory,
+      // so the filename must be emitted verbatim rather than resolved
+      // against the current working directory (which std::filesystem
+      // absolute() would do) or rewritten relative to the .qrc location.
+      std::string rel_str = res.filename;
+      std::replace(rel_str.begin(), rel_str.end(), '\\', '/');
       file_node.text() = rel_str.c_str();
     }
   }
