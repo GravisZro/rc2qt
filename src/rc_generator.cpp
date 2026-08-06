@@ -1210,7 +1210,7 @@ std::pair<int, int> generator::text_dimensions(const std::string& text)
   int height_dlu = qCeil(static_cast<double>(fm.height()) / m_dlu_y_factor);
   return { width_dlu, height_dlu };
 }
-#else
+#elif HAVE_FREETYPE
 # include <ft2build.h>
 # include <freetype/freetype.h>
 # include <fontconfig/fontconfig.h>
@@ -1304,26 +1304,28 @@ void generator::set_current_font(const std::string &font_name, int font_size, in
 
 std::pair<int, int> generator::text_dimensions(const std::string& text)
 {
-  if(m_ft_face)
-  {
-    double total_width = 0.0;
-    for(char c : text)
-    {
-      FT_UInt glyph_index = FT_Get_Char_Index(m_ft_face, static_cast<FT_ULong>(c));
-      if(FT_Load_Glyph(m_ft_face, glyph_index, FT_LOAD_DEFAULT) == 0)
-        total_width += static_cast<double>(m_ft_face->glyph->advance.x >> 6);
-    }
+  if(m_ft_face == nullptr)
+    throw std::runtime_error("A Font must be set before using generator::text_dimensions");
 
-    double font_height = static_cast<double>(m_ft_face->size->metrics.height >> 6);
-    // Convert the measured pixels into dialog units using the same base-unit
-    // factors that dlu_to_pixel_x/y are derived from, so that the result can
-    // be compared directly against the DLU box sizes from the RC file.
-    int width_dlu = static_cast<int>(std::ceil(total_width / m_dlu_x_factor));
-    int height_dlu = static_cast<int>(std::ceil(font_height / m_dlu_y_factor));
-    return { width_dlu, height_dlu };
+  double total_width = 0.0;
+  for(char c : text)
+  {
+    FT_UInt glyph_index = FT_Get_Char_Index(m_ft_face, static_cast<FT_ULong>(c));
+    if(FT_Load_Glyph(m_ft_face, glyph_index, FT_LOAD_DEFAULT) == 0)
+      total_width += static_cast<double>(m_ft_face->glyph->advance.x >> 6);
   }
-  return { 0, 0 };
+
+  double font_height = static_cast<double>(m_ft_face->size->metrics.height >> 6);
+  // Convert the measured pixels into dialog units using the same base-unit
+  // factors that dlu_to_pixel_x/y are derived from, so that the result can
+  // be compared directly against the DLU box sizes from the RC file.
+  int width_dlu = static_cast<int>(std::ceil(total_width / m_dlu_x_factor));
+  int height_dlu = static_cast<int>(std::ceil(font_height / m_dlu_y_factor));
+  return { width_dlu, height_dlu };
 }
+
+#else
+# error No support included for font evaluation
 #endif
 
 static bool supports_word_wrap(const std::string& widget_class)
