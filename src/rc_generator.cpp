@@ -619,21 +619,82 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
     qt_classes[i] = qt_class;
   }
 
+  size_t gb_count = groupbox_indices.size();
+  std::vector<std::vector<control>> gb_children(gb_count);
+  std::vector<std::vector<std::string>> gb_child_classes(gb_count);
+  std::vector<std::vector<size_t>> gb_child_indices(gb_count);
+  std::vector<std::vector<control_layout>> gb_child_layout(gb_count);
+  std::vector<int> groupbox_extra_height(gb_count, 0);
+
+  std::vector<bool> taken(dd.controls.size(), false);
+  for(size_t k = 0; k < gb_count; ++k)
+  {
+    int gi = groupbox_indices[k];
+    taken[gi] = true;
+
+    const auto& gb = dd.controls[gi];
+    for(size_t i = 0; i < dd.controls.size(); ++i)
+    {
+      if(parent_groupbox[i] != gi)
+        continue;
+      if(taken[i])
+        continue;
+
+      const auto& ctrl = dd.controls[i];
+
+      control relative = ctrl;
+      relative.x = ctrl.x - gb.x;
+      relative.y = ctrl.y - gb.y - 4;
+
+      gb_children[k].push_back(relative);
+      gb_child_classes[k].push_back(qt_classes[i]);
+      gb_child_indices[k].push_back(i);
+      taken[i] = true;
+    }
+
+    layout_control_sizes(gb_children[k], gb_child_classes[k], gb_child_layout[k]);
+
+    int gb_h_px = dlu_to_pixel_y(gb.height);
+    int max_bottom_rel = 0;
+    for(size_t j = 0; j < gb_children[k].size(); ++j)
+    {
+      int rel_bottom = dlu_to_pixel_y(gb_children[k][j].y) +
+                       gb_child_layout[k][j].y_shift_px +
+                       gb_child_layout[k][j].height_px;
+      if(rel_bottom > max_bottom_rel)
+        max_bottom_rel = rel_bottom;
+    }
+    if(max_bottom_rel > gb_h_px)
+      groupbox_extra_height[k] = max_bottom_rel - gb_h_px;
+  }
+
   std::vector<control> top_level;
   std::vector<std::string> top_classes;
+  std::vector<int> top_extra;
   std::vector<size_t> top_indices;
   for(size_t i = 0; i < dd.controls.size(); ++i)
   {
-    if(parent_groupbox[i] == -1)
+    if(parent_groupbox[i] != -1)
+      continue;
+
+    int extra = 0;
+    for(size_t k = 0; k < gb_count; ++k)
     {
-      top_level.push_back(dd.controls[i]);
-      top_classes.push_back(qt_classes[i]);
-      top_indices.push_back(i);
+      if(groupbox_indices[k] == static_cast<int>(i))
+      {
+        extra = groupbox_extra_height[k];
+        break;
+      }
     }
+
+    top_level.push_back(dd.controls[i]);
+    top_classes.push_back(qt_classes[i]);
+    top_extra.push_back(extra);
+    top_indices.push_back(i);
   }
 
   std::vector<control_layout> top_layout;
-  layout_control_sizes(top_level, top_classes, top_layout);
+  layout_control_sizes(top_level, top_classes, top_layout, &top_extra);
 
   int dialog_ph = dlu_to_pixel_y(dd.height);
   int growth = 0;
@@ -654,42 +715,18 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
   std::vector<bool> written(dd.controls.size(), false);
 
-  for(int gi : groupbox_indices)
+  for(size_t k = 0; k < gb_count; ++k)
   {
-    write_control(widget, dd.controls[gi], dialog_name, top_shift[gi]);
+    int gi = groupbox_indices[k];
+    write_control(widget, dd.controls[gi], dialog_name, top_shift[gi], groupbox_extra_height[k]);
     written[gi] = true;
 
     pugi::xml_node gb_widget = widget.last_child();
 
-    std::vector<control> children;
-    std::vector<std::string> child_classes;
-    std::vector<size_t> child_indices;
-    for(size_t i = 0; i < dd.controls.size(); ++i)
+    for(size_t j = 0; j < gb_children[k].size(); ++j)
     {
-      if(parent_groupbox[i] != gi)
-        continue;
-      if(written[i])
-        continue;
-
-      const auto& gb = dd.controls[gi];
-      const auto& ctrl = dd.controls[i];
-
-      control relative = ctrl;
-      relative.x = ctrl.x - gb.x;
-      relative.y = ctrl.y - gb.y - 4;
-
-      children.push_back(relative);
-      child_classes.push_back(qt_classes[i]);
-      child_indices.push_back(i);
-    }
-
-    std::vector<control_layout> child_layout;
-    layout_control_sizes(children, child_classes, child_layout);
-
-    for(size_t j = 0; j < children.size(); ++j)
-    {
-      write_control(gb_widget, children[j], dialog_name, child_layout[j].y_shift_px);
-      written[child_indices[j]] = true;
+      write_control(gb_widget, gb_children[k][j], dialog_name, gb_child_layout[k][j].y_shift_px);
+      written[gb_child_indices[k][j]] = true;
     }
   }
 
@@ -877,7 +914,7 @@ bool generator::share_common_word(const std::string& id1, const std::string& id2
   return false;
 }
 
-void generator::write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px)
+void generator::write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px, int extra_height_px)
 {
   std::string qt_class = map_keyword_to_widget(ctrl.keyword);
 
@@ -929,6 +966,7 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   int min_h = min_height_px(qt_class);
   if(ph < min_h)
     ph = min_h;
+  ph += extra_height_px;
 
   add_property_rect(widget, px, py, pw, ph);
 
@@ -1248,7 +1286,7 @@ int generator::min_height_px(const std::string& qt_class)
 {
   static const std::map<std::string, int> min_height_map =
   {
-    { "QCheckBox", 20 },
+    { "QCheckBox", 15 },
   };
 
   auto it = min_height_map.find(qt_class);
@@ -1259,7 +1297,8 @@ int generator::min_height_px(const std::string& qt_class)
 
 void generator::layout_control_sizes(const std::vector<control>& controls,
                                      const std::vector<std::string>& qt_classes,
-                                     std::vector<control_layout>& layout)
+                                     std::vector<control_layout>& layout,
+                                     const std::vector<int>* extra_heights)
 {
   layout.assign(controls.size(), control_layout{});
 
@@ -1292,7 +1331,11 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
        (has_style(ctrl.style, "CBS_DROPDOWN") || has_style(ctrl.style, "CBS_DROPDOWNLIST")))
       ph_pre = dlu_to_pixel_y(14);
 
-    int ph_final = std::max(ph_pre, min_height_px(qt_class));
+    int extra = 0;
+    if(extra_heights != nullptr && i < extra_heights->size())
+      extra = (*extra_heights)[i];
+
+    int ph_final = std::max(ph_pre, min_height_px(qt_class)) + extra;
 
     py[i] = dlu_to_pixel_y(ctrl.y);
     bottom[i] = py[i] + ph_pre;
@@ -1726,7 +1769,7 @@ void generator::write_menu_entries(pugi::xml_node& menu_node, const std::vector<
       set_attr(sub_menu, "name", sub_name);
 
       add_property_string(sub_menu, "title", sub->text);
-      write_menu_entries(sub_menu, sub->entries);      
+      write_menu_entries(sub_menu, sub->entries);
       add_tag(menu_node, "addaction", sub_name);
     }
   }
