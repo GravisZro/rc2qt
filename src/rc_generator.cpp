@@ -644,7 +644,7 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
       control relative = ctrl;
       relative.x = ctrl.x - gb.x;
-      relative.y = ctrl.y - gb.y - 4;
+      relative.y = ctrl.y - gb.y + 4;
 
       gb_children[k].push_back(relative);
       gb_child_classes[k].push_back(qt_classes[i]);
