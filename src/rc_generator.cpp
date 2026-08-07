@@ -17,6 +17,17 @@
 #include <format>
 #include <stdexcept>
 
+#ifdef HAVE_QT
+# include <QtMath>
+# include <QFontDatabase>
+# include <QFontMetrics>
+#elif HAVE_FREETYPE
+# include <ft2build.h>
+# include <freetype/freetype.h>
+# include <fontconfig/fontconfig.h>
+# include <cmath>
+#endif
+
 namespace rc
 {
   using namespace xml;
@@ -879,9 +890,6 @@ void generator::write_dialog_properties(pugi::xml_node& widget, const dialog_dat
     add_property_size(widget, "minimumSize", pw, ph);
     add_property_size(widget, "maximumSize", pw, ph);
   }
-
-
-
 }
 
 static std::string get_suffix(const std::string& id)
@@ -1586,8 +1594,6 @@ std::string generator::unique_name(const std::string& id)
 
 
 #ifdef HAVE_QT
-# include <QFontDatabase>
-# include <QFontMetrics>
 
 // based upon https://jeffpar.github.io/kbarchive/kb/145/Q145994/
 void generator::set_current_font(const std::string& font_name, int font_size, int weight, bool italic)
@@ -1614,11 +1620,8 @@ std::pair<int, int> generator::text_dimensions(const std::string& text)
   int height_dlu = qCeil(static_cast<double>(fm.height()) / m_dlu_y_factor);
   return { width_dlu, height_dlu };
 }
+
 #elif HAVE_FREETYPE
-# include <ft2build.h>
-# include <freetype/freetype.h>
-# include <fontconfig/fontconfig.h>
-# include <cmath>
 
 // based upon https://jeffpar.github.io/kbarchive/kb/145/Q145994/
 void generator::set_current_font(const std::string &font_name, int font_size, int weight, bool italic)
