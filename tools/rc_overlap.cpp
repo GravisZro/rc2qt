@@ -19,20 +19,13 @@ struct rect
   int h;
 };
 
-bool overlaps(const rect& a, const rect& b)
+bool overlap_extents(const rect& a, const rect& b, int& out_w, int& out_h)
 {
-  int x = std::min(a.x + a.w, b.x + b.w) - std::max(a.x, b.x);
-  int y = std::min(a.y + a.h, b.y + b.h) - std::max(a.y, b.y);
-  return x > 0 && y > 0;
-}
-
-int overlap_area(const rect& a, const rect& b)
-{
-  int x = std::min(a.x + a.w, b.x + b.w) - std::max(a.x, b.x);
-  int y = std::min(a.y + a.h, b.y + b.h) - std::max(a.y, b.y);
-  if(x <= 0 || y <= 0)
-    return 0;
-  return x * y;
+  int w = std::min(a.x + a.w, b.x + b.w) - std::max(a.x, b.x);
+  int h = std::min(a.y + a.h, b.y + b.h) - std::max(a.y, b.y);
+  out_w = std::max(w, 0);
+  out_h = std::max(h, 0);
+  return w > 0 && h > 0;
 }
 
 bool is_groupbox(const rc::control& ctrl)
@@ -116,7 +109,9 @@ void check_dialog(const rc::resource& res)
     {
       rect b = { controls[j].x, controls[j].y,
                  static_cast<int>(controls[j].width), static_cast<int>(controls[j].height) };
-      if(!overlaps(a, b))
+      int ow;
+      int oh;
+      if(!overlap_extents(a, b, ow, oh))
         continue;
 
       if(is_child[static_cast<int>(i)] == static_cast<int>(j) ||
@@ -132,7 +127,7 @@ void check_dialog(const rc::resource& res)
       label(controls[j], nb);
       std::cout << "  " << na << " (" << a.x << "," << a.y << ") " << a.w << "x" << a.h
                 << " overlaps " << nb << " (" << b.x << "," << b.y << ") " << b.w << "x" << b.h
-                << " by " << overlap_area(a, b) << " DLU\n";
+                << " over " << ow << "x" << oh << " DLU, area " << ow * oh << " DLU2\n";
       ++genuine;
     }
   }

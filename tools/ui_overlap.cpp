@@ -34,30 +34,26 @@ bool read_rect(pugi::xml_node widget, rect& out)
   return false;
 }
 
-bool overlaps(const rect& a, const rect& b)
+bool overlap_extents(const rect& a, const rect& b, int& out_w, int& out_h)
 {
-  int x = std::min(a.x + a.w, b.x + b.w) - std::max(a.x, b.x);
-  int y = std::min(a.y + a.h, b.y + b.h) - std::max(a.y, b.y);
-  return x > 0 && y > 0;
-}
-
-int overlap_area(const rect& a, const rect& b)
-{
-  int x = std::min(a.x + a.w, b.x + b.w) - std::max(a.x, b.x);
-  int y = std::min(a.y + a.h, b.y + b.h) - std::max(a.y, b.y);
-  if(x <= 0 || y <= 0)
-    return 0;
-  return x * y;
+  int w = std::min(a.x + a.w, b.x + b.w) - std::max(a.x, b.x);
+  int h = std::min(a.y + a.h, b.y + b.h) - std::max(a.y, b.y);
+  out_w = std::max(w, 0);
+  out_h = std::max(h, 0);
+  return w > 0 && h > 0;
 }
 
 void report(const rect& a, const rect& b, const std::string& name_a,
             const std::string& name_b, const std::string& path)
 {
+  int ow;
+  int oh;
+  overlap_extents(a, b, ow, oh);
   std::cout << path << "\n"
             << "  " << name_a << " (" << a.x << "," << a.y << ") "
             << a.w << "x" << a.h << " overlaps " << name_b
             << " (" << b.x << "," << b.y << ") " << b.w << "x" << b.h
-            << " by " << overlap_area(a, b) << " px\n";
+            << " over " << ow << "x" << oh << " px, area " << ow * oh << " px2\n";
 }
 
 int scan(pugi::xml_node container, const std::string& path)
@@ -86,7 +82,9 @@ int scan(pugi::xml_node container, const std::string& path)
         rect b;
         if(!read_rect(children[j], b))
           continue;
-        if(overlaps(a, b))
+        int ow;
+        int oh;
+        if(overlap_extents(a, b, ow, oh))
         {
           std::string name_b = children[j].attribute("name").value();
           report(a, b, name_a, name_b, path);
