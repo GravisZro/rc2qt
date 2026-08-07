@@ -99,7 +99,6 @@ void check_dialog(const rc::resource& res)
   }
 
   int genuine = 0;
-  int framed = 0;
   std::cout << res.id << "\n";
   for(size_t i = 0; i < controls.size(); ++i)
   {
@@ -116,10 +115,7 @@ void check_dialog(const rc::resource& res)
 
       if(is_child[static_cast<int>(i)] == static_cast<int>(j) ||
          is_child[static_cast<int>(j)] == static_cast<int>(i))
-      {
-        ++framed;
         continue;
-      }
 
       std::string na;
       std::string nb;
@@ -136,8 +132,7 @@ void check_dialog(const rc::resource& res)
       ++genuine;
     }
   }
-  std::cout << "  -- " << genuine << " genuine, " << framed
-            << " control-on-own-groupbox-frame (by design)\n\n";
+  std::cout << "  -- " << genuine << " overlap(s)\n\n";
 }
 }  // namespace
 
