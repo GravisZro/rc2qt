@@ -58,7 +58,7 @@ static void print_usage(const char* program_name)
   std::cerr << "  -o <dir>       Output directory (default: current directory)" << std::endl;
   std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
   std::cerr << "  -q <file.qrc>  .qrc output filename (default: <input basename>.qrc)" << std::endl;
-  std::cerr << "  -m <file.txt>  Widget metrics file from getuimetrics (default: none)" << std::endl;
+  std::cerr << "  -m <file.txt>  Widget metrics file from getuimetrics (default: uimetrics.txt)" << std::endl;
   std::cerr << "  -h             Show this help" << std::endl;
 }
 
@@ -106,6 +106,9 @@ int main(int argc, char** argv)
     return 1;
   }
   input_path = std::filesystem::path(argv[optind]).generic_string();
+
+  if(metrics_path.empty() && std::filesystem::exists("uimetrics.txt"))
+    metrics_path = "uimetrics.txt";
 
   if(is_pe_file(input_path))
   {
