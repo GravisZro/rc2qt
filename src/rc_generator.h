@@ -41,6 +41,7 @@ public:
   ~generator(void);
   bool generate_all(const rc_file& file, const std::string& output_dir, const std::string& res_dir_name);
   bool generate_qrc(const rc_file& file, const std::string& output_path, const std::vector<std::string>& ui_paths = {});
+  bool load_uimetrics(const std::filesystem::path& filepath);
 
 private:
   struct text_fit_info
@@ -65,8 +66,8 @@ private:
   void apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px);
 
   text_fit_info fit_text(const std::string& text, int width_dlu, int height_dlu, const std::string& widget_class);
-  static int min_height_px(const std::string& qt_class);
-  static int vertical_margin_px(const std::string& qt_class);
+  int min_height_px(const std::string& qt_class) const;
+  int vertical_margin_px(const std::string& qt_class) const;
   void layout_control_sizes(const std::vector<control>& controls,
                             const std::vector<std::string>& qt_classes,
                             std::vector<control_layout>& layout,
@@ -114,6 +115,8 @@ private:
   std::map<std::string, const dialog_data*> m_ds_control_dialogs;
   std::map<std::string, std::string> m_substitute_fonts;
   pugi::xml_node m_menubar_node;
+
+  std::map<std::string, std::map<std::string, std::string>> m_uimetrics;
 
   double m_dlu_x_factor = 1.75;
   double m_dlu_y_factor = 1.75;

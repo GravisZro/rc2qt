@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -13,6 +14,7 @@
 #include <sstream>
 #include <cstring>
 #include <format>
+#include <stdexcept>
 
 namespace rc
 {
@@ -1292,30 +1294,110 @@ void generator::apply_combo_dropdown_height(pugi::xml_node& widget, const contro
   }
 }
 
-int generator::min_height_px(const std::string& qt_class)
+bool generator::load_uimetrics(const std::filesystem::path& filepath)
+{
+  std::ifstream file(filepath);
+  if(!file.is_open())
+    return false;
+
+  m_uimetrics.clear();
+
+  std::map<std::string, std::string>* current_section = nullptr;
+  std::string line;
+  while(std::getline(file, line))
+  {
+    std::string trimmed = line;
+    while(!trimmed.empty() && (trimmed.front() == ' ' || trimmed.front() == '\t' || trimmed.front() == '\r'))
+      trimmed.erase(trimmed.begin());
+    while(!trimmed.empty() && (trimmed.back() == ' ' || trimmed.back() == '\t' || trimmed.back() == '\r'))
+      trimmed.pop_back();
+
+    if(trimmed.empty() || trimmed.front() == '#')
+      continue;
+
+    if(trimmed.front() == '[' && trimmed.back() == ']')
+    {
+      std::string name = trimmed.substr(1, trimmed.size() - 2);
+      current_section = &m_uimetrics[name];
+      continue;
+    }
+
+    if(current_section == nullptr)
+      continue;
+
+    size_t eq = trimmed.find('=');
+    if(eq == std::string::npos)
+      continue;
+
+    std::string key = trimmed.substr(0, eq);
+    std::string value = trimmed.substr(eq + 1);
+    while(!key.empty() && (key.back() == ' ' || key.back() == '\t'))
+      key.pop_back();
+    while(!value.empty() && (value.front() == ' ' || value.front() == '\t'))
+      value.erase(value.begin());
+
+    (*current_section)[key] = value;
+  }
+
+  return true;
+}
+
+int generator::min_height_px(const std::string& qt_class) const
 {
   static const std::map<std::string, int> min_height_map =
   {
     { "QCheckBox", 15 },
   };
 
-  auto it = min_height_map.find(qt_class);
-  if (it == min_height_map.end())
+  auto it = m_uimetrics.find("widget:" + qt_class);
+  if(it != m_uimetrics.end())
+  {
+    auto metric = it->second.find("indicatorH");
+    if(metric != it->second.end())
+    {
+      try
+      {
+        return std::stoi(metric->second) + 1;
+      }
+      catch(const std::exception&)
+      {
+      }
+    }
+  }
+
+  auto fallback = min_height_map.find(qt_class);
+  if(fallback == min_height_map.end())
     return 0;
-  return it->second;
+  return fallback->second;
 }
 
-int generator::vertical_margin_px(const std::string& qt_class)
+int generator::vertical_margin_px(const std::string& qt_class) const
 {
   static const std::map<std::string, int> vertical_margin_map =
   {
     { "QCheckBox", 18 },
   };
 
-  auto it = vertical_margin_map.find(qt_class);
-  if (it == vertical_margin_map.end())
+  auto it = m_uimetrics.find("widget:" + qt_class);
+  if(it != m_uimetrics.end())
+  {
+    auto metric = it->second.find("clickRectH");
+    if(metric != it->second.end())
+    {
+      try
+      {
+        return std::stoi(metric->second);
+      }
+      catch(const std::exception&)
+      {
+      }
+    }
+  }
+
+  auto fallback = vertical_margin_map.find(qt_class);
+  if(fallback == vertical_margin_map.end())
     return 0;
-  return it->second;
+  return fallback->second;
 }
 
 void generator::layout_control_sizes(const std::vector<control>& controls,

@@ -58,6 +58,7 @@ static void print_usage(const char* program_name)
   std::cerr << "  -o <dir>       Output directory (default: current directory)" << std::endl;
   std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
   std::cerr << "  -q <file.qrc>  .qrc output filename (default: <input basename>.qrc)" << std::endl;
+  std::cerr << "  -m <file.txt>  Widget metrics file from getuimetrics (default: none)" << std::endl;
   std::cerr << "  -h             Show this help" << std::endl;
 }
 
@@ -70,10 +71,11 @@ int main(int argc, char** argv)
   std::string input_path;
   std::string output_path;
   std::string qrc_path;
+  std::string metrics_path;
   std::string res_dir_name = "res";
 
   int opt;
-  while((opt = getopt(argc, argv, "o:r:q:h")) != -1)
+  while((opt = getopt(argc, argv, "o:r:q:m:h")) != -1)
   {
     switch(opt)
     {
@@ -85,6 +87,9 @@ int main(int argc, char** argv)
         break;
       case 'q':
         qrc_path = std::filesystem::path(optarg).generic_string();
+        break;
+      case 'm':
+        metrics_path = std::filesystem::path(optarg).generic_string();
         break;
       case 'h':
         print_usage(argv[0]);
@@ -142,6 +147,12 @@ int main(int argc, char** argv)
     rc::constant_registry::instance();
 
     rc::generator gen;
+
+    if(!metrics_path.empty())
+    {
+      if(!gen.load_uimetrics(metrics_path))
+        std::cerr << "Warning: cannot load metrics file: " << metrics_path << std::endl;
+    }
 
     rc::rc_file file;
 
@@ -341,6 +352,11 @@ int main(int argc, char** argv)
 
     {
       rc::generator gen;
+      if(!metrics_path.empty())
+      {
+        if(!gen.load_uimetrics(metrics_path))
+          std::cerr << "Warning: cannot load metrics file: " << metrics_path << std::endl;
+      }
       std::filesystem::path out_dir = ".";
       if(!output_path.empty())
       {
