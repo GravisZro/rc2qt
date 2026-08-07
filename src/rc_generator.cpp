@@ -623,6 +623,8 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
         continue;
       if(parent_groupbox[i] >= 0)
         continue;
+      if(qt_classes[i] == "QGroupBox")
+        continue;
 
       const auto& ctrl = dd.controls[i];
       int disp_h_dlu = ctrl.height;
