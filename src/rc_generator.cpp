@@ -274,6 +274,28 @@ namespace rc
     return "QWidget";
   }
 
+  /* Resolve the Qt widget class for a control. This is the single source of
+     truth used by both the writer and the layout pass so that metrics (e.g.
+     minimumSizeHint enforcement) always match the emitted widget class. */
+  static std::string widget_class_for_control(const control& ctrl)
+  {
+    std::string qt_class = map_keyword_to_widget(ctrl.keyword);
+
+    if(qt_class.empty() && ctrl.keyword == "CONTROL")
+      qt_class = map_class_to_widget(ctrl.class_name, ctrl.style);
+
+    if(qt_class.empty())
+      qt_class = "QWidget";
+
+    /* EDITTEXT keywords map to QLineEdit, but a multiline edit control
+       (ES_MULTILINE) must become a QTextEdit, mirroring the EDIT class
+       handling in map_class_to_widget(). */
+    if(qt_class == "QLineEdit" && has_style(ctrl.style, "ES_MULTILINE"))
+      qt_class = "QTextEdit";
+
+    return qt_class;
+  }
+
 
 generator::generator(void)
 {
@@ -601,9 +623,7 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   for(size_t i = 0; i < dd.controls.size(); ++i)
   {
     const auto& ctrl = dd.controls[i];
-    std::string qt_class = map_keyword_to_widget(ctrl.keyword);
-    if(qt_class.empty() && ctrl.keyword == "CONTROL")
-      qt_class = map_class_to_widget(ctrl.class_name, ctrl.style);
+    std::string qt_class = widget_class_for_control(ctrl);
     if(qt_class == "QGroupBox")
       groupbox_indices.push_back(static_cast<int>(i));
   }
@@ -612,12 +632,7 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   for(size_t i = 0; i < dd.controls.size(); ++i)
   {
     const auto& ctrl = dd.controls[i];
-    std::string qt_class = map_keyword_to_widget(ctrl.keyword);
-    if(qt_class.empty() && ctrl.keyword == "CONTROL")
-      qt_class = map_class_to_widget(ctrl.class_name, ctrl.style);
-    if(qt_class.empty())
-      qt_class = "QWidget";
-    qt_classes[i] = qt_class;
+    qt_classes[i] = widget_class_for_control(ctrl);
   }
 
   std::vector<int> parent_groupbox(dd.controls.size(), -1);
@@ -951,19 +966,7 @@ bool generator::share_common_word(const std::string& id1, const std::string& id2
 
 void generator::write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px, int extra_height_px)
 {
-  std::string qt_class = map_keyword_to_widget(ctrl.keyword);
-
-  if(qt_class.empty() && ctrl.keyword == "CONTROL")
-    qt_class = map_class_to_widget(ctrl.class_name, ctrl.style);
-
-  if(qt_class.empty())
-    qt_class = "QWidget";
-
-  /* EDITTEXT keywords map to QLineEdit, but a multiline edit control
-     (ES_MULTILINE) must become a QTextEdit, mirroring the EDIT class
-     handling in map_class_to_widget(). */
-  if(qt_class == "QLineEdit" && has_style(ctrl.style, "ES_MULTILINE"))
-    qt_class = "QTextEdit";
+  std::string qt_class = widget_class_for_control(ctrl);
 
   std::string name_id = ctrl.id;
   auto resolved_id = constant_registry::instance().resolve(ctrl.id);
@@ -1238,11 +1241,7 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
       for(size_t i = 0; i < dd.controls.size(); ++i)
       {
         const auto& child_ctrl = dd.controls[i];
-        std::string child_class = map_keyword_to_widget(child_ctrl.keyword);
-        if(child_class.empty() && child_ctrl.keyword == "CONTROL")
-          child_class = map_class_to_widget(child_ctrl.class_name, child_ctrl.style);
-        if(child_class.empty())
-          child_class = "QWidget";
+        std::string child_class = widget_class_for_control(child_ctrl);
         child_classes[i] = child_class;
       }
 
