@@ -971,7 +971,12 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   add_property_rect(widget, px, py, pw, ph);
 
   if(!ctrl.text.empty())
-    add_property_string(widget, "text", ctrl.text);
+  {
+    if(qt_class == "QGroupBox")
+      add_property_string(widget, "title", ctrl.text);
+    else
+      add_property_string(widget, "text", ctrl.text);
+  }
 
   bool visible = !has_style(ctrl.style, "WS_HIDDEN");
   for(const auto& nf : ctrl.style.not_flags)
@@ -1231,7 +1236,12 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         add_property_rect(child_widget, cx, cy, cw, ch);
 
         if(!child_ctrl.text.empty())
-          add_property_string(child_widget, "text", child_ctrl.text);
+        {
+          if(child_class == "QGroupBox")
+            add_property_string(child_widget, "title", child_ctrl.text);
+          else
+            add_property_string(child_widget, "text", child_ctrl.text);
+        }
       }
 
       ++tab_idx;
