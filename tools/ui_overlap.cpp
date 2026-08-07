@@ -55,9 +55,9 @@ void report(const rect& a, const rect& b, const std::string& name_a,
   int ry2 = ry1 + oh;
   std::cout << path << "\n"
             << "OVERLAP:\n"
-            << "  " << name_a << " (" << a.x << "," << a.y << "," << a.x + a.w << "," << a.y + a.h << ")\n"
-            << "  " << name_b << " (" << b.x << "," << b.y << "," << b.x + b.w << "," << b.y + b.h << ")\n"
-            << "  Overlap Region: (" << rx1 << "," << ry1 << "," << rx2 << ", " << ry2 << ")\n";
+            << "  " << name_a << " (" << a.x << ", " << a.y << ", " << a.x + a.w << ", " << a.y + a.h << ")\n"
+            << "  " << name_b << " (" << b.x << ", " << b.y << ", " << b.x + b.w << ", " << b.y + b.h << ")\n"
+            << "  Overlap Region: (" << rx1 << ", " << ry1 << ", " << rx2 << ", " << ry2 << ")\n";
 }
 
 int scan(pugi::xml_node container, const std::string& path)

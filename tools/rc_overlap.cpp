@@ -130,9 +130,9 @@ void check_dialog(const rc::resource& res)
       int rx2 = rx1 + ow;
       int ry2 = ry1 + oh;
       std::cout << "OVERLAP:\n"
-                << "  " << na << " (" << a.x << "," << a.y << "," << a.x + a.w << "," << a.y + a.h << ")\n"
-                << "  " << nb << " (" << b.x << "," << b.y << "," << b.x + b.w << "," << b.y + b.h << ")\n"
-                << "  Overlap Region: (" << rx1 << "," << ry1 << "," << rx2 << ", " << ry2 << ")\n";
+                << "  " << na << " (" << a.x << ", " << a.y << ", " << a.x + a.w << ", " << a.y + a.h << ")\n"
+                << "  " << nb << " (" << b.x << ", " << b.y << ", " << b.x + b.w << ", " << b.y + b.h << ")\n"
+                << "  Overlap Region: (" << rx1 << ", " << ry1 << ", " << rx2 << ", " << ry2 << ")\n";
       ++genuine;
     }
   }
