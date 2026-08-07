@@ -990,6 +990,9 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   apply_combo_dropdown_height(widget, ctrl, qt_class == "QComboBox", ph);
 
   py += y_shift_px;
+  int min_w = min_width_px(qt_class);
+  if(pw < min_w)
+    pw = min_w;
   int min_h = min_height_px(qt_class);
   if(ph < min_h)
     ph = min_h;
@@ -1256,6 +1259,9 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         int ch = dlu_to_pixel_y(child_h_dlu);
         apply_combo_dropdown_height(child_widget, child_ctrl, child_class == "QComboBox", ch);
 
+        int child_min_w = min_width_px(child_class);
+        if(cw < child_min_w)
+          cw = child_min_w;
         int child_min_h = min_height_px(child_class);
         if(ch < child_min_h)
           ch = child_min_h;
@@ -1380,35 +1386,54 @@ bool generator::load_uimetrics(const std::filesystem::path& filepath)
   return true;
 }
 
-int generator::min_height_px(const std::string& qt_class) const
+int generator::min_width_px(const std::string& qt_class) const
 {
-  static const std::map<std::string, int> min_height_map =
-  {
-    { "QCheckBox", 15 },
-  };
-
   auto it = m_uimetrics.find("widget:" + qt_class);
   if(it != m_uimetrics.end())
   {
-    auto metric = it->second.find("indicatorH");
+    auto metric = it->second.find("minimumSizeHintW");
     if(metric != it->second.end())
     {
       try
       {
-        // Indicator size is style-driven and stored as absolute pixels; it
-        // does not scale with the dialog font.
-        return std::stoi(metric->second) + 1;
+        // Minimum-size hints are text-area metrics stored in DLU and scaled by
+        // the dialog font factor. Negative values (unlaid-out widgets) are
+        // ignored and clamp to zero.
+        double dlu = std::stod(metric->second);
+        if(dlu > 0.0)
+          return static_cast<int>(std::lround(dlu * m_dlu_x_factor));
       }
       catch(const std::exception&)
       {
       }
     }
   }
+  return 0;
+}
 
-  auto fallback = min_height_map.find(qt_class);
-  if(fallback == min_height_map.end())
-    return 0;
-  return fallback->second;
+int generator::min_height_px(const std::string& qt_class) const
+{
+  auto it = m_uimetrics.find("widget:" + qt_class);
+  if(it != m_uimetrics.end())
+  {
+    auto metric = it->second.find("minimumSizeHintH");
+    if(metric != it->second.end())
+    {
+      try
+      {
+        // Minimum-size hints are text-area metrics stored in DLU and scaled by
+        // the dialog font factor. Negative values (unlaid-out widgets) are
+        // ignored and clamp to zero.
+        double dlu = std::stod(metric->second);
+        if(dlu > 0.0)
+          return static_cast<int>(std::lround(dlu * m_dlu_y_factor));
+      }
+      catch(const std::exception&)
+      {
+      }
+    }
+  }
+  return 0;
 }
 
 int generator::vertical_margin_px(const std::string& qt_class) const

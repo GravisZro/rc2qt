@@ -66,6 +66,7 @@ private:
   void apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px);
 
   text_fit_info fit_text(const std::string& text, int width_dlu, int height_dlu, const std::string& widget_class);
+  int min_width_px(const std::string& qt_class) const;
   int min_height_px(const std::string& qt_class) const;
   int vertical_margin_px(const std::string& qt_class) const;
   void layout_control_sizes(const std::vector<control>& controls,
