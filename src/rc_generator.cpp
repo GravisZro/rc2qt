@@ -1735,33 +1735,12 @@ generator::text_fit_info generator::fit_text(const std::string& text, int width_
   if(mapped_w <= width_dlu && mapped_h <= height_dlu)
     return { width_dlu, height_dlu, false };
 
-  // The mapped (substituted) font may be wider than the original RC font.
-  // Check whether the text fits inside the bounding box when wrapped with the
-  // original font; if it does, the original layout relies on multi-line text
-  // and the widget is reflowed to the mapped font with word wrapping enabled.
-  // Otherwise the bounding box is expanded to the single-line dimensions of
-  // the mapped font.
-  bool wrapped_in_original = false;
-  bool can_word_wrap = supports_word_wrap(widget_class);
-
-  try
-  {
-    set_current_font(m_original_font_name, m_font_size, m_font_weight, m_font_italic);
-
-    std::vector<std::string> original_lines = wrap_text(text, width_dlu);
-    int original_line_height = text_dimensions(text).second;
-    int original_height = static_cast<int>(original_lines.size()) * original_line_height;
-    wrapped_in_original = original_height <= height_dlu;
-  }
-  catch(const std::runtime_error&)
-  {
-    // The original font cannot be resolved; fall back to the mapped font below.
-  }
-
   set_current_font(m_mapped_font_name, m_font_size, m_font_weight, m_font_italic);
 
-  if(wrapped_in_original && can_word_wrap)
+  if(supports_word_wrap(widget_class))
   {
+    // A QLabel reflows onto multiple lines inside the given width instead of
+    // growing beyond it, so a long label never exceeds the dialog width.
     std::vector<std::string> lines = wrap_text(text, width_dlu);
     int line_height = text_dimensions(text).second;
 
