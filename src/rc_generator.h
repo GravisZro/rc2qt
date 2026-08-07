@@ -120,6 +120,8 @@ private:
 
   double m_dlu_x_factor = 1.75;
   double m_dlu_y_factor = 1.75;
+  double m_font_dpi = 96.0;
+  double m_font_height = 0.0;
   int m_action_counter = 0;
 
   std::string m_original_font_name;

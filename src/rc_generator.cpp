@@ -5,6 +5,7 @@
 #include "xmlhelpers.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -1360,6 +1361,22 @@ bool generator::load_uimetrics(const std::filesystem::path& filepath)
     (*current_section)[key] = value;
   }
 
+  auto font_section = m_uimetrics.find("font");
+  if(font_section != m_uimetrics.end())
+  {
+    auto dpi = font_section->second.find("dpi");
+    if(dpi != font_section->second.end())
+    {
+      try
+      {
+        m_font_dpi = std::stod(dpi->second);
+      }
+      catch(const std::exception&)
+      {
+      }
+    }
+  }
+
   return true;
 }
 
@@ -1378,7 +1395,9 @@ int generator::min_height_px(const std::string& qt_class) const
     {
       try
       {
-        return std::stoi(metric->second) + 1;
+        // Metric is stored relative to the measurement font in DLU; scale it
+        // by the actual dialog font's vertical dlu factor to get pixels.
+        return static_cast<int>(std::round(std::stod(metric->second) * m_dlu_y_factor)) + 1;
       }
       catch(const std::exception&)
       {
@@ -1407,7 +1426,9 @@ int generator::vertical_margin_px(const std::string& qt_class) const
     {
       try
       {
-        return std::stoi(metric->second);
+        // Metric is stored relative to the measurement font in DLU; scale it
+        // by the actual dialog font's vertical dlu factor to get pixels.
+        return static_cast<int>(std::round(std::stod(metric->second) * m_dlu_y_factor));
       }
       catch(const std::exception&)
       {
@@ -1625,9 +1646,11 @@ void generator::set_current_font(const std::string &font_name, int font_size, in
   if(FT_New_Face(m_ft_library, path_str.c_str(), 0, &m_ft_face))
     throw std::runtime_error(std::format("Failed to load font file: {}", path_str));
 
-  // Set font size (FreeType takes size in 26.6 fractional pixels, or pixel sizes directly)
-  // Assuming font_size represents point size at 96 DPI: pixels = point_size * 96 / 72
-  int pixel_height = (font_size * 96 + 36) / 72;
+  // Set font size. Qt computes the pixel size from the point size and the
+  // screen's logical DPI with rounding: pixels = round(pointSize * dpi / 72).
+  // The DPI is taken from the measurement font in the uimetrics file so this
+  // path reproduces QFontMetrics on the same display.
+  int pixel_height = static_cast<int>(std::round(font_size * m_font_dpi / 72.0));
   if(FT_Set_Pixel_Sizes(m_ft_face, 0, pixel_height))
   {
     FT_Done_Face(m_ft_face);
@@ -1635,9 +1658,14 @@ void generator::set_current_font(const std::string &font_name, int font_size, in
     throw std::runtime_error("Failed to set pixel size for FreeType face.");
   }
 
-  // 3. Extract metrics equivalent to QFontMetrics
-  // ft_face->size->metrics.height is in 26.6 fractional pixels (shift right by 6)
-  double font_height = static_cast<double>(m_ft_face->size->metrics.height >> 6);
+  // 3. Extract metrics equivalent to QFontMetrics.
+  // Qt's QFontMetrics::height() equals ascent + descent (no line gap).
+  // FreeType stores these as 26.6 fractional pixels; round each the way Qt
+  // rounds its integer ascent/descent values.
+  double ascent = std::round(static_cast<double>(m_ft_face->size->metrics.ascender) / 64.0);
+  double descent = std::round(static_cast<double>(-m_ft_face->size->metrics.descender) / 64.0);
+  double font_height = ascent + descent;
+  m_font_height = font_height;
   m_dlu_y_factor = font_height / 8.0;
 
   // Calculate horizontal advance for the alphabet string
@@ -1673,7 +1701,7 @@ std::pair<int, int> generator::text_dimensions(const std::string& text)
       total_width += static_cast<double>(m_ft_face->glyph->advance.x >> 6);
   }
 
-  double font_height = static_cast<double>(m_ft_face->size->metrics.height >> 6);
+  double font_height = m_font_height;
   // Convert the measured pixels into dialog units using the same base-unit
   // factors that dlu_to_pixel_x/y are derived from, so that the result can
   // be compared directly against the DLU box sizes from the RC file.

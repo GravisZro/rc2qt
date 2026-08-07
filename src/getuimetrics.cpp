@@ -39,6 +39,7 @@
 #include <QToolBar>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include <QScreen>
 #include <QWidget>
 
 #include <QDateTime>
@@ -49,6 +50,19 @@
 #include <memory>
 #include <string>
 #include <vector>
+
+static double g_dlu_x_factor = 4.0;
+static double g_dlu_y_factor = 8.0;
+
+static QString format_dlu(double value)
+{
+  QString s = QString::number(value, 'f', 3);
+  while(s.endsWith('0'))
+    s.chop(1);
+  if(s.endsWith('.'))
+    s.chop(1);
+  return s;
+}
 
 struct writer
 {
@@ -69,26 +83,38 @@ struct writer
     s << key << "=" << value << "\n";
   }
 
+  // Horizontal pixel measurement expressed in font-relative dialog units.
+  void h(const QString& key, int px)
+  {
+    s << key << "=" << format_dlu(static_cast<double>(px) / g_dlu_x_factor) << "\n";
+  }
+
+  // Vertical pixel measurement expressed in font-relative dialog units.
+  void v(const QString& key, int px)
+  {
+    s << key << "=" << format_dlu(static_cast<double>(px) / g_dlu_y_factor) << "\n";
+  }
+
   void sz(const QString& prefix, const QSize& size)
   {
-    s << prefix << "W=" << size.width() << "\n";
-    s << prefix << "H=" << size.height() << "\n";
+    h(prefix + "W", size.width());
+    v(prefix + "H", size.height());
   }
 
   void rect(const QString& prefix, const QRect& r)
   {
-    s << prefix << "X=" << r.x() << "\n";
-    s << prefix << "Y=" << r.y() << "\n";
-    s << prefix << "W=" << r.width() << "\n";
-    s << prefix << "H=" << r.height() << "\n";
+    h(prefix + "X", r.x());
+    v(prefix + "Y", r.y());
+    h(prefix + "W", r.width());
+    v(prefix + "H", r.height());
   }
 
   void margin(const QString& prefix, const QMargins& m)
   {
-    s << prefix << "Left=" << m.left() << "\n";
-    s << prefix << "Top=" << m.top() << "\n";
-    s << prefix << "Right=" << m.right() << "\n";
-    s << prefix << "Bottom=" << m.bottom() << "\n";
+    h(prefix + "Left", m.left());
+    v(prefix + "Top", m.top());
+    h(prefix + "Right", m.right());
+    v(prefix + "Bottom", m.bottom());
   }
 };
 
@@ -116,14 +142,14 @@ static void measure_common(writer& w, QWidget* widget)
   if(QLayout* layout = widget->layout())
   {
     w.margin("layoutContentsMargin", layout->contentsMargins());
-    w.i("layoutSpacing", layout->spacing());
+    w.v("layoutSpacing", layout->spacing());
   }
 
   QFrame* frame = qobject_cast<QFrame*>(widget);
   if(frame != nullptr)
   {
     w.i("frameShape", frame->frameShape());
-    w.i("frameWidth", frame->frameWidth());
+    w.v("frameWidth", frame->frameWidth());
     w.rect("frameRect", frame->frameRect());
     w.rect("frameContentsRect", frame->contentsRect());
   }
@@ -206,7 +232,7 @@ static void measure_combo_box(writer& w, QWidget* raw)
   w.rect("listBoxPopup", style->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxListBoxPopup, cb));
   QAbstractItemView* view = cb->view();
   if(view != nullptr)
-    w.i("viewRowHeight", view->sizeHintForRow(0));
+    w.v("viewRowHeight", view->sizeHintForRow(0));
   w.i("count", cb->count());
 }
 
@@ -317,13 +343,13 @@ static void measure_calendar_widget(writer& w, QWidget* raw)
   {
     if(header->orientation() == Qt::Horizontal)
     {
-      w.i("headerSectionSizeHint", header->sectionSizeHint(0));
-      w.i("headerDefaultSectionSize", header->defaultSectionSize());
+      w.h("headerSectionSizeHint", header->sectionSizeHint(0));
+      w.h("headerDefaultSectionSize", header->defaultSectionSize());
       w.sz("headerSizeHint", header->sizeHint());
     }
     else
     {
-      w.i("verticalHeaderDefaultSectionSize", header->defaultSectionSize());
+      w.v("verticalHeaderDefaultSectionSize", header->defaultSectionSize());
       w.sz("verticalHeaderSizeHint", header->sizeHint());
     }
   }
@@ -356,9 +382,9 @@ static void measure_tool_bar(writer& w, QWidget* raw)
 static void measure_header_view(writer& w, QWidget* raw)
 {
   QHeaderView* hv = static_cast<QHeaderView*>(raw);
-  w.i("sectionSizeHint0", hv->sectionSizeHint(0));
-  w.i("defaultSectionSize", hv->defaultSectionSize());
-  w.i("offset", hv->offset());
+  w.h("sectionSizeHint0", hv->sectionSizeHint(0));
+  w.h("defaultSectionSize", hv->defaultSectionSize());
+  w.h("offset", hv->offset());
   w.i("count", hv->count());
   w.rect("viewportRect", hv->viewport()->rect());
 }
@@ -366,7 +392,7 @@ static void measure_header_view(writer& w, QWidget* raw)
 static void measure_list_widget(writer& w, QWidget* raw)
 {
   QListWidget* lw = static_cast<QListWidget*>(raw);
-  w.i("rowHeight0", lw->sizeHintForRow(0));
+  w.v("rowHeight0", lw->sizeHintForRow(0));
   w.i("count", lw->count());
 }
 
@@ -376,12 +402,12 @@ static void measure_tree_widget(writer& w, QWidget* raw)
   QHeaderView* header = tw->header();
   if(header != nullptr)
   {
-    w.i("headerSectionSizeHint", header->sectionSizeHint(0));
-    w.i("headerDefaultSectionSize", header->defaultSectionSize());
+    w.h("headerSectionSizeHint", header->sectionSizeHint(0));
+    w.h("headerDefaultSectionSize", header->defaultSectionSize());
   }
   QTreeWidgetItem* item = tw->topLevelItem(0);
   if(item != nullptr)
-    w.i("rowHeight0", tw->visualItemRect(item).height());
+    w.v("rowHeight0", tw->visualItemRect(item).height());
 }
 
 static void measure_table_widget(writer& w, QWidget* raw)
@@ -390,11 +416,11 @@ static void measure_table_widget(writer& w, QWidget* raw)
   QHeaderView* header = tw->horizontalHeader();
   if(header != nullptr)
   {
-    w.i("headerSectionSizeHint", header->sectionSizeHint(0));
-    w.i("headerDefaultSectionSize", header->defaultSectionSize());
+    w.h("headerSectionSizeHint", header->sectionSizeHint(0));
+    w.h("headerDefaultSectionSize", header->defaultSectionSize());
   }
-  w.i("rowHeight0", tw->verticalHeader()->defaultSectionSize());
-  w.i("columnWidth0", tw->columnWidth(0));
+  w.v("rowHeight0", tw->verticalHeader()->defaultSectionSize());
+  w.h("columnWidth0", tw->columnWidth(0));
 }
 
 static void measure_menu_bar(writer& w, QWidget* raw)
@@ -420,7 +446,7 @@ static void measure_menu(writer& w, QWidget* raw)
   {
     QRect r = menu->actionGeometry(action);
     w.rect(QString("action%1Rect").arg(idx), r);
-    w.i(QString("action%1Height").arg(idx), r.height());
+    w.v(QString("action%1Height").arg(idx), r.height());
     ++idx;
   }
   w.i("actionCount", menu->actions().size());
@@ -531,10 +557,11 @@ static void write_font_section(writer& w, const QFont& font)
   QString alphabet = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
   double alphabet_advance = static_cast<double>(fm.horizontalAdvance(alphabet));
   double avg_char_width = alphabet_advance / 52.0;
-  double dlu_x_factor = avg_char_width / 4.0;
-  double dlu_y_factor = static_cast<double>(fm.height()) / 8.0;
+  g_dlu_x_factor = avg_char_width / 4.0;
+  g_dlu_y_factor = static_cast<double>(fm.height()) / 8.0;
 
   w.section(QStringLiteral("font"));
+  w.i("dpi", qRound(QGuiApplication::primaryScreen() ? QGuiApplication::primaryScreen()->logicalDotsPerInch() : 100.0));
   w.kv("family", font.family());
   w.i("pointSize", font.pointSize());
   w.i("pixelSize", font.pixelSize());
@@ -554,8 +581,8 @@ static void write_font_section(writer& w, const QFont& font)
   w.i("overlinePos", fm.overlinePos());
   w.i("alphabetAdvance", static_cast<int>(alphabet_advance));
   w.i("avgCharWidth", static_cast<int>(avg_char_width + 0.5));
-  w.kv("dluXFactor", QString::number(dlu_x_factor, 'g', 10));
-  w.kv("dluYFactor", QString::number(dlu_y_factor, 'g', 10));
+  w.kv("dluXFactor", QString::number(g_dlu_x_factor, 'g', 10));
+  w.kv("dluYFactor", QString::number(g_dlu_y_factor, 'g', 10));
 }
 
 static void print_usage(const char* argv0)
@@ -577,6 +604,10 @@ int main(int argc, char** argv)
 {
   if(qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
     qputenv("QT_QPA_PLATFORM", "offscreen");
+
+  // Measure fonts at 96 DPI, the value Qt uses when rendering to a screen.
+  // This must be set before QApplication is constructed.
+  qputenv("QT_FONT_DPI", "96");
 
   QApplication app(argc, argv);
 
@@ -643,12 +674,17 @@ int main(int argc, char** argv)
   writer w{out};
 
   out << "# Qt widget UI metrics for the rc2qt generator\n"
-      << "# Section-based key=value format; keys are relative to the widget or\n"
-      << "# absolute widget coordinates depending on the section.\n";
+      << "# Section-based key=value format. Lengths in [widget:*] sections are\n"
+      << "# expressed relative to the measurement font as dialog units (DLU):\n"
+      << "# horizontal lengths divide by dluXFactor, vertical lengths by\n"
+      << "# dluYFactor from the [font] section. The generator scales them to\n"
+      << "# pixels using the actual dialog font so that widget sizes and\n"
+      << "# minimum margins are preserved for any font family, size, or style.\n"
+      << "# Counts, flags, and font metrics remain in absolute units.\n";
 
   w.section(QStringLiteral("meta"));
   w.kv("tool", QStringLiteral("getuimetrics"));
-  w.kv("toolVersion", QStringLiteral("1.0"));
+  w.kv("toolVersion", QStringLiteral("2.0"));
   w.kv("qtVersion", QStringLiteral(QT_VERSION_STR));
   w.kv("style", app.style()->objectName());
   w.kv("platform", QApplication::platformName());
