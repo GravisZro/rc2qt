@@ -66,7 +66,7 @@ void label(const rc::control& c, std::string& out)
 {
   out = c.id;
   if(!c.text.empty())
-    out += " [" + c.text + "]";
+    out += " ['" + c.text + "']";
 }
 
 void check_dialog(const rc::resource& res)
@@ -125,9 +125,14 @@ void check_dialog(const rc::resource& res)
       std::string nb;
       label(controls[i], na);
       label(controls[j], nb);
-      std::cout << "  " << na << " (" << a.x << "," << a.y << ") " << a.w << "x" << a.h
-                << " overlaps " << nb << " (" << b.x << "," << b.y << ") " << b.w << "x" << b.h
-                << " over " << ow << "x" << oh << " DLU, area " << ow * oh << " DLU2\n";
+      int rx1 = std::max(a.x, b.x);
+      int ry1 = std::max(a.y, b.y);
+      int rx2 = rx1 + ow;
+      int ry2 = ry1 + oh;
+      std::cout << "OVERLAP:\n"
+                << "  " << na << " (" << a.x << "," << a.y << "," << a.x + a.w << "," << a.y + a.h << ")\n"
+                << "  " << nb << " (" << b.x << "," << b.y << "," << b.x + b.w << "," << b.y + b.h << ")\n"
+                << "  Overlap Region: (" << rx1 << "," << ry1 << "," << rx2 << ", " << ry2 << ")\n";
       ++genuine;
     }
   }

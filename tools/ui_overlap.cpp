@@ -49,11 +49,15 @@ void report(const rect& a, const rect& b, const std::string& name_a,
   int ow;
   int oh;
   overlap_extents(a, b, ow, oh);
+  int rx1 = std::max(a.x, b.x);
+  int ry1 = std::max(a.y, b.y);
+  int rx2 = rx1 + ow;
+  int ry2 = ry1 + oh;
   std::cout << path << "\n"
-            << "  " << name_a << " (" << a.x << "," << a.y << ") "
-            << a.w << "x" << a.h << " overlaps " << name_b
-            << " (" << b.x << "," << b.y << ") " << b.w << "x" << b.h
-            << " over " << ow << "x" << oh << " px, area " << ow * oh << " px2\n";
+            << "OVERLAP:\n"
+            << "  " << name_a << " (" << a.x << "," << a.y << "," << a.x + a.w << "," << a.y + a.h << ")\n"
+            << "  " << name_b << " (" << b.x << "," << b.y << "," << b.x + b.w << "," << b.y + b.h << ")\n"
+            << "  Overlap Region: (" << rx1 << "," << ry1 << "," << rx2 << ", " << ry2 << ")\n";
 }
 
 int scan(pugi::xml_node container, const std::string& path)
