@@ -99,7 +99,6 @@ void check_dialog(const rc::resource& res)
   }
 
   int genuine = 0;
-  std::cout << res.id << "\n";
   for(size_t i = 0; i < controls.size(); ++i)
   {
     rect a = { controls[i].x, controls[i].y,
@@ -132,7 +131,7 @@ void check_dialog(const rc::resource& res)
       ++genuine;
     }
   }
-  std::cout << "  -- " << genuine << " overlap(s)\n\n";
+  std::cout << res.id << ": " << genuine << " overlapping pair(s)\n\n";
 }
 }  // namespace
 
