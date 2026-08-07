@@ -963,6 +963,9 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   apply_combo_dropdown_height(widget, ctrl, qt_class == "QComboBox", ph);
 
   py += y_shift_px;
+  int min_h = min_height_px(qt_class);
+  if(ph < min_h)
+    ph = min_h;
   ph += extra_height_px;
 
   add_property_rect(widget, px, py, pw, ph);
@@ -1221,6 +1224,10 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         int ch = dlu_to_pixel_y(child_h_dlu);
         apply_combo_dropdown_height(child_widget, child_ctrl, child_class == "QComboBox", ch);
 
+        int child_min_h = min_height_px(child_class);
+        if(ch < child_min_h)
+          ch = child_min_h;
+
         add_property_rect(child_widget, cx, cy, cw, ch);
 
         if(!child_ctrl.text.empty())
@@ -1275,11 +1282,24 @@ void generator::apply_combo_dropdown_height(pugi::xml_node& widget, const contro
   }
 }
 
+int generator::min_height_px(const std::string& qt_class)
+{
+  static const std::map<std::string, int> min_height_map =
+  {
+    { "QCheckBox", 15 },
+  };
+
+  auto it = min_height_map.find(qt_class);
+  if (it == min_height_map.end())
+    return 0;
+  return it->second;
+}
+
 int generator::vertical_margin_px(const std::string& qt_class)
 {
   static const std::map<std::string, int> vertical_margin_map =
   {
-    { "QCheckBox", 15 },
+    { "QCheckBox", 18 },
   };
 
   auto it = vertical_margin_map.find(qt_class);
@@ -1301,6 +1321,7 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
   std::vector<int> py(controls.size());
   std::vector<int> ph(controls.size());
   std::vector<int> extra(controls.size());
+  std::vector<int> min_h(controls.size());
   std::vector<int> margin(controls.size());
 
   for(size_t i = 0; i < controls.size(); ++i)
@@ -1329,8 +1350,9 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
       extra[i] = (*extra_heights)[i];
 
     py[i] = dlu_to_pixel_y(ctrl.y);
+    min_h[i] = min_height_px(qt_class);
     margin[i] = vertical_margin_px(qt_class);
-    layout[i].height_px = ph[i] + extra[i];
+    layout[i].height_px = std::max(ph[i], min_h[i]) + extra[i];
   }
 
   std::vector<size_t> order(controls.size());
@@ -1361,8 +1383,9 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
       }
     }
 
-    if(extra[i] > 0)
-      events.push_back({ py[i] + ph[i], extra[i] });
+    int expansion = std::max(0, min_h[i] - ph[i]) + extra[i];
+    if(expansion > 0)
+      events.push_back({ py[i] + ph[i], expansion });
   }
   std::sort(events.begin(), events.end());
 
