@@ -1,0 +1,154 @@
+#include <pugixml.hpp>
+
+#include <algorithm>
+#include <filesystem>
+#include <iostream>
+#include <string>
+#include <vector>
+
+namespace
+{
+struct rect
+{
+  int x;
+  int y;
+  int w;
+  int h;
+};
+
+bool read_rect(pugi::xml_node widget, rect& out)
+{
+  for(pugi::xml_node prop : widget.children("property"))
+  {
+    if(std::string(prop.attribute("name").value()) != "geometry")
+      continue;
+    pugi::xml_node r = prop.child("rect");
+    if(!r)
+      return false;
+    out.x = r.child("x").text().as_int();
+    out.y = r.child("y").text().as_int();
+    out.w = r.child("width").text().as_int();
+    out.h = r.child("height").text().as_int();
+    return true;
+  }
+  return false;
+}
+
+bool overlaps(const rect& a, const rect& b)
+{
+  int x = std::min(a.x + a.w, b.x + b.w) - std::max(a.x, b.x);
+  int y = std::min(a.y + a.h, b.y + b.h) - std::max(a.y, b.y);
+  return x > 0 && y > 0;
+}
+
+int overlap_area(const rect& a, const rect& b)
+{
+  int x = std::min(a.x + a.w, b.x + b.w) - std::max(a.x, b.x);
+  int y = std::min(a.y + a.h, b.y + b.h) - std::max(a.y, b.y);
+  if(x <= 0 || y <= 0)
+    return 0;
+  return x * y;
+}
+
+void report(const rect& a, const rect& b, const std::string& name_a,
+            const std::string& name_b, const std::string& path)
+{
+  std::cout << path << "\n"
+            << "  " << name_a << " (" << a.x << "," << a.y << ") "
+            << a.w << "x" << a.h << " overlaps " << name_b
+            << " (" << b.x << "," << b.y << ") " << b.w << "x" << b.h
+            << " by " << overlap_area(a, b) << " px\n";
+}
+
+int scan(pugi::xml_node container, const std::string& path)
+{
+  int count = 0;
+  std::string class_name = container.attribute("class").value();
+  bool is_tab = (class_name == "QTabWidget");
+
+  std::vector<pugi::xml_node> children;
+  for(pugi::xml_node child : container.children("widget"))
+    children.push_back(child);
+
+  // Compare siblings within the same coordinate space. Tab pages are stacked
+  // by design at an identical geometry, so a QTabWidget's direct children
+  // (the pages) are not compared against each other.
+  if(!is_tab)
+  {
+    for(size_t i = 0; i < children.size(); ++i)
+    {
+      rect a;
+      if(!read_rect(children[i], a))
+        continue;
+      std::string name_a = children[i].attribute("name").value();
+      for(size_t j = i + 1; j < children.size(); ++j)
+      {
+        rect b;
+        if(!read_rect(children[j], b))
+          continue;
+        if(overlaps(a, b))
+        {
+          std::string name_b = children[j].attribute("name").value();
+          report(a, b, name_a, name_b, path);
+          ++count;
+        }
+      }
+    }
+  }
+
+  for(pugi::xml_node child : children)
+  {
+    std::string child_path = path + "/" + child.attribute("name").value();
+    count += scan(child, child_path);
+  }
+  return count;
+}
+
+void check_file(const std::string& file)
+{
+  pugi::xml_document doc;
+  pugi::xml_parse_result result = doc.load_file(file.c_str());
+  if(!result)
+  {
+    std::cerr << file << ": parse error: " << result.description() << "\n";
+    return;
+  }
+
+  pugi::xml_node ui = doc.child("ui");
+  int count = 0;
+  for(pugi::xml_node widget : ui.children("widget"))
+    count += scan(widget, widget.attribute("name").value());
+  std::cout << file << ": " << count << " overlapping sibling pair(s)\n\n";
+}
+}  // namespace
+
+int main(int argc, char** argv)
+{
+  if(argc < 2)
+  {
+    std::cerr << "usage: ui_overlap <file.ui> [<file.ui> ... | <dir>]\n";
+    return 1;
+  }
+
+  for(int i = 1; i < argc; ++i)
+  {
+    std::filesystem::path p(argv[i]);
+    if(std::filesystem::is_directory(p))
+    {
+      std::vector<std::string> files;
+      for(auto& entry : std::filesystem::directory_iterator(p))
+      {
+        if(entry.path().extension() == ".ui")
+          files.push_back(entry.path().string());
+      }
+      std::sort(files.begin(), files.end());
+      for(const auto& f : files)
+        check_file(f);
+    }
+    else
+    {
+      check_file(argv[i]);
+    }
+  }
+  return 0;
+}

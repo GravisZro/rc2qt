@@ -124,6 +124,31 @@ enable_testing()
 add_test(NAME parser_tests COMMAND test_parser)
 
 
+# rc_overlap: reports overlapping controls in a parsed .rc dialog layout.
+# Overlaps are detected in source DLU coordinates so they can be classified
+# as source-inherited (by design) versus introduced by the converter.
+add_executable(rc_overlap
+  src/rc_tokenizer.cpp
+  src/rc_constants.cpp
+  src/rc_resolver.cpp
+  src/utils.cpp
+  src/rc_parser.cpp
+  tools/rc_overlap.cpp
+)
+target_include_directories(rc_overlap PRIVATE src ${EXTRA_DIRS})
+target_link_libraries(rc_overlap PRIVATE ${EXTRA_LIBS})
+target_compile_definitions(rc_overlap PRIVATE ${EXTRA_DEFS})
+
+# ui_overlap: reports overlapping widgets in a generated .ui file.
+# Siblings are compared within their own coordinate space (dialog, groupbox,
+# tab page); tab pages stacked by design are excluded from sibling checks.
+add_executable(ui_overlap
+  tools/ui_overlap.cpp
+)
+target_include_directories(ui_overlap PRIVATE src)
+target_link_libraries(ui_overlap PRIVATE pugixml::pugixml)
+
+
 # getuimetrics: standalone Qt tool that renders rc2qt widget classes
 # offscreen and writes their component metrics to a text file for the
 # generator.
