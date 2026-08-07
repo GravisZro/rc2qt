@@ -21,6 +21,9 @@ build*/
 test/
 temporary_files/
 
+# generated file
+uimetrics.txt
+
 # generated resource output
 res/
 
