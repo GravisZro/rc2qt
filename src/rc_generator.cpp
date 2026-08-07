@@ -168,6 +168,21 @@ namespace rc
     return false;
   }
 
+  static bool is_dropdown_combo(const control& ctrl)
+  {
+    return has_style(ctrl.style, "CBS_DROPDOWN") ||
+           has_style(ctrl.style, "CBS_DROPDOWNLIST");
+  }
+
+  /* A drop-down COMBOBOX height in the resource file is the fully-expanded
+     height (dropdown list open); the collapsed control is one line high. */
+  static int combo_closed_height_dlu(const control& ctrl)
+  {
+    if(!is_dropdown_combo(ctrl))
+      return -1;
+    return 14;
+  }
+
 
   static std::string map_class_to_widget(const std::string& class_name, const style_expr& style)
   {
@@ -581,6 +596,18 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
       groupbox_indices.push_back(static_cast<int>(i));
   }
 
+  std::vector<std::string> qt_classes(dd.controls.size());
+  for(size_t i = 0; i < dd.controls.size(); ++i)
+  {
+    const auto& ctrl = dd.controls[i];
+    std::string qt_class = map_keyword_to_widget(ctrl.keyword);
+    if(qt_class.empty() && ctrl.keyword == "CONTROL")
+      qt_class = map_class_to_widget(ctrl.class_name, ctrl.style);
+    if(qt_class.empty())
+      qt_class = "QWidget";
+    qt_classes[i] = qt_class;
+  }
+
   std::vector<int> parent_groupbox(dd.controls.size(), -1);
   for(int gi : groupbox_indices)
   {
@@ -598,8 +625,15 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
         continue;
 
       const auto& ctrl = dd.controls[i];
+      int disp_h_dlu = ctrl.height;
+      if(qt_classes[i] == "QComboBox")
+      {
+        int closed_dlu = combo_closed_height_dlu(ctrl);
+        if(closed_dlu > 0)
+          disp_h_dlu = closed_dlu;
+      }
       int16_t cx = ctrl.x + static_cast<int16_t>(ctrl.width / 2);
-      int16_t cy = ctrl.y + static_cast<int16_t>(ctrl.height / 2);
+      int16_t cy = ctrl.y + static_cast<int16_t>(disp_h_dlu / 2);
 
       if(cx >= gb_x && cx < gb_x + static_cast<int16_t>(gb_w) &&
          cy >= gb_y && cy < gb_y + static_cast<int16_t>(gb_h))
@@ -607,18 +641,6 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
         parent_groupbox[i] = gi;
       }
     }
-  }
-
-  std::vector<std::string> qt_classes(dd.controls.size());
-  for(size_t i = 0; i < dd.controls.size(); ++i)
-  {
-    const auto& ctrl = dd.controls[i];
-    std::string qt_class = map_keyword_to_widget(ctrl.keyword);
-    if(qt_class.empty() && ctrl.keyword == "CONTROL")
-      qt_class = map_class_to_widget(ctrl.class_name, ctrl.style);
-    if(qt_class.empty())
-      qt_class = "QWidget";
-    qt_classes[i] = qt_class;
   }
 
   size_t gb_count = groupbox_indices.size();
@@ -1271,18 +1293,15 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
 
 void generator::apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px)
 {
-  bool is_dropdown = is_combo &&
-    (has_style(ctrl.style, "CBS_DROPDOWN") ||
-     has_style(ctrl.style, "CBS_DROPDOWNLIST"));
+  int closed_height_dlu = combo_closed_height_dlu(ctrl);
+  bool is_dropdown = is_combo && closed_height_dlu > 0;
   if(is_dropdown)
   {
     // The COMBOBOX height parameter is the fully-expanded height (dropdown list
     // open). A drop-down combo box is collapsed to a one-line field; the list
     // extent is preserved through maxVisibleItems.
-    constexpr int kComboClosedDlu = 14;
-    constexpr int kComboItemDlu = 8;
-    int closed_height = dlu_to_pixel_y(kComboClosedDlu);
-    int item_height = dlu_to_pixel_y(kComboItemDlu);
+    int closed_height = dlu_to_pixel_y(closed_height_dlu);
+    int item_height = dlu_to_pixel_y(8);
     if(item_height > 0)
     {
       int max_visible = (height_px - closed_height) / item_height;
@@ -1434,9 +1453,12 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
     }
 
     ph[i] = dlu_to_pixel_y(height_dlu);
-    if(qt_class == "QComboBox" &&
-       (has_style(ctrl.style, "CBS_DROPDOWN") || has_style(ctrl.style, "CBS_DROPDOWNLIST")))
-      ph[i] = dlu_to_pixel_y(14);
+    if(qt_class == "QComboBox")
+    {
+      int closed_dlu = combo_closed_height_dlu(ctrl);
+      if(closed_dlu > 0)
+        ph[i] = dlu_to_pixel_y(closed_dlu);
+    }
 
     if(extra_heights != nullptr && i < extra_heights->size())
       extra[i] = (*extra_heights)[i];
