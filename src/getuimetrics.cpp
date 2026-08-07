@@ -83,16 +83,49 @@ struct writer
     s << key << "=" << value << "\n";
   }
 
-  // Horizontal pixel measurement expressed in font-relative dialog units.
+  // Text-area measurement expressed in font-relative dialog units. These are
+  // scaled by the generator with the actual dialog font so the result tracks
+  // the size of the area used by the rendered text.
   void h(const QString& key, int px)
   {
     s << key << "=" << format_dlu(static_cast<double>(px) / g_dlu_x_factor) << "\n";
   }
 
-  // Vertical pixel measurement expressed in font-relative dialog units.
+  // Text-area vertical measurement expressed in font-relative dialog units.
   void v(const QString& key, int px)
   {
     s << key << "=" << format_dlu(static_cast<double>(px) / g_dlu_y_factor) << "\n";
+  }
+
+  // Fixed pixel measurement. Style-driven values such as widget frames,
+  // margins, spacing, and sub-control rectangles are independent of the font
+  // in Qt, so they are stored as absolute pixels and must not be scaled by
+  // the dialog font.
+  void p(const QString& key, int px)
+  {
+    s << key << "=" << px << "\n";
+  }
+
+  void psz(const QString& prefix, const QSize& size)
+  {
+    p(prefix + "W", size.width());
+    p(prefix + "H", size.height());
+  }
+
+  void prect(const QString& prefix, const QRect& r)
+  {
+    p(prefix + "X", r.x());
+    p(prefix + "Y", r.y());
+    p(prefix + "W", r.width());
+    p(prefix + "H", r.height());
+  }
+
+  void pmargin(const QString& prefix, const QMargins& m)
+  {
+    p(prefix + "Left", m.left());
+    p(prefix + "Top", m.top());
+    p(prefix + "Right", m.right());
+    p(prefix + "Bottom", m.bottom());
   }
 
   void sz(const QString& prefix, const QSize& size)
@@ -107,14 +140,6 @@ struct writer
     v(prefix + "Y", r.y());
     h(prefix + "W", r.width());
     v(prefix + "H", r.height());
-  }
-
-  void margin(const QString& prefix, const QMargins& m)
-  {
-    h(prefix + "Left", m.left());
-    v(prefix + "Top", m.top());
-    h(prefix + "Right", m.right());
-    v(prefix + "Bottom", m.bottom());
   }
 };
 
@@ -132,7 +157,7 @@ static void measure_common(writer& w, QWidget* widget)
   w.sz("sizeHint", widget->sizeHint());
   w.sz("minimumSizeHint", widget->minimumSizeHint());
   w.sz("widgetSize", widget->size());
-  w.margin("contentsMargin", widget->contentsMargins());
+  w.pmargin("contentsMargin", widget->contentsMargins());
 
   const QFontMetrics fm(widget->font());
   w.i("fontHeight", fm.height());
@@ -141,17 +166,17 @@ static void measure_common(writer& w, QWidget* widget)
 
   if(QLayout* layout = widget->layout())
   {
-    w.margin("layoutContentsMargin", layout->contentsMargins());
-    w.v("layoutSpacing", layout->spacing());
+    w.pmargin("layoutContentsMargin", layout->contentsMargins());
+    w.p("layoutSpacing", layout->spacing());
   }
 
   QFrame* frame = qobject_cast<QFrame*>(widget);
   if(frame != nullptr)
   {
     w.i("frameShape", frame->frameShape());
-    w.v("frameWidth", frame->frameWidth());
-    w.rect("frameRect", frame->frameRect());
-    w.rect("frameContentsRect", frame->contentsRect());
+    w.p("frameWidth", frame->frameWidth());
+    w.prect("frameRect", frame->frameRect());
+    w.prect("frameContentsRect", frame->contentsRect());
   }
 }
 
@@ -162,9 +187,9 @@ static void measure_push_button(writer& w, QWidget* raw)
   QStyleOptionButton opt;
   opt.initFrom(btn);
   opt.text = btn->text();
-  w.rect("contents", style->subElementRect(QStyle::SE_PushButtonContents, &opt, btn));
-  w.rect("focusRect", style->subElementRect(QStyle::SE_PushButtonFocusRect, &opt, btn));
-  w.rect("bevel", style->subElementRect(QStyle::SE_PushButtonBevel, &opt, btn));
+  w.prect("contents", style->subElementRect(QStyle::SE_PushButtonContents, &opt, btn));
+  w.prect("focusRect", style->subElementRect(QStyle::SE_PushButtonFocusRect, &opt, btn));
+  w.prect("bevel", style->subElementRect(QStyle::SE_PushButtonBevel, &opt, btn));
 }
 
 static void measure_check_box(writer& w, QWidget* raw)
@@ -174,10 +199,10 @@ static void measure_check_box(writer& w, QWidget* raw)
   QStyleOptionButton opt;
   opt.initFrom(cb);
   opt.text = cb->text();
-  w.rect("indicator", style->subElementRect(QStyle::SE_CheckBoxIndicator, &opt, cb));
-  w.rect("contents", style->subElementRect(QStyle::SE_CheckBoxContents, &opt, cb));
-  w.rect("focusRect", style->subElementRect(QStyle::SE_CheckBoxFocusRect, &opt, cb));
-  w.rect("clickRect", style->subElementRect(QStyle::SE_CheckBoxClickRect, &opt, cb));
+  w.prect("indicator", style->subElementRect(QStyle::SE_CheckBoxIndicator, &opt, cb));
+  w.prect("contents", style->subElementRect(QStyle::SE_CheckBoxContents, &opt, cb));
+  w.prect("focusRect", style->subElementRect(QStyle::SE_CheckBoxFocusRect, &opt, cb));
+  w.prect("clickRect", style->subElementRect(QStyle::SE_CheckBoxClickRect, &opt, cb));
 }
 
 static void measure_radio_button(writer& w, QWidget* raw)
@@ -187,10 +212,10 @@ static void measure_radio_button(writer& w, QWidget* raw)
   QStyleOptionButton opt;
   opt.initFrom(rb);
   opt.text = rb->text();
-  w.rect("indicator", style->subElementRect(QStyle::SE_RadioButtonIndicator, &opt, rb));
-  w.rect("contents", style->subElementRect(QStyle::SE_RadioButtonContents, &opt, rb));
-  w.rect("focusRect", style->subElementRect(QStyle::SE_RadioButtonFocusRect, &opt, rb));
-  w.rect("clickRect", style->subElementRect(QStyle::SE_RadioButtonClickRect, &opt, rb));
+  w.prect("indicator", style->subElementRect(QStyle::SE_RadioButtonIndicator, &opt, rb));
+  w.prect("contents", style->subElementRect(QStyle::SE_RadioButtonContents, &opt, rb));
+  w.prect("focusRect", style->subElementRect(QStyle::SE_RadioButtonFocusRect, &opt, rb));
+  w.prect("clickRect", style->subElementRect(QStyle::SE_RadioButtonClickRect, &opt, rb));
 }
 
 static void measure_group_box(writer& w, QWidget* raw)
@@ -201,9 +226,9 @@ static void measure_group_box(writer& w, QWidget* raw)
   opt.initFrom(gb);
   opt.text = gb->title();
   opt.subControls = QStyle::SC_All;
-  w.rect("frame", style->subControlRect(QStyle::CC_GroupBox, &opt, QStyle::SC_GroupBoxFrame, gb));
-  w.rect("label", style->subControlRect(QStyle::CC_GroupBox, &opt, QStyle::SC_GroupBoxLabel, gb));
-  w.rect("checkBox", style->subControlRect(QStyle::CC_GroupBox, &opt, QStyle::SC_GroupBoxCheckBox, gb));
+  w.prect("frame", style->subControlRect(QStyle::CC_GroupBox, &opt, QStyle::SC_GroupBoxFrame, gb));
+  w.prect("label", style->subControlRect(QStyle::CC_GroupBox, &opt, QStyle::SC_GroupBoxLabel, gb));
+  w.prect("checkBox", style->subControlRect(QStyle::CC_GroupBox, &opt, QStyle::SC_GroupBoxCheckBox, gb));
   w.sz("titleTextSize", QFontMetrics(gb->font()).size(Qt::TextShowMnemonic, gb->title()));
   w.i("flat", gb->isFlat());
 }
@@ -214,8 +239,8 @@ static void measure_line_edit(writer& w, QWidget* raw)
   QStyle* style = le->style();
   QStyleOptionFrame opt;
   opt.initFrom(le);
-  w.rect("contents", style->subElementRect(QStyle::SE_LineEditContents, &opt, le));
-  w.margin("textMargins", le->textMargins());
+  w.prect("contents", style->subElementRect(QStyle::SE_LineEditContents, &opt, le));
+  w.pmargin("textMargins", le->textMargins());
 }
 
 static void measure_combo_box(writer& w, QWidget* raw)
@@ -226,10 +251,10 @@ static void measure_combo_box(writer& w, QWidget* raw)
   opt.initFrom(cb);
   opt.editable = false;
   opt.subControls = QStyle::SC_All;
-  w.rect("frame", style->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxFrame, cb));
-  w.rect("arrow", style->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxArrow, cb));
-  w.rect("editField", style->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxEditField, cb));
-  w.rect("listBoxPopup", style->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxListBoxPopup, cb));
+  w.prect("frame", style->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxFrame, cb));
+  w.prect("arrow", style->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxArrow, cb));
+  w.prect("editField", style->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxEditField, cb));
+  w.prect("listBoxPopup", style->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxListBoxPopup, cb));
   QAbstractItemView* view = cb->view();
   if(view != nullptr)
     w.v("viewRowHeight", view->sizeHintForRow(0));
@@ -251,14 +276,14 @@ static void measure_scroll_bar(writer& w, QWidget* raw)
   opt.singleStep = sb->singleStep();
   opt.subControls = QStyle::SC_All;
   opt.activeSubControls = QStyle::SC_None;
-  w.rect("groove", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarGroove, sb));
-  w.rect("handle", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarSlider, sb));
-  w.rect("subLine", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarSubLine, sb));
-  w.rect("addLine", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarAddLine, sb));
-  w.rect("subPage", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarSubPage, sb));
-  w.rect("addPage", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarAddPage, sb));
-  w.rect("first", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarFirst, sb));
-  w.rect("last", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarLast, sb));
+  w.prect("groove", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarGroove, sb));
+  w.prect("handle", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarSlider, sb));
+  w.prect("subLine", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarSubLine, sb));
+  w.prect("addLine", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarAddLine, sb));
+  w.prect("subPage", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarSubPage, sb));
+  w.prect("addPage", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarAddPage, sb));
+  w.prect("first", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarFirst, sb));
+  w.prect("last", style->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarLast, sb));
 }
 
 static void measure_tab_widget(writer& w, QWidget* raw)
@@ -271,10 +296,10 @@ static void measure_tab_widget(writer& w, QWidget* raw)
   QStyleOptionTabWidgetFrame opt;
   opt.initFrom(tw);
   opt.tabBarSize = tab->sizeHint();
-  w.rect("pane", style->subElementRect(QStyle::SE_TabWidgetTabPane, &opt, tw));
-  w.rect("tabBarRect", style->subElementRect(QStyle::SE_TabWidgetTabBar, &opt, tw));
-  w.rect("leftCorner", style->subElementRect(QStyle::SE_TabWidgetLeftCorner, &opt, tw));
-  w.rect("rightCorner", style->subElementRect(QStyle::SE_TabWidgetRightCorner, &opt, tw));
+  w.prect("pane", style->subElementRect(QStyle::SE_TabWidgetTabPane, &opt, tw));
+  w.prect("tabBarRect", style->subElementRect(QStyle::SE_TabWidgetTabBar, &opt, tw));
+  w.prect("leftCorner", style->subElementRect(QStyle::SE_TabWidgetLeftCorner, &opt, tw));
+  w.prect("rightCorner", style->subElementRect(QStyle::SE_TabWidgetRightCorner, &opt, tw));
   w.i("tabCount", tab->count());
 }
 
@@ -290,9 +315,9 @@ static void measure_progress_bar(writer& w, QWidget* raw)
   opt.text = pb->text();
   opt.textVisible = pb->isTextVisible();
   opt.orientation = pb->orientation();
-  w.rect("groove", style->subElementRect(QStyle::SE_ProgressBarGroove, &opt, pb));
-  w.rect("contents", style->subElementRect(QStyle::SE_ProgressBarContents, &opt, pb));
-  w.rect("label", style->subElementRect(QStyle::SE_ProgressBarLabel, &opt, pb));
+  w.prect("groove", style->subElementRect(QStyle::SE_ProgressBarGroove, &opt, pb));
+  w.prect("contents", style->subElementRect(QStyle::SE_ProgressBarContents, &opt, pb));
+  w.prect("label", style->subElementRect(QStyle::SE_ProgressBarLabel, &opt, pb));
 }
 
 static void measure_slider(writer& w, QWidget* raw)
@@ -311,9 +336,9 @@ static void measure_slider(writer& w, QWidget* raw)
   opt.tickPosition = sl->tickPosition();
   opt.subControls = QStyle::SC_All;
   opt.activeSubControls = QStyle::SC_None;
-  w.rect("groove", style->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderGroove, sl));
-  w.rect("handle", style->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderHandle, sl));
-  w.rect("tickmarks", style->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderTickmarks, sl));
+  w.prect("groove", style->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderGroove, sl));
+  w.prect("handle", style->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderHandle, sl));
+  w.prect("tickmarks", style->subControlRect(QStyle::CC_Slider, &opt, QStyle::SC_SliderTickmarks, sl));
 }
 
 static void measure_abstract_spin(writer& w, QWidget* raw)
@@ -326,13 +351,13 @@ static void measure_abstract_spin(writer& w, QWidget* raw)
   opt.buttonSymbols = sp->buttonSymbols();
   opt.subControls = QStyle::SC_All;
   opt.activeSubControls = QStyle::SC_None;
-  w.rect("frame", style->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxFrame, sp));
-  w.rect("up", style->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxUp, sp));
-  w.rect("down", style->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxDown, sp));
-  w.rect("editField", style->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxEditField, sp));
+  w.prect("frame", style->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxFrame, sp));
+  w.prect("up", style->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxUp, sp));
+  w.prect("down", style->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxDown, sp));
+  w.prect("editField", style->subControlRect(QStyle::CC_SpinBox, &opt, QStyle::SC_SpinBoxEditField, sp));
   QLineEdit* internal_edit = sp->findChild<QLineEdit*>();
   if(internal_edit != nullptr)
-    w.rect("lineEditRect", internal_edit->geometry());
+    w.prect("lineEditRect", internal_edit->geometry());
 }
 
 static void measure_calendar_widget(writer& w, QWidget* raw)
@@ -361,7 +386,7 @@ static void measure_tool_bar(writer& w, QWidget* raw)
 {
   QToolBar* tb = static_cast<QToolBar*>(raw);
   QStyle* style = tb->style();
-  w.sz("iconSize", tb->iconSize());
+  w.psz("iconSize", tb->iconSize());
   w.i("toolButtonStyle", tb->toolButtonStyle());
   w.i("movable", tb->isMovable());
   w.i("floatable", tb->isFloatable());
@@ -370,7 +395,7 @@ static void measure_tool_bar(writer& w, QWidget* raw)
   opt.initFrom(tb);
   opt.features = tb->isMovable() ? QStyleOptionToolBar::Movable : QStyleOptionToolBar::None;
   opt.positionWithinLine = QStyleOptionToolBar::OnlyOne;
-  w.rect("handle", style->subElementRect(QStyle::SE_ToolBarHandle, &opt, tb));
+  w.prect("handle", style->subElementRect(QStyle::SE_ToolBarHandle, &opt, tb));
   int idx = 0;
   for(QAction* action : tb->actions())
   {
@@ -458,7 +483,7 @@ static void measure_dialog(writer& w, QWidget* raw)
   QLayout* layout = dlg->layout();
   if(layout != nullptr)
   {
-    w.margin("layoutContentsMargin", layout->contentsMargins());
+    w.pmargin("layoutContentsMargin", layout->contentsMargins());
     w.i("layoutSpacing", layout->spacing());
   }
 }
@@ -674,17 +699,21 @@ int main(int argc, char** argv)
   writer w{out};
 
   out << "# Qt widget UI metrics for the rc2qt generator\n"
-      << "# Section-based key=value format. Lengths in [widget:*] sections are\n"
-      << "# expressed relative to the measurement font as dialog units (DLU):\n"
-      << "# horizontal lengths divide by dluXFactor, vertical lengths by\n"
-      << "# dluYFactor from the [font] section. The generator scales them to\n"
-      << "# pixels using the actual dialog font so that widget sizes and\n"
-      << "# minimum margins are preserved for any font family, size, or style.\n"
-      << "# Counts, flags, and font metrics remain in absolute units.\n";
+      << "# Section-based key=value format. Measurements fall into two\n"
+      << "# categories:\n"
+      << "# - Text-area measurements are expressed relative to the measurement\n"
+      << "#   font as dialog units (DLU): horizontal lengths divide by\n"
+      << "#   dluXFactor, vertical lengths by dluYFactor from the [font] section.\n"
+      << "#   The generator scales them with the actual dialog font so sizes\n"
+      << "#   track the area used by the rendered text.\n"
+      << "# - Style-driven measurements (frames, margins, spacing, and\n"
+      << "#   sub-control rectangles such as indicator and click-rect) are fixed\n"
+      << "#   pixels in Qt and are stored as absolute values.\n"
+      << "# Counts, flags, and font metrics also remain in absolute units.\n";
 
   w.section(QStringLiteral("meta"));
   w.kv("tool", QStringLiteral("getuimetrics"));
-  w.kv("toolVersion", QStringLiteral("2.0"));
+  w.kv("toolVersion", QStringLiteral("3.0"));
   w.kv("qtVersion", QStringLiteral(QT_VERSION_STR));
   w.kv("style", app.style()->objectName());
   w.kv("platform", QApplication::platformName());

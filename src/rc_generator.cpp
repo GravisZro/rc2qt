@@ -1395,9 +1395,9 @@ int generator::min_height_px(const std::string& qt_class) const
     {
       try
       {
-        // Metric is stored relative to the measurement font in DLU; scale it
-        // by the actual dialog font's vertical dlu factor to get pixels.
-        return static_cast<int>(std::round(std::stod(metric->second) * m_dlu_y_factor)) + 1;
+        // Indicator size is style-driven and stored as absolute pixels; it
+        // does not scale with the dialog font.
+        return std::stoi(metric->second) + 1;
       }
       catch(const std::exception&)
       {
@@ -1426,9 +1426,9 @@ int generator::vertical_margin_px(const std::string& qt_class) const
     {
       try
       {
-        // Metric is stored relative to the measurement font in DLU; scale it
-        // by the actual dialog font's vertical dlu factor to get pixels.
-        return static_cast<int>(std::round(std::stod(metric->second) * m_dlu_y_factor));
+        // Click-rect height is style-driven and stored as absolute pixels; it
+        // does not scale with the dialog font.
+        return std::stoi(metric->second);
       }
       catch(const std::exception&)
       {
