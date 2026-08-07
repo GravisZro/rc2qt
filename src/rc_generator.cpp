@@ -963,9 +963,6 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   apply_combo_dropdown_height(widget, ctrl, qt_class == "QComboBox", ph);
 
   py += y_shift_px;
-  int min_h = min_height_px(qt_class);
-  if(ph < min_h)
-    ph = min_h;
   ph += extra_height_px;
 
   add_property_rect(widget, px, py, pw, ph);
@@ -1224,10 +1221,6 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         int ch = dlu_to_pixel_y(child_h_dlu);
         apply_combo_dropdown_height(child_widget, child_ctrl, child_class == "QComboBox", ch);
 
-        int min_h = min_height_px(child_class);
-        if(ch < min_h)
-          ch = min_h;
-
         add_property_rect(child_widget, cx, cy, cw, ch);
 
         if(!child_ctrl.text.empty())
@@ -1282,15 +1275,15 @@ void generator::apply_combo_dropdown_height(pugi::xml_node& widget, const contro
   }
 }
 
-int generator::min_height_px(const std::string& qt_class)
+int generator::vertical_margin_px(const std::string& qt_class)
 {
-  static const std::map<std::string, int> min_height_map =
+  static const std::map<std::string, int> vertical_margin_map =
   {
     { "QCheckBox", 15 },
   };
 
-  auto it = min_height_map.find(qt_class);
-  if (it == min_height_map.end())
+  auto it = vertical_margin_map.find(qt_class);
+  if (it == vertical_margin_map.end())
     return 0;
   return it->second;
 }
@@ -1306,8 +1299,9 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
     return;
 
   std::vector<int> py(controls.size());
-  std::vector<int> bottom(controls.size());
-  std::vector<int> expansion(controls.size());
+  std::vector<int> ph(controls.size());
+  std::vector<int> extra(controls.size());
+  std::vector<int> margin(controls.size());
 
   for(size_t i = 0; i < controls.size(); ++i)
   {
@@ -1326,30 +1320,18 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
       height_dlu = ctrl.height;
     }
 
-    int ph_pre = dlu_to_pixel_y(height_dlu);
+    ph[i] = dlu_to_pixel_y(height_dlu);
     if(qt_class == "QComboBox" &&
        (has_style(ctrl.style, "CBS_DROPDOWN") || has_style(ctrl.style, "CBS_DROPDOWNLIST")))
-      ph_pre = dlu_to_pixel_y(14);
+      ph[i] = dlu_to_pixel_y(14);
 
-    int extra = 0;
     if(extra_heights != nullptr && i < extra_heights->size())
-      extra = (*extra_heights)[i];
-
-    int ph_final = std::max(ph_pre, min_height_px(qt_class)) + extra;
+      extra[i] = (*extra_heights)[i];
 
     py[i] = dlu_to_pixel_y(ctrl.y);
-    bottom[i] = py[i] + ph_pre;
-    expansion[i] = ph_final - ph_pre;
-    layout[i].height_px = ph_final;
+    margin[i] = vertical_margin_px(qt_class);
+    layout[i].height_px = ph[i] + extra[i];
   }
-
-  std::vector<std::pair<int, int>> events;
-  for(size_t i = 0; i < controls.size(); ++i)
-  {
-    if(expansion[i] > 0)
-      events.push_back({ bottom[i], expansion[i] });
-  }
-  std::sort(events.begin(), events.end());
 
   std::vector<size_t> order(controls.size());
   for(size_t i = 0; i < controls.size(); ++i)
@@ -1361,6 +1343,28 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
       return py[a] < py[b];
     return controls[a].x < controls[b].x;
   });
+
+  std::vector<std::pair<int, int>> events;
+  for(size_t p = 0; p < order.size(); ++p)
+  {
+    size_t i = order[p];
+    if(margin[i] > 0)
+    {
+      size_t q = p + 1;
+      while(q < order.size() && py[order[q]] <= py[i])
+        ++q;
+      if(q < order.size())
+      {
+        int gap = py[order[q]] - py[i];
+        if(gap < margin[i])
+          events.push_back({ py[order[q]], margin[i] - gap });
+      }
+    }
+
+    if(extra[i] > 0)
+      events.push_back({ py[i] + ph[i], extra[i] });
+  }
+  std::sort(events.begin(), events.end());
 
   int running = 0;
   size_t event_index = 0;
