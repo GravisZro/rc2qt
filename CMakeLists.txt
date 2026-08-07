@@ -127,7 +127,11 @@ add_test(NAME parser_tests COMMAND test_parser)
 # getuimetrics: standalone Qt tool that renders rc2qt widget classes
 # offscreen and writes their component metrics to a text file for the
 # generator.
-option(BUILD_GETUIMETRICS "Build the getuimetrics Qt widget metrics tool" OFF)
+option(BUILD_GETUIMETRICS "Build the getuimetrics Qt widget metrics tool" ON)
 if(BUILD_GETUIMETRICS)
-  add_subdirectory(tools/getuimetrics)
+  find_package(Qt5 REQUIRED COMPONENTS Widgets)
+  add_executable(getuimetrics
+    src/getuimetrics.cpp
+  )
+  target_link_libraries(getuimetrics PRIVATE Qt5::Widgets)
 endif()

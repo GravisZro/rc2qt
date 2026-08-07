@@ -443,15 +443,15 @@ static void measure_status_bar(writer& w, QWidget* raw)
   w.i("sizeGripEnabled", sb->isSizeGripEnabled());
 }
 
-static QSize test_canvas(QWidget* widget)
+static QSize minimum_test_size(QWidget* widget)
 {
-  if(qobject_cast<QScrollBar*>(widget) != nullptr ||
-     qobject_cast<QMenuBar*>(widget) != nullptr ||
-     qobject_cast<QMenu*>(widget) != nullptr ||
-     qobject_cast<QStatusBar*>(widget) != nullptr ||
-     qobject_cast<QHeaderView*>(widget) != nullptr)
-    return widget->sizeHint();
-  return widget->sizeHint().expandedTo(QSize(220, 70));
+  QSize min_hint = widget->minimumSizeHint();
+  if(min_hint.isValid() && min_hint.width() > 0 && min_hint.height() > 0)
+    return min_hint;
+  QSize hint = widget->sizeHint();
+  if(hint.isValid() && hint.width() > 0 && hint.height() > 0)
+    return hint;
+  return QSize(64, 24);
 }
 
 struct pm_entry
@@ -877,8 +877,9 @@ int main(int argc, char** argv)
     widget->setFont(app_font);
     if(entry.populate != nullptr)
       entry.populate(widget.get());
-    widget->resize(test_canvas(widget.get()));
     widget->show();
+    app.processEvents();
+    widget->resize(minimum_test_size(widget.get()));
     app.processEvents();
 
     w.section(QString("widget:%1").arg(entry.section));
