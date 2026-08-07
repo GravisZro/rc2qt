@@ -122,3 +122,12 @@ target_compile_definitions(test_parser PRIVATE ${EXTRA_DEFS})
 
 enable_testing()
 add_test(NAME parser_tests COMMAND test_parser)
+
+
+# getuimetrics: standalone Qt tool that renders rc2qt widget classes
+# offscreen and writes their component metrics to a text file for the
+# generator.
+option(BUILD_GETUIMETRICS "Build the getuimetrics Qt widget metrics tool" OFF)
+if(BUILD_GETUIMETRICS)
+  add_subdirectory(tools/getuimetrics)
+endif()
