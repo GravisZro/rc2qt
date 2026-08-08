@@ -132,9 +132,9 @@ void check_dialog(const rc::resource& res)
 
     std::string na;
     label(controls[i], na);
-    std::cout << std::format("OVERLAP #{}: ({} conflict{})\n", block, peers.size(),
+    std::cout << std::format("\nOVERLAP #{}: ({} conflict{})\n", block, peers.size(),
                              peers.size() == 1 ? "" : "s");
-    std::cout << std::format("  {} ({}, {}, {}, {})\n", na, a.x, a.y, a.x + a.w, a.y + a.h);
+    std::cout << std::format("  {} ({}, {}), ({}, {}) | Size: ({}, {})\n", na, a.x, a.y, a.x + a.w, a.y + a.h, a.w, a.h);
     for(size_t k = 0; k < peers.size(); ++k)
     {
       const rect& b = peer_rects[k];
@@ -142,12 +142,13 @@ void check_dialog(const rc::resource& res)
       std::string nb;
       label(controls[static_cast<size_t>(peers[k])], nb);
       std::cout << std::format(
-        "    {} ({:>3}, {:>3}), ({:>3}, {:>3}) @ Region: ({:>3}, {:>3}), ({:>3}, {:>3})\n",
-        nb, b.x, b.y, b.x + b.w, b.y + b.h, r.x, r.y, r.x + r.w, r.y + r.h);
+        "    {} ({:>3}, {:>3}), ({:>3}, {:>3}) | Size: ({}, {}) @ Region: ({:>3}, {:>3}), ({:>3}, {:>3}) | Size: ({}, {})\n",
+        nb, b.x, b.y, b.x + b.w, b.y + b.h, b.w, b.h,
+            r.x, r.y, r.x + r.w, r.y + r.h, r.w, r.h);
     }
     ++block;
   }
-  std::cout << res.id << ": " << genuine << " overlapping pair(s)\n\n";
+  std::cout << std::format("\n{}: {} overlapping pair(s)\n\n", res.id, genuine);
 }
 }  // namespace
 
