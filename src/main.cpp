@@ -59,6 +59,8 @@ static void print_usage(const char* program_name)
   std::cerr << "  -r <name>      Resource subdirectory name (default: res)" << std::endl;
   std::cerr << "  -q <file.qrc>  .qrc output filename (default: <input basename>.qrc)" << std::endl;
   std::cerr << "  -m <file.txt>  Widget metrics file from getuimetrics (default: uimetrics.txt)" << std::endl;
+  std::cerr << "  -n             Disable all geometric adjustments" << std::endl;
+  std::cerr << "  -f             Prevent font substitutions (keep original font names)" << std::endl;
   std::cerr << "  -h             Show this help" << std::endl;
 }
 
@@ -73,9 +75,11 @@ int main(int argc, char** argv)
   std::string qrc_path;
   std::string metrics_path;
   std::string res_dir_name = "res";
+  bool disable_geometry_adjustments = false;
+  bool prevent_font_substitution = false;
 
   int opt;
-  while((opt = getopt(argc, argv, "o:r:q:m:h")) != -1)
+  while((opt = getopt(argc, argv, "o:r:q:m:hnf")) != -1)
   {
     switch(opt)
     {
@@ -90,6 +94,12 @@ int main(int argc, char** argv)
         break;
       case 'm':
         metrics_path = std::filesystem::path(optarg).generic_string();
+        break;
+      case 'n':
+        disable_geometry_adjustments = true;
+        break;
+      case 'f':
+        prevent_font_substitution = true;
         break;
       case 'h':
         print_usage(argv[0]);
@@ -150,6 +160,8 @@ int main(int argc, char** argv)
     rc::constant_registry::instance();
 
     rc::generator gen;
+    gen.set_disable_geometry_adjustments(disable_geometry_adjustments);
+    gen.set_prevent_font_substitution(prevent_font_substitution);
 
     if(!metrics_path.empty())
     {
@@ -355,6 +367,8 @@ int main(int argc, char** argv)
 
     {
       rc::generator gen;
+      gen.set_disable_geometry_adjustments(disable_geometry_adjustments);
+      gen.set_prevent_font_substitution(prevent_font_substitution);
       if(!metrics_path.empty())
       {
         if(!gen.load_uimetrics(metrics_path))

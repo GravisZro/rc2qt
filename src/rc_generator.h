@@ -43,6 +43,11 @@ public:
   bool generate_qrc(const rc_file& file, const std::string& output_path, const std::vector<std::string>& ui_paths = {});
   bool load_uimetrics(const std::filesystem::path& filepath);
 
+  void set_disable_geometry_adjustments(bool value)
+    { m_disable_geometry_adjustments = value; }
+  void set_prevent_font_substitution(bool value)
+    { m_prevent_font_substitution = value; }
+
 private:
   struct text_fit_info
   {
@@ -130,6 +135,8 @@ private:
   int m_font_size = 8;
   int m_font_weight = -1;
   bool m_font_italic = false;
+  bool m_disable_geometry_adjustments = false;
+  bool m_prevent_font_substitution = false;
 
   #ifdef HAVE_QT
   QFont m_current_font;

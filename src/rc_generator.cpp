@@ -707,18 +707,21 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
     layout_control_sizes(gb_children[k], gb_child_classes[k], gb_child_layout[k]);
 
-    int gb_h_px = dlu_to_pixel_y(gb.height);
-    int max_bottom_rel = 0;
-    for(size_t j = 0; j < gb_children[k].size(); ++j)
+    if(!m_disable_geometry_adjustments)
     {
-      int rel_bottom = dlu_to_pixel_y(gb_children[k][j].y) +
-                       gb_child_layout[k][j].y_shift_px +
-                       gb_child_layout[k][j].height_px;
-      if(rel_bottom > max_bottom_rel)
-        max_bottom_rel = rel_bottom;
+      int gb_h_px = dlu_to_pixel_y(gb.height);
+      int max_bottom_rel = 0;
+      for(size_t j = 0; j < gb_children[k].size(); ++j)
+      {
+        int rel_bottom = dlu_to_pixel_y(gb_children[k][j].y) +
+                         gb_child_layout[k][j].y_shift_px +
+                         gb_child_layout[k][j].height_px;
+        if(rel_bottom > max_bottom_rel)
+          max_bottom_rel = rel_bottom;
+      }
+      if(max_bottom_rel > gb_h_px)
+        groupbox_extra_height[k] = max_bottom_rel - gb_h_px;
     }
-    if(max_bottom_rel > gb_h_px)
-      groupbox_extra_height[k] = max_bottom_rel - gb_h_px;
   }
 
   std::vector<control> top_level;
@@ -751,14 +754,17 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
   int dialog_ph = dlu_to_pixel_y(dd.height);
   int growth = 0;
-  for(size_t j = 0; j < top_level.size(); ++j)
+  if(!m_disable_geometry_adjustments)
   {
-    int bottom = dlu_to_pixel_y(top_level[j].y) + top_layout[j].y_shift_px + top_layout[j].height_px;
-    if(bottom - dialog_ph > growth)
-      growth = bottom - dialog_ph;
+    for(size_t j = 0; j < top_level.size(); ++j)
+    {
+      int bottom = dlu_to_pixel_y(top_level[j].y) + top_layout[j].y_shift_px + top_layout[j].height_px;
+      if(bottom - dialog_ph > growth)
+        growth = bottom - dialog_ph;
+    }
+    if(growth < 0)
+      growth = 0;
   }
-  if(growth < 0)
-    growth = 0;
 
   write_dialog_properties(widget, dd, growth);
 
@@ -799,7 +805,11 @@ void generator::setup_dialog_font(const dialog_data& dd)
   if(const dialog_stmt* stmt = find_statement(dd, "FONT"))
     original_font_name = stmt->text_value;
 
-  std::string font_name = substitute_font(original_font_name);
+  std::string font_name;
+  if(m_prevent_font_substitution)
+    font_name = original_font_name;
+  else
+    font_name = substitute_font(original_font_name);
   int font_size = 8;
   int font_weight = -1;
   bool font_italic = false;
@@ -1309,6 +1319,8 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
 
 void generator::apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px)
 {
+  if(m_disable_geometry_adjustments)
+    return;
   int closed_height_dlu = combo_closed_height_dlu(ctrl);
   bool is_dropdown = is_combo && closed_height_dlu > 0;
   if(is_dropdown)
@@ -1395,6 +1407,9 @@ bool generator::load_uimetrics(const std::filesystem::path& filepath)
 
 int generator::min_width_px(const std::string& qt_class) const
 {
+  if(m_disable_geometry_adjustments)
+    return 0;
+
   auto it = m_uimetrics.find("widget:" + qt_class);
   if(it != m_uimetrics.end())
   {
@@ -1420,6 +1435,9 @@ int generator::min_width_px(const std::string& qt_class) const
 
 int generator::min_height_px(const std::string& qt_class) const
 {
+  if(m_disable_geometry_adjustments)
+    return 0;
+
   auto it = m_uimetrics.find("widget:" + qt_class);
   if(it != m_uimetrics.end())
   {
@@ -1445,6 +1463,9 @@ int generator::min_height_px(const std::string& qt_class) const
 
 int generator::vertical_margin_px(const std::string& qt_class) const
 {
+  if(m_disable_geometry_adjustments)
+    return 0;
+
   static const std::map<std::string, int> vertical_margin_map =
   {
     { "QCheckBox", 18 },
@@ -1496,15 +1517,18 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
     const std::string& qt_class = qt_classes[i];
 
     int height_dlu = ctrl.height;
-    try
+    if(!m_disable_geometry_adjustments)
     {
-      int width_dlu = ctrl.width;
-      text_fit_info info = fit_text(ctrl.text, width_dlu, height_dlu, qt_class);
-      height_dlu = info.height_dlu;
-    }
-    catch(const std::runtime_error&)
-    {
-      height_dlu = ctrl.height;
+      try
+      {
+        int width_dlu = ctrl.width;
+        text_fit_info info = fit_text(ctrl.text, width_dlu, height_dlu, qt_class);
+        height_dlu = info.height_dlu;
+      }
+      catch(const std::runtime_error&)
+      {
+        height_dlu = ctrl.height;
+      }
     }
 
     ph[i] = dlu_to_pixel_y(height_dlu);
@@ -1785,7 +1809,7 @@ std::vector<std::string> generator::wrap_text(const std::string& text, int width
 generator::text_fit_info generator::fit_text(const std::string& text, int width_dlu, int height_dlu,
                                              const std::string& widget_class)
 {
-  if(text.empty())
+  if(m_disable_geometry_adjustments || text.empty())
     return { width_dlu, height_dlu, false };
 
   const auto [mapped_w, mapped_h] = text_dimensions(text);
@@ -1826,7 +1850,7 @@ generator::text_fit_info generator::fit_text(const std::string& text, int width_
 void generator::ensure_text_fits(const std::string& text, int& width_dlu, int& height_dlu,
                                  pugi::xml_node& widget, const std::string& widget_class)
 {
-  if(text.empty())
+  if(m_disable_geometry_adjustments || text.empty())
     return;
 
   text_fit_info info = fit_text(text, width_dlu, height_dlu, widget_class);
