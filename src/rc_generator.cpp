@@ -636,40 +636,44 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   }
 
   std::vector<int> parent_groupbox(dd.controls.size(), -1);
-  for(int gi : groupbox_indices)
+  for(size_t i = 0; i < dd.controls.size(); ++i)
   {
-    const auto& gb = dd.controls[gi];
-    int16_t gb_x = gb.x;
-    int16_t gb_y = gb.y;
-    uint16_t gb_w = gb.width;
-    uint16_t gb_h = gb.height;
+    if(qt_classes[i] == "QGroupBox")
+      continue;
 
-    for(size_t i = 0; i < dd.controls.size(); ++i)
+    const auto& ctrl = dd.controls[i];
+    int disp_h_dlu = ctrl.height;
+    if(qt_classes[i] == "QComboBox")
     {
-      if(static_cast<int>(i) == gi)
-        continue;
-      if(parent_groupbox[i] >= 0)
-        continue;
-      if(qt_classes[i] == "QGroupBox")
-        continue;
+      int closed_dlu = combo_closed_height_dlu(ctrl);
+      if(closed_dlu > 0)
+        disp_h_dlu = closed_dlu;
+    }
+    int16_t cx = ctrl.x + static_cast<int16_t>(ctrl.width / 2);
+    int16_t cy = ctrl.y + static_cast<int16_t>(disp_h_dlu / 2);
 
-      const auto& ctrl = dd.controls[i];
-      int disp_h_dlu = ctrl.height;
-      if(qt_classes[i] == "QComboBox")
-      {
-        int closed_dlu = combo_closed_height_dlu(ctrl);
-        if(closed_dlu > 0)
-          disp_h_dlu = closed_dlu;
-      }
-      int16_t cx = ctrl.x + static_cast<int16_t>(ctrl.width / 2);
-      int16_t cy = ctrl.y + static_cast<int16_t>(disp_h_dlu / 2);
+    int best_gi = -1;
+    long best_area = 0;
+    for(int gi : groupbox_indices)
+    {
+      const auto& gb = dd.controls[gi];
+      int16_t gb_x = gb.x;
+      int16_t gb_y = gb.y;
+      uint16_t gb_w = gb.width;
+      uint16_t gb_h = gb.height;
 
       if(cx >= gb_x && cx < gb_x + static_cast<int16_t>(gb_w) &&
          cy >= gb_y && cy < gb_y + static_cast<int16_t>(gb_h))
       {
-        parent_groupbox[i] = gi;
+        long area = static_cast<long>(gb_w) * gb_h;
+        if(best_gi < 0 || area < best_area)
+        {
+          best_gi = gi;
+          best_area = area;
+        }
       }
     }
+    parent_groupbox[i] = best_gi;
   }
 
   size_t gb_count = groupbox_indices.size();
