@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <format>
 #include <iostream>
 #include <string>
 #include <variant>
@@ -98,11 +99,16 @@ void check_dialog(const rc::resource& res)
     }
   }
 
+  std::cout << "=== OVERLAPS FOR " << res.id << " ===\n";
+  int block = 0;
   int genuine = 0;
   for(size_t i = 0; i < controls.size(); ++i)
   {
     rect a = { controls[i].x, controls[i].y,
                static_cast<int>(controls[i].width), static_cast<int>(controls[i].height) };
+    std::vector<int> peers;
+    std::vector<rect> peer_rects;
+    std::vector<rect> regions;
     for(size_t j = i + 1; j < controls.size(); ++j)
     {
       rect b = { controls[j].x, controls[j].y,
@@ -116,20 +122,30 @@ void check_dialog(const rc::resource& res)
          is_child[static_cast<int>(j)] == static_cast<int>(i))
         continue;
 
-      std::string na;
-      std::string nb;
-      label(controls[i], na);
-      label(controls[j], nb);
-      int rx1 = std::max(a.x, b.x);
-      int ry1 = std::max(a.y, b.y);
-      int rx2 = rx1 + ow;
-      int ry2 = ry1 + oh;
-      std::cout << "OVERLAP:\n"
-                << "  " << na << " (" << a.x << ", " << a.y << ", " << a.x + a.w << ", " << a.y + a.h << ")\n"
-                << "  " << nb << " (" << b.x << ", " << b.y << ", " << b.x + b.w << ", " << b.y + b.h << ")\n"
-                << "  Overlap Region: (" << rx1 << ", " << ry1 << ", " << rx2 << ", " << ry2 << ")\n";
+      peers.push_back(static_cast<int>(j));
+      peer_rects.push_back(b);
+      regions.push_back({ std::max(a.x, b.x), std::max(a.y, b.y), ow, oh });
       ++genuine;
     }
+    if(peers.empty())
+      continue;
+
+    std::string na;
+    label(controls[i], na);
+    std::cout << std::format("OVERLAP #{}: ({} conflict{})\n", block, peers.size(),
+                             peers.size() == 1 ? "" : "s");
+    std::cout << std::format("  {} ({}, {}, {}, {})\n", na, a.x, a.y, a.x + a.w, a.y + a.h);
+    for(size_t k = 0; k < peers.size(); ++k)
+    {
+      const rect& b = peer_rects[k];
+      const rect& r = regions[k];
+      std::string nb;
+      label(controls[static_cast<size_t>(peers[k])], nb);
+      std::cout << std::format(
+        "    {} ({:>3}, {:>3}), ({:>3}, {:>3}) @ Region: ({:>3}, {:>3}), ({:>3}, {:>3})\n",
+        nb, b.x, b.y, b.x + b.w, b.y + b.h, r.x, r.y, r.x + r.w, r.y + r.h);
+    }
+    ++block;
   }
   std::cout << res.id << ": " << genuine << " overlapping pair(s)\n\n";
 }
