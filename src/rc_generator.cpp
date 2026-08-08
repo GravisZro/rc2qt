@@ -628,6 +628,13 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
       groupbox_indices.push_back(static_cast<int>(i));
   }
 
+   /* Containment is geometry based and therefore independent of the order the
+      controls are listed in the RC file. A non-groupbox control belongs to the
+      smallest groupbox enclosing its centre point. GROUPBOX controls may nest
+      inside other groupboxes: a box is a child of the smallest groupbox that
+      contains its rect (allowing a small overshoot past the right or bottom
+      edge, see below), and only when that box is strictly larger, which keeps
+      the parent relation acyclic. */
   std::vector<int> parent_groupbox(dd.controls.size(), -1);
   for(size_t i = 0; i < dd.controls.size(); ++i)
   {
@@ -669,102 +676,171 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
     parent_groupbox[i] = best_gi;
   }
 
-  /* A groupbox node owns the controls nested inside it, in RC order including
-     any that appear after the box, laid out relative to the box. Building the
-     whole hierarchy before emitting XML keeps containment independent of the
-     order the controls are listed in the RC file. */
+  for(int gi : groupbox_indices)
+  {
+    const auto& gb = dd.controls[gi];
+    long gb_area = static_cast<long>(gb.width) * gb.height;
+
+    int best_gi = -1;
+    long best_area = 0;
+    for(int gj : groupbox_indices)
+    {
+      if(gj == gi)
+        continue;
+      const auto& other = dd.controls[gj];
+      long other_area = static_cast<long>(other.width) * other.height;
+      if(other_area <= gb_area)
+        continue;
+
+      /* RC authors often let a nested box poke a couple of DLUs past the right
+         or bottom edge of its container; treat such a box as contained anyway. */
+      constexpr int containment_slop_dlu = 2;
+      if(gb.x >= other.x && gb.y >= other.y &&
+         static_cast<int>(gb.x) + gb.width <= static_cast<int>(other.x) + other.width + containment_slop_dlu &&
+         static_cast<int>(gb.y) + gb.height <= static_cast<int>(other.y) + other.height + containment_slop_dlu)
+      {
+        if(best_gi < 0 || other_area < best_area)
+        {
+          best_gi = gj;
+          best_area = other_area;
+        }
+      }
+    }
+    parent_groupbox[gi] = best_gi;
+  }
+
+  /* A groupbox node owns the controls nested directly inside it, in RC order
+     including any that appear after the box, laid out relative to the box.
+     Nested groupboxes form the same structure recursively. The whole hierarchy
+     is built before any XML is emitted. */
   struct groupbox_node
   {
     int rc_index = -1;
+    int child_pos = -1;
     std::vector<control> children;
     std::vector<std::string> child_classes;
     std::vector<size_t> child_indices;
+    std::vector<int> child_group_index;
     std::vector<control_layout> child_layout;
+    std::vector<groupbox_node> nested_groups;
+    std::vector<std::pair<int, int>> events;
     int extra_height_px = 0;
   };
 
-  std::vector<groupbox_node> groups;
-  groups.reserve(groupbox_indices.size());
-
-  std::vector<std::pair<int, int>> merged_events;
-
-  std::vector<bool> taken(dd.controls.size(), false);
-  for(size_t k = 0; k < groupbox_indices.size(); ++k)
+  auto build_node = [&](auto&& self, groupbox_node& node) -> void
   {
-    int gi = groupbox_indices[k];
-    taken[gi] = true;
-
-    groupbox_node group;
-    group.rc_index = gi;
-
-    const auto& gb = dd.controls[gi];
+    const control& gb = dd.controls[node.rc_index];
     for(size_t i = 0; i < dd.controls.size(); ++i)
     {
-      if(parent_groupbox[i] != gi)
-        continue;
-      if(taken[i])
+      if(parent_groupbox[i] != node.rc_index)
         continue;
 
       control relative = dd.controls[i];
       relative.x = relative.x - gb.x;
       relative.y = relative.y - gb.y + 4;
 
-      group.children.push_back(relative);
-      group.child_classes.push_back(qt_classes[i]);
-      group.child_indices.push_back(i);
-      taken[i] = true;
+      node.children.push_back(relative);
+      node.child_classes.push_back(qt_classes[i]);
+      node.child_indices.push_back(i);
+
+      if(qt_classes[i] == "QGroupBox")
+      {
+        groupbox_node sub;
+        sub.rc_index = static_cast<int>(i);
+        sub.child_pos = static_cast<int>(node.children.size()) - 1;
+        node.child_group_index.push_back(static_cast<int>(node.nested_groups.size()));
+        node.nested_groups.push_back(std::move(sub));
+      }
+      else
+      {
+        node.child_group_index.push_back(-1);
+      }
     }
 
-    std::vector<std::pair<int, int>> child_events;
-    layout_control_sizes(group.children, group.child_classes, group.child_layout,
-                         nullptr, nullptr, &child_events);
+    for(auto& sub : node.nested_groups)
+      self(self, sub);
+  };
 
-    int gb_origin_y_px = dlu_to_pixel_y(gb.y);
-    for(const auto& ev : child_events)
-      merged_events.push_back({ ev.first + gb_origin_y_px, ev.second });
+  /* Post-order: nested boxes are laid out before the box that contains them,
+     so each box merges the expansion events and extra height of everything
+     nested underneath it. */
+  auto layout_node = [&](auto&& self, groupbox_node& node) -> void
+  {
+    for(auto& sub : node.nested_groups)
+      self(self, sub);
+
+    std::vector<int> extra_heights(node.children.size(), 0);
+    std::vector<std::pair<int, int>> nested_events;
+    for(const auto& sub : node.nested_groups)
+    {
+      int pos = sub.child_pos;
+      extra_heights[pos] = sub.extra_height_px;
+
+      int gb_rel_y_px = dlu_to_pixel_y(node.children[pos].y);
+      for(const auto& ev : sub.events)
+        nested_events.push_back({ ev.first + gb_rel_y_px, ev.second });
+    }
+
+    std::vector<std::pair<int, int>> events;
+    layout_control_sizes(node.children, node.child_classes, node.child_layout,
+                         &extra_heights, &nested_events, &events);
+    node.events = std::move(events);
 
     if(!m_disable_geometry_adjustments)
     {
-      int gb_h_px = dlu_to_pixel_y(gb.height);
+      int gb_h_px = dlu_to_pixel_y(dd.controls[node.rc_index].height);
       int max_bottom_rel = 0;
-      for(size_t j = 0; j < group.children.size(); ++j)
+      for(size_t j = 0; j < node.children.size(); ++j)
       {
-        int rel_bottom = dlu_to_pixel_y(group.children[j].y) +
-                         group.child_layout[j].y_shift_px +
-                         group.child_layout[j].height_px;
+        int rel_bottom = dlu_to_pixel_y(node.children[j].y) +
+                         node.child_layout[j].y_shift_px +
+                         node.child_layout[j].height_px;
         if(rel_bottom > max_bottom_rel)
           max_bottom_rel = rel_bottom;
       }
       if(max_bottom_rel > gb_h_px)
-        group.extra_height_px = max_bottom_rel - gb_h_px;
+        node.extra_height_px = max_bottom_rel - gb_h_px;
     }
-
-    groups.push_back(group);
-  }
+  };
 
   std::vector<control> top_level;
   std::vector<std::string> top_classes;
   std::vector<int> top_extra;
   std::vector<size_t> top_indices;
+  std::vector<groupbox_node> root_groups;
+  std::vector<int> root_group_pos;
+
+  std::vector<std::pair<int, int>> merged_events;
+
   for(size_t i = 0; i < dd.controls.size(); ++i)
   {
     if(parent_groupbox[i] != -1)
       continue;
 
     int extra = 0;
-    for(size_t k = 0; k < groups.size(); ++k)
+    int group_pos = -1;
+    if(qt_classes[i] == "QGroupBox")
     {
-      if(groups[k].rc_index == static_cast<int>(i))
-      {
-        extra = groups[k].extra_height_px;
-        break;
-      }
+      groupbox_node node;
+      node.rc_index = static_cast<int>(i);
+      build_node(build_node, node);
+      layout_node(layout_node, node);
+
+      extra = node.extra_height_px;
+
+      int gb_origin_y_px = dlu_to_pixel_y(dd.controls[i].y);
+      for(const auto& ev : node.events)
+        merged_events.push_back({ ev.first + gb_origin_y_px, ev.second });
+
+      group_pos = static_cast<int>(root_groups.size());
+      root_groups.push_back(std::move(node));
     }
 
     top_level.push_back(dd.controls[i]);
     top_classes.push_back(qt_classes[i]);
     top_extra.push_back(extra);
     top_indices.push_back(i);
+    root_group_pos.push_back(group_pos);
   }
 
   std::vector<control_layout> top_layout;
@@ -793,19 +869,33 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
   std::vector<bool> written(dd.controls.size(), false);
 
-  for(size_t k = 0; k < groups.size(); ++k)
+  auto write_node = [&](auto&& self, pugi::xml_node& parent, const groupbox_node& node, const control& ctrl, int y_shift_px) -> void
   {
-    int gi = groups[k].rc_index;
-    write_control(widget, dd.controls[gi], dialog_name, top_shift[gi], groups[k].extra_height_px);
+    int gi = node.rc_index;
+    write_control(parent, ctrl, dialog_name, y_shift_px, node.extra_height_px);
     written[gi] = true;
 
-    pugi::xml_node gb_widget = widget.last_child();
+    pugi::xml_node gb_widget = parent.last_child();
 
-    for(size_t j = 0; j < groups[k].children.size(); ++j)
+    for(size_t j = 0; j < node.children.size(); ++j)
     {
-      write_control(gb_widget, groups[k].children[j], dialog_name, groups[k].child_layout[j].y_shift_px);
-      written[groups[k].child_indices[j]] = true;
+      int sub_index = node.child_group_index[j];
+      if(sub_index >= 0)
+      {
+        self(self, gb_widget, node.nested_groups[sub_index], node.children[j], node.child_layout[j].y_shift_px);
+      }
+      else
+      {
+        write_control(gb_widget, node.children[j], dialog_name, node.child_layout[j].y_shift_px);
+        written[node.child_indices[j]] = true;
+      }
     }
+  };
+
+  for(size_t t = 0; t < top_level.size(); ++t)
+  {
+    if(root_group_pos[t] >= 0)
+      write_node(write_node, widget, root_groups[root_group_pos[t]], dd.controls[top_indices[t]], top_layout[t].y_shift_px);
   }
 
   for(size_t i = 0; i < dd.controls.size(); ++i)
@@ -1030,6 +1120,8 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   apply_combo_dropdown_height(widget, ctrl, qt_class == "QComboBox", ph);
 
   py += y_shift_px;
+  if(getenv("RC2QT_DBG_WC") && (ctrl.text == "Completion Rule" || ctrl.text == "Current Goal Item (Must be same type)"))
+    fprintf(stderr, "WC: '%s' ctrl.y=%d y_shift=%d py_final=%d extra=%d\n", ctrl.text.c_str(), ctrl.y, y_shift_px, py, extra_height_px);
   int min_w = min_width_px(qt_class);
   if(pw < min_w)
     pw = min_w;
