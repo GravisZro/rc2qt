@@ -27,7 +27,7 @@ run_rc2qt()
   qrc_out="$OUTDIR/$rc_basename.qrc"
 
   output=$("$RC2QT" "$rc_file" -o "$OUTDIR/" -r "$rc_basename" -q "$qrc_out" 2>&1) && rc=0 || rc=$?
-  if [ $rc -eq 0 ]; then
+  if [ "$rc" -eq 0 ]; then
     success=$((success + 1))
   else
     echo "FAIL: $rc_file (exit $rc)"
