@@ -5,20 +5,14 @@ RC2QT="./build/rc2qt"
 OUTDIR="temporary_files"
 TESTDIR="test"
 
-if [ ! -x "$RC2QT" ]; then
-  echo "Error: $RC2QT not found. Run 'cmake --build build' first." >&2
-  exit 1
-fi
-
-mkdir -p "$OUTDIR"
-
 usage()
 {
-  echo "Usage: $0 [options] [all|name...]" >&2
-  echo "  options   -n  Disable all geometric adjustments" >&2
-  echo "            -f  Prevent font substitutions (keep original font names)" >&2
-  echo "  all       Generate all .rc files in $TESTDIR/ (default)" >&2
-  echo "  name...   Basenames of .rc files in $TESTDIR/ (e.g. editor -> $TESTDIR/editor.rc)" >&2
+  echo "Usage: $0 [options] [all|name...]"
+  echo "  options   -h  Show this help"
+  echo "            -n  Disable all geometric adjustments"
+  echo "            -f  Prevent font substitutions (keep original font names)"
+  echo "  all       Generate all .rc files in $TESTDIR/ (default)"
+  echo "  name...   Basenames of .rc files in $TESTDIR/ (e.g. editor -> $TESTDIR/editor.rc)"
 }
 
 run_rc2qt()
@@ -44,6 +38,10 @@ saw_all=0
 saw_name=0
 for arg in "$@"; do
   case "$arg" in
+    -h)
+      usage
+      exit 0
+      ;;
     -n|-f)
       FLAGS="$FLAGS $arg"
       ;;
@@ -58,6 +56,13 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+if [ ! -x "$RC2QT" ]; then
+  echo "Error: $RC2QT not found. Run 'cmake --build build' first." >&2
+  exit 1
+fi
+
+mkdir -p "$OUTDIR"
 
 total=0
 success=0
@@ -83,7 +88,7 @@ else
     fi
   done
   if [ $total -eq 0 ]; then
-    usage
+    usage >&2
     exit 1
   fi
 fi
