@@ -619,20 +619,13 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
   setup_dialog_font(dd);
 
+  std::vector<std::string> qt_classes(dd.controls.size());
   std::vector<int> groupbox_indices;
   for(size_t i = 0; i < dd.controls.size(); ++i)
   {
-    const auto& ctrl = dd.controls[i];
-    std::string qt_class = widget_class_for_control(ctrl);
-    if(qt_class == "QGroupBox")
+    qt_classes[i] = widget_class_for_control(dd.controls[i]);
+    if(qt_classes[i] == "QGroupBox")
       groupbox_indices.push_back(static_cast<int>(i));
-  }
-
-  std::vector<std::string> qt_classes(dd.controls.size());
-  for(size_t i = 0; i < dd.controls.size(); ++i)
-  {
-    const auto& ctrl = dd.controls[i];
-    qt_classes[i] = widget_class_for_control(ctrl);
   }
 
   std::vector<int> parent_groupbox(dd.controls.size(), -1);
@@ -676,20 +669,33 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
     parent_groupbox[i] = best_gi;
   }
 
-  size_t gb_count = groupbox_indices.size();
-  std::vector<std::vector<control>> gb_children(gb_count);
-  std::vector<std::vector<std::string>> gb_child_classes(gb_count);
-  std::vector<std::vector<size_t>> gb_child_indices(gb_count);
-  std::vector<std::vector<control_layout>> gb_child_layout(gb_count);
-  std::vector<int> groupbox_extra_height(gb_count, 0);
+  /* A groupbox node owns the controls nested inside it, in RC order including
+     any that appear after the box, laid out relative to the box. Building the
+     whole hierarchy before emitting XML keeps containment independent of the
+     order the controls are listed in the RC file. */
+  struct groupbox_node
+  {
+    int rc_index = -1;
+    std::vector<control> children;
+    std::vector<std::string> child_classes;
+    std::vector<size_t> child_indices;
+    std::vector<control_layout> child_layout;
+    int extra_height_px = 0;
+  };
+
+  std::vector<groupbox_node> groups;
+  groups.reserve(groupbox_indices.size());
 
   std::vector<std::pair<int, int>> merged_events;
 
   std::vector<bool> taken(dd.controls.size(), false);
-  for(size_t k = 0; k < gb_count; ++k)
+  for(size_t k = 0; k < groupbox_indices.size(); ++k)
   {
     int gi = groupbox_indices[k];
     taken[gi] = true;
+
+    groupbox_node group;
+    group.rc_index = gi;
 
     const auto& gb = dd.controls[gi];
     for(size_t i = 0; i < dd.controls.size(); ++i)
@@ -699,20 +705,18 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
       if(taken[i])
         continue;
 
-      const auto& ctrl = dd.controls[i];
+      control relative = dd.controls[i];
+      relative.x = relative.x - gb.x;
+      relative.y = relative.y - gb.y + 4;
 
-      control relative = ctrl;
-      relative.x = ctrl.x - gb.x;
-      relative.y = ctrl.y - gb.y + 4;
-
-      gb_children[k].push_back(relative);
-      gb_child_classes[k].push_back(qt_classes[i]);
-      gb_child_indices[k].push_back(i);
+      group.children.push_back(relative);
+      group.child_classes.push_back(qt_classes[i]);
+      group.child_indices.push_back(i);
       taken[i] = true;
     }
 
     std::vector<std::pair<int, int>> child_events;
-    layout_control_sizes(gb_children[k], gb_child_classes[k], gb_child_layout[k],
+    layout_control_sizes(group.children, group.child_classes, group.child_layout,
                          nullptr, nullptr, &child_events);
 
     int gb_origin_y_px = dlu_to_pixel_y(gb.y);
@@ -723,17 +727,19 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
     {
       int gb_h_px = dlu_to_pixel_y(gb.height);
       int max_bottom_rel = 0;
-      for(size_t j = 0; j < gb_children[k].size(); ++j)
+      for(size_t j = 0; j < group.children.size(); ++j)
       {
-        int rel_bottom = dlu_to_pixel_y(gb_children[k][j].y) +
-                         gb_child_layout[k][j].y_shift_px +
-                         gb_child_layout[k][j].height_px;
+        int rel_bottom = dlu_to_pixel_y(group.children[j].y) +
+                         group.child_layout[j].y_shift_px +
+                         group.child_layout[j].height_px;
         if(rel_bottom > max_bottom_rel)
           max_bottom_rel = rel_bottom;
       }
       if(max_bottom_rel > gb_h_px)
-        groupbox_extra_height[k] = max_bottom_rel - gb_h_px;
+        group.extra_height_px = max_bottom_rel - gb_h_px;
     }
+
+    groups.push_back(group);
   }
 
   std::vector<control> top_level;
@@ -746,11 +752,11 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
       continue;
 
     int extra = 0;
-    for(size_t k = 0; k < gb_count; ++k)
+    for(size_t k = 0; k < groups.size(); ++k)
     {
-      if(groupbox_indices[k] == static_cast<int>(i))
+      if(groups[k].rc_index == static_cast<int>(i))
       {
-        extra = groupbox_extra_height[k];
+        extra = groups[k].extra_height_px;
         break;
       }
     }
@@ -787,18 +793,18 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 
   std::vector<bool> written(dd.controls.size(), false);
 
-  for(size_t k = 0; k < gb_count; ++k)
+  for(size_t k = 0; k < groups.size(); ++k)
   {
-    int gi = groupbox_indices[k];
-    write_control(widget, dd.controls[gi], dialog_name, top_shift[gi], groupbox_extra_height[k]);
+    int gi = groups[k].rc_index;
+    write_control(widget, dd.controls[gi], dialog_name, top_shift[gi], groups[k].extra_height_px);
     written[gi] = true;
 
     pugi::xml_node gb_widget = widget.last_child();
 
-    for(size_t j = 0; j < gb_children[k].size(); ++j)
+    for(size_t j = 0; j < groups[k].children.size(); ++j)
     {
-      write_control(gb_widget, gb_children[k][j], dialog_name, gb_child_layout[k][j].y_shift_px);
-      written[gb_child_indices[k][j]] = true;
+      write_control(gb_widget, groups[k].children[j], dialog_name, groups[k].child_layout[j].y_shift_px);
+      written[groups[k].child_indices[j]] = true;
     }
   }
 
