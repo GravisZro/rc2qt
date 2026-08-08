@@ -683,6 +683,8 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   std::vector<std::vector<control_layout>> gb_child_layout(gb_count);
   std::vector<int> groupbox_extra_height(gb_count, 0);
 
+  std::vector<std::pair<int, int>> merged_events;
+
   std::vector<bool> taken(dd.controls.size(), false);
   for(size_t k = 0; k < gb_count; ++k)
   {
@@ -709,7 +711,13 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
       taken[i] = true;
     }
 
-    layout_control_sizes(gb_children[k], gb_child_classes[k], gb_child_layout[k]);
+    std::vector<std::pair<int, int>> child_events;
+    layout_control_sizes(gb_children[k], gb_child_classes[k], gb_child_layout[k],
+                         nullptr, nullptr, &child_events);
+
+    int gb_origin_y_px = dlu_to_pixel_y(gb.y);
+    for(const auto& ev : child_events)
+      merged_events.push_back({ ev.first + gb_origin_y_px, ev.second });
 
     if(!m_disable_geometry_adjustments)
     {
@@ -754,7 +762,8 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   }
 
   std::vector<control_layout> top_layout;
-  layout_control_sizes(top_level, top_classes, top_layout, &top_extra);
+  layout_control_sizes(top_level, top_classes, top_layout, &top_extra,
+                       &merged_events);
 
   int dialog_ph = dlu_to_pixel_y(dd.height);
   int growth = 0;
@@ -1502,7 +1511,9 @@ int generator::vertical_margin_px(const std::string& qt_class) const
 void generator::layout_control_sizes(const std::vector<control>& controls,
                                      const std::vector<std::string>& qt_classes,
                                      std::vector<control_layout>& layout,
-                                     const std::vector<int>* extra_heights)
+                                     const std::vector<int>* extra_heights,
+                                     const std::vector<std::pair<int, int>>* extra_events,
+                                     std::vector<std::pair<int, int>>* out_events)
 {
   layout.assign(controls.size(), control_layout{});
 
@@ -1580,11 +1591,16 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
       }
     }
 
-    int expansion = std::max(0, min_h[i] - ph[i]) + extra[i];
+    int expansion = std::max(0, min_h[i] - ph[i]);
     if(expansion > 0)
       events.push_back({ py[i] + ph[i], expansion });
   }
+  if(extra_events != nullptr)
+    events.insert(events.end(), extra_events->begin(), extra_events->end());
   std::sort(events.begin(), events.end());
+
+  if(out_events != nullptr)
+    *out_events = events;
 
   int running = 0;
   size_t event_index = 0;

@@ -77,7 +77,9 @@ private:
   void layout_control_sizes(const std::vector<control>& controls,
                             const std::vector<std::string>& qt_classes,
                             std::vector<control_layout>& layout,
-                            const std::vector<int>* extra_heights = nullptr);
+                            const std::vector<int>* extra_heights = nullptr,
+                            const std::vector<std::pair<int, int>>* extra_events = nullptr,
+                            std::vector<std::pair<int, int>>* out_events = nullptr);
 
   std::set<std::string> id_words(const std::string& id) const;
   bool share_common_word(const std::string& id1, const std::string& id2) const;
