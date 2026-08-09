@@ -52,6 +52,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <map>
 #include <string>
@@ -472,6 +473,46 @@ void build_layout(const pugi::xml_node& node, QWidget* owner, builder& b,
     return;
 
   apply_layout_properties(layout, node);
+
+  /* uic maps the QGridLayout columnminimumwidth/rowminimumheight attributes to
+     setColumnMinimumWidth/setRowMinimumHeight(0, ...) and the stretch
+     attributes to comma-separated per-index stretch factors. */
+  if(auto g = qobject_cast<QGridLayout*>(layout))
+  {
+    std::string cmw = node.attribute("columnminimumwidth").value();
+    if(!cmw.empty())
+      g->setColumnMinimumWidth(0, std::atoi(cmw.c_str()));
+    std::string rmh = node.attribute("rowminimumheight").value();
+    if(!rmh.empty())
+      g->setRowMinimumHeight(0, std::atoi(rmh.c_str()));
+
+    std::string cst = node.attribute("columnstretch").value();
+    int ci = 0;
+    size_t pos = 0;
+    while(pos <= cst.size())
+    {
+      size_t comma = cst.find(',', pos);
+      std::string tok = cst.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
+      if(!tok.empty())
+        g->setColumnStretch(ci++, std::atoi(tok.c_str()));
+      if(comma == std::string::npos)
+        break;
+      pos = comma + 1;
+    }
+    std::string rst = node.attribute("rowstretch").value();
+    int ri = 0;
+    pos = 0;
+    while(pos <= rst.size())
+    {
+      size_t comma = rst.find(',', pos);
+      std::string tok = rst.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
+      if(!tok.empty())
+        g->setRowStretch(ri++, std::atoi(tok.c_str()));
+      if(comma == std::string::npos)
+        break;
+      pos = comma + 1;
+    }
+  }
 
   if(parent_layout)
   {

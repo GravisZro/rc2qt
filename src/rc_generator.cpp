@@ -21,6 +21,7 @@
 # include <QtMath>
 # include <QFontDatabase>
 # include <QFontMetrics>
+# include <cstdlib>
 #elif HAVE_FREETYPE
 # include <ft2build.h>
 # include <freetype/freetype.h>
@@ -1109,9 +1110,14 @@ void generator::emit_layout_container(pugi::xml_node& container_widget, const la
     control_layout_pixel_size(child.ctrl, child.qt_class, items[i].bounds.w, items[i].bounds.h);
   }
 
-  rc::layout::container_plan plan = rc::layout::solve_container(items);
+  unsigned pattern_flags = rc::layout::pattern_all;
+  if(const char* env = std::getenv("RC2QT_PATTERNS"))
+    pattern_flags = static_cast<unsigned>(std::strtoul(env, nullptr, 0));
+  rc::layout::container_plan plan = rc::layout::solve_container(items, pattern_flags);
 
-  /* Emit items in row-major order so the XML is stable and readable. */
+  /* Emit items in row-major order so the XML is stable and readable. For box
+     layouts this yields the left-to-right/top-to-bottom item order they need
+     (button_row: row 0, columns 0..n-1; stack_rows: rows 0..n-1, column 0). */
   std::vector<int> order(node.children.size());
   for(size_t i = 0; i < order.size(); ++i)
     order[i] = static_cast<int>(i);
@@ -1128,23 +1134,20 @@ void generator::emit_layout_container(pugi::xml_node& container_widget, const la
     return items[a].bounds.x < items[b].bounds.x;
   });
 
-  pugi::xml_node layout = container_widget.append_child("layout");
-  set_attr(layout, "class", "QGridLayout");
-  set_attr(layout, "name", unique_name("layout"));
-  add_property_int(layout, "spacing", 6);
-  add_property_int(layout, "margin", 0);
+  bool box_layout = plan.kind == rc::layout::pattern_kind::button_row ||
+                    plan.kind == rc::layout::pattern_kind::stack_rows;
 
-  for(int k : order)
+  /* Band splits emit a top-level grid with nested pattern layouts in cells;
+     every child belonging to a band is written inside its band's layout. */
+  std::vector<int> band_of_child(node.children.size(), -1);
+  for(size_t bi = 0; bi < plan.bands.size(); ++bi)
   {
-    const rc::layout::cell_span& span = plan.spans[k];
-    pugi::xml_node item = layout.append_child("item");
-    set_attr(item, "row", span.row);
-    set_attr(item, "column", span.column);
-    if(span.rowspan > 1)
-      set_attr(item, "rowspan", span.rowspan);
-    if(span.colspan > 1)
-      set_attr(item, "colspan", span.colspan);
+    for(int ci : plan.bands[bi].children)
+      band_of_child[static_cast<size_t>(ci)] = static_cast<int>(bi);
+  }
 
+  auto write_child = [&](pugi::xml_node item, int k)
+  {
     const layout_child& child = node.children[k];
     write_control(item, child.ctrl, dialog_name, 0, 0, false);
 
@@ -1164,6 +1167,118 @@ void generator::emit_layout_container(pugi::xml_node& container_widget, const la
       pugi::xml_node gb_widget = item.last_child();
       emit_layout_container(gb_widget, node.nested[child.nested_index], dialog_name);
     }
+  };
+
+  auto emit_band = [&](pugi::xml_node item, const rc::layout::band& bnd)
+  {
+    pugi::xml_node bl = item.append_child("layout");
+    std::string bl_class = "QGridLayout";
+    bool bnd_box = false;
+    if(bnd.kind == rc::layout::pattern_kind::button_row)
+    {
+      bl_class = "QHBoxLayout";
+      bnd_box = true;
+    }
+    else if(bnd.kind == rc::layout::pattern_kind::stack_rows)
+    {
+      bl_class = "QVBoxLayout";
+      bnd_box = true;
+    }
+    set_attr(bl, "class", bl_class.c_str());
+    set_attr(bl, "name", unique_name("layout"));
+    add_property_int(bl, "spacing", 6);
+    add_property_int(bl, "margin", 0);
+    if(bnd.kind == rc::layout::pattern_kind::label_table &&
+       bnd.label_column_minwidth > 0)
+      set_attr(bl, "columnminimumwidth", bnd.label_column_minwidth);
+    if(bnd.kind == rc::layout::pattern_kind::keypad_grid)
+    {
+      std::string row_stretch;
+      for(int r = 0; r < bnd.rows; ++r)
+        row_stretch += (r ? "," : "") + std::to_string(1);
+      std::string col_stretch;
+      for(int c = 0; c < bnd.columns; ++c)
+        col_stretch += (c ? "," : "") + std::to_string(1);
+      set_attr(bl, "rowstretch", row_stretch.c_str());
+      set_attr(bl, "columnstretch", col_stretch.c_str());
+    }
+    for(size_t bi = 0; bi < bnd.children.size(); ++bi)
+    {
+      pugi::xml_node bitem = bl.append_child("item");
+      if(!bnd_box)
+      {
+        const rc::layout::cell_span& bs = bnd.spans[bi];
+        set_attr(bitem, "row", bs.row);
+        set_attr(bitem, "column", bs.column);
+        if(bs.rowspan > 1)
+          set_attr(bitem, "rowspan", bs.rowspan);
+        if(bs.colspan > 1)
+          set_attr(bitem, "colspan", bs.colspan);
+      }
+      write_child(bitem, bnd.children[bi]);
+    }
+  };
+
+  pugi::xml_node layout = container_widget.append_child("layout");
+  std::string layout_class = "QGridLayout";
+  if(plan.kind == rc::layout::pattern_kind::button_row)
+    layout_class = "QHBoxLayout";
+  else if(plan.kind == rc::layout::pattern_kind::stack_rows)
+    layout_class = "QVBoxLayout";
+  set_attr(layout, "class", layout_class.c_str());
+  set_attr(layout, "name", unique_name("layout"));
+  add_property_int(layout, "spacing", 6);
+  add_property_int(layout, "margin", 0);
+
+  if(plan.kind == rc::layout::pattern_kind::label_table &&
+     plan.label_column_minwidth > 0)
+    set_attr(layout, "columnminimumwidth", plan.label_column_minwidth);
+
+  if(plan.kind == rc::layout::pattern_kind::keypad_grid)
+  {
+    std::string row_stretch;
+    for(int r = 0; r < plan.rows; ++r)
+      row_stretch += (r ? "," : "") + std::to_string(1);
+    std::string col_stretch;
+    for(int c = 0; c < plan.columns; ++c)
+      col_stretch += (c ? "," : "") + std::to_string(1);
+    set_attr(layout, "rowstretch", row_stretch.c_str());
+    set_attr(layout, "columnstretch", col_stretch.c_str());
+  }
+
+  std::vector<bool> band_emitted(plan.bands.size(), false);
+  for(int k : order)
+  {
+    int bi = band_of_child[k];
+    if(bi >= 0)
+    {
+      if(band_emitted[bi])
+        continue;
+      band_emitted[bi] = true;
+      const rc::layout::band& bnd = plan.bands[bi];
+      pugi::xml_node item = layout.append_child("item");
+      set_attr(item, "row", bnd.row);
+      set_attr(item, "column", bnd.column);
+      if(bnd.rowspan > 1)
+        set_attr(item, "rowspan", bnd.rowspan);
+      if(bnd.colspan > 1)
+        set_attr(item, "colspan", bnd.colspan);
+      emit_band(item, bnd);
+      continue;
+    }
+
+    const rc::layout::cell_span& span = plan.spans[k];
+    pugi::xml_node item = layout.append_child("item");
+    if(!box_layout)
+    {
+      set_attr(item, "row", span.row);
+      set_attr(item, "column", span.column);
+      if(span.rowspan > 1)
+        set_attr(item, "rowspan", span.rowspan);
+      if(span.colspan > 1)
+        set_attr(item, "colspan", span.colspan);
+    }
+    write_child(item, k);
   }
 }
 
