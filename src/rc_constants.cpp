@@ -19,6 +19,8 @@ void constant_registry::add(category_t cat,
                             const std::string& name,
                             const std::string& desc)
 {
+  if(m_name_to_value.contains(name))
+    throw std::runtime_error("duplicate constant name added: " + name);
   m_name_to_value[name] = value;
   m_value_to_name[catval_t { cat, value }] = name;
   m_entries.push_back({name, value, cat, desc});
@@ -1640,7 +1642,6 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::oem_bitmap, 0x7fe9, "OBM_UPARROWI", "Inactive/disabled state up scrollbar arrow glyph");
   add(category_t::oem_bitmap, 0x7f24, "OBM_ZOOM", "System OEM maximize button bitmap");
   add(category_t::oem_bitmap, 0x7ff1, "OBM_ZOOMD", "Pressed state of standard Maximize button");
-  add(category_t::system_id,      -1, "IDC_STATIC");
 }
 /*
 
