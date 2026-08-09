@@ -1,7 +1,7 @@
 # Plan: Convert absolute RC coordinates into Qt layout managers
 
-Status: in progress. Phase 1 (infrastructure) implemented and verified; Phase 2
-(guillotine split) in progress.
+Status: in progress. Phase 1 (infrastructure) and Phase 2 (guillotine split)
+implemented and verified; Phase 3 (label-table specialization) pending.
 
 ## 1. Objective & scope
 
@@ -130,8 +130,12 @@ a box/grid layout; they reflow by construction. Layout mode logs a warning
   grid leaf per container stacks widgets whose x- or y-intervals are captured by
   a wide/tall spanning sibling (825 of 946 stacked cells are grid-induced, i.e.
   source-non-overlapping).
-- **P2 Guillotine**: H/V cuts + grid leaves, no label-table logic; full-corpus
-  uic pass.
+- **P2 Guillotine** (DONE): recursive decomposition into H/V box layouts by
+  cutting the largest source gap (ties toward balance), falling back to a
+  QGridLayout leaf per container only when no clean cut exists; tab pages reuse
+  the same path. Full-corpus uic pass and byte-deterministic double run; absolute
+  mode remains byte-identical. Stacked cells drop from 946 (825 grid-induced) to
+  218 (180 grid-induced).
 - **P3 Label-table specialization**: shared vertical cuts across row bands with
   `columnminimumwidth`; spacing/margins/size-policies.
 - **P4 Tab pages, spacers/alignment, overlap warnings.**
