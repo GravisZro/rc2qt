@@ -1920,24 +1920,24 @@ static void test_multiple_controls()
     );
     const auto& dlg = std::get<rc::dialog_data>(res.data);
     assert(dlg.controls.size() == 6);
-    /* Controls are sorted by x first, then y, so the parse order here is
-       (7,7) LTEXT, (7,25) LTEXT, (7,42) PUSHBUTTON, (42,5) EDITTEXT,
-       (42,23) EDITTEXT, (62,42) PUSHBUTTON, not the RC source order. */
-    assert(dlg.controls[0].keyword == "LTEXT");
-    assert(dlg.controls[0].x == 7);
-    assert(dlg.controls[0].y == 7);
+    /* Controls are sorted by y first, then x, so the parse order here is
+       (42,5) EDITTEXT, (7,7) LTEXT, (42,23) EDITTEXT, (7,25) LTEXT,
+       (7,42) PUSHBUTTON, (62,42) PUSHBUTTON, not the RC source order. */
+    assert(dlg.controls[0].keyword == "EDITTEXT");
+    assert(dlg.controls[0].x == 42);
+    assert(dlg.controls[0].y == 5);
     assert(dlg.controls[1].keyword == "LTEXT");
     assert(dlg.controls[1].x == 7);
-    assert(dlg.controls[1].y == 25);
-    assert(dlg.controls[2].keyword == "PUSHBUTTON");
-    assert(dlg.controls[2].x == 7);
-    assert(dlg.controls[2].y == 42);
-    assert(dlg.controls[3].keyword == "EDITTEXT");
-    assert(dlg.controls[3].x == 42);
-    assert(dlg.controls[3].y == 5);
-    assert(dlg.controls[4].keyword == "EDITTEXT");
-    assert(dlg.controls[4].x == 42);
-    assert(dlg.controls[4].y == 23);
+    assert(dlg.controls[1].y == 7);
+    assert(dlg.controls[2].keyword == "EDITTEXT");
+    assert(dlg.controls[2].x == 42);
+    assert(dlg.controls[2].y == 23);
+    assert(dlg.controls[3].keyword == "LTEXT");
+    assert(dlg.controls[3].x == 7);
+    assert(dlg.controls[3].y == 25);
+    assert(dlg.controls[4].keyword == "PUSHBUTTON");
+    assert(dlg.controls[4].x == 7);
+    assert(dlg.controls[4].y == 42);
     assert(dlg.controls[5].keyword == "PUSHBUTTON");
     assert(dlg.controls[5].x == 62);
     assert(dlg.controls[5].y == 42);
