@@ -17,6 +17,9 @@
 build/
 build*/
 
+# examples
+demos/
+
 # test data
 test/
 temporary_files/

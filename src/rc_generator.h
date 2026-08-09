@@ -113,7 +113,13 @@ private:
 
 #ifdef HAVE_QT
   void emit_layout_container(pugi::xml_node& container_widget, const layout_node& node,
-                             const std::string& dialog_name);
+                             const std::string& dialog_name,
+                             int container_w = 0, int container_h = 0);
+  void emit_layout_node(pugi::xml_node& parent, const rc::layout::node& ln,
+                        const layout_node& node, const std::string& dialog_name,
+                        const std::vector<rc::layout::child>& items,
+                        unsigned pattern_flags, const std::string& container_name);
+  int multiline_edit_min_height(int height_dlu) const;
 #endif
   text_fit_info fit_text(const std::string& text, int width_dlu, int height_dlu, const std::string& widget_class);
   int min_width_px(const std::string& qt_class) const;

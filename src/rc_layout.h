@@ -27,80 +27,106 @@ struct child
   rect bounds;
 };
 
-/* Placement of a widget inside a QGridLayout. */
-struct cell_span
+/* Alignment of a node on the cross axis of its parent box (or within a grid
+   cell). fill stretches the node to the available extent; left/right/center
+   and top/bottom/center pin it to a side. */
+enum class align_h
 {
-  int row = 0;
-  int column = 0;
-  int rowspan = 1;
-  int colspan = 1;
+  fill,
+  left,
+  right,
+  center
 };
 
-/* Per-container layout strategy. none is the edge-boundary grid fallback (M1);
-   pattern matchers (M2) may select a box/grid pattern instead. */
-enum class pattern_kind
+enum class align_v
 {
-  none,
-  button_row,
-  label_table,
-  stack_rows,
-  keypad_grid
+  fill,
+  top,
+  bottom,
+  center
 };
 
-/* A band split: a subset of a container's children placed into a nested
-   pattern layout at one cell of the container's top-level grid. children lists
-   the child indices (into solve_container's input); spans gives each child's
-   placement inside the nested layout (band-relative row/column). */
-struct band
+/* Recursive layout tree. A node is either a leaf widget (item), a horizontal
+   box (box_x), a vertical box (box_y), or a grid. Box children stack in
+   reading order with per-child alignment; grid children additionally carry a
+   cell. The tree mirrors the RC geometry: boxes come from clean one-axis
+   stacking, grids from 2D subsections whose rows and columns line up with the
+   source boundaries. */
+struct node
 {
-  pattern_kind kind = pattern_kind::none;
-  std::vector<int> children;
-  std::vector<cell_span> spans;
-  int row = 0;
-  int column = 0;
-  int rowspan = 1;
-  int colspan = 1;
+  enum class kind
+  {
+    item,
+    box_x,
+    box_y,
+    grid
+  };
+
+  kind k = kind::item;
+  /* item: index into solve_container()'s input children. */
+  int control_index = -1;
+
+  /* Placement of this node inside its parent box / grid cell. */
+  align_h halign = align_h::fill;
+  align_v valign = align_v::fill;
+
+  /* Box children in stacking order (box_x: left to right; box_y: top to
+     bottom). Grid children in the same order, one cell per child. */
+  std::vector<node> children;
+
+  struct cell
+  {
+    int row = 0;
+    int column = 0;
+    int rowspan = 1;
+    int colspan = 1;
+  };
+  std::vector<cell> cells;
+
+  /* Grid dimensions. These match the source boundary counts so the emitted
+     row/column attributes mirror the absolute layout. */
   int rows = 0;
   int columns = 0;
+  /* Grid: when > 0, every row/column gets this stretch factor so the cells
+     stay equal on resize (keypad-style grids). */
+  int equal_row_stretch = 0;
+  int equal_col_stretch = 0;
+  /* Grid: label/value column minimum width. When the first column holds only
+     labels and the value column starts one or more empty (gap) columns later,
+     extending the label column to the value column's left edge makes the
+     values land at their RC x position. Emitted as columnminimumwidth. */
   int label_column_minwidth = 0;
+
+  /* Box: trailing spacer that absorbs the free space below/right of the
+     content so the widgets keep their RC positions when the container grows.
+     size is the pixel gap at the RC size. */
+  int spacer_size = 0;
 };
 
-struct container_plan
-{
-  pattern_kind kind = pattern_kind::none;
-  std::vector<cell_span> spans;
-  int rows = 0;
-  int columns = 0;
-  /* label_table: minimum width (px) for the shared label column (column 0),
-     emitted as the QGridLayout columnminimumwidth attribute. */
-  int label_column_minwidth = 0;
-  /* Band splits. When non-empty the container is a top-level QGridLayout (kind
-     stays none) whose cells hold either a direct child or a nested pattern
-     layout from bands[]. plan.spans for band children is the band's cell. */
-  std::vector<band> bands;
-};
-
-/* A/B testing switch: solve_container only applies the matchers whose bit is
-   set, so patterns can be disabled to measure their individual impact. */
+/* A/B testing switch: the layout solver only applies the components whose bit
+   is set, so they can be disabled to measure their individual impact. With a
+   mask of 0 the solver falls back to the M1 edge-boundary grid. */
 enum pattern_flag : unsigned
 {
   pattern_none = 0,
-  pattern_button_row = 1u << 0,
-  pattern_label_table = 1u << 1,
-  pattern_stack_rows = 1u << 2,
-  pattern_keypad_grid = 1u << 3,
-  pattern_all = pattern_button_row | pattern_label_table |
-                pattern_stack_rows | pattern_keypad_grid,
+  pattern_box = 1u << 0,     /* box decomposition (VLayout/HLayout) */
+  pattern_grid = 1u << 1,    /* grid subgroups inside boxes */
+  pattern_align = 1u << 2,   /* per-item alignment */
+  pattern_stretch = 1u << 3, /* grid equal row/column stretch */
+  pattern_spacer = 1u << 4,  /* trailing spacer items for free space */
+  pattern_all = pattern_box | pattern_grid | pattern_align |
+                pattern_stretch | pattern_spacer,
 };
 
-/* Resolve a container's children into a layout plan. The edge-boundary grid
-   (kind == none) is the fallback: column boundaries are every distinct
-   x-start/x-end and row boundaries every distinct y-start/y-end, so each child
-   occupies exactly the row/column interval its rect spans and two
-   source-non-overlapping children can never share a grid cell. Pattern
-   matchers (M2) run first; the best-scoring match wins. */
-container_plan solve_container(const std::vector<child>& children,
-                               unsigned enabled = pattern_all);
+/* Resolve a container's children into a recursive layout tree. The edge-grid
+   fallback (single QGridLayout, M1) is used when box decomposition is
+   disabled or no clean stacking axis exists. container_w/container_h are the
+   container's pixel size; they let boxes size their trailing spacer so the
+   RC layout's free space is reproduced. */
+node solve_container(const std::vector<child>& children,
+                     unsigned enabled = pattern_all,
+                     int container_w = 0,
+                     int container_h = 0);
 
 } // namespace layout
 } // namespace rc

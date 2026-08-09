@@ -1,7 +1,9 @@
 #include "rc_layout.h"
 
 #include <algorithm>
+#include <climits>
 #include <cmath>
+#include <numeric>
 
 namespace rc
 {
@@ -11,608 +13,480 @@ namespace layout
 namespace
 {
 
-/* Tolerances (pixels) for grouping and matching. RC dialogs are grid-aligned;
+/* Pixel tolerance for grouping and alignment. RC dialogs are grid-aligned;
    these absorb small rounding differences between the DLU->pixel conversion
    and the Qt style's own metrics. */
-constexpr int k_band_tol = 2; /* y-center tolerance for grouping into rows */
-constexpr int k_x_tol = 4;    /* x tolerance for a shared column split */
-constexpr int k_h_tol = 4;    /* height tolerance for a button row */
+constexpr int k_tol = 2;
+constexpr int k_margin = 24;
 
-bool is_button_class(const std::string& cls)
+/* Group indices into components of the interval-overlap graph on one axis.
+   Two children belong to the same group when their intervals on that axis
+   overlap (within k_tol), transitively. vertical selects the y axis. Groups
+   come back ordered (top to bottom / left to right), members in reading
+   order. */
+std::vector<std::vector<int>> group_by_interval(const std::vector<child>& children,
+                                                const std::vector<int>& indices,
+                                                bool vertical)
 {
-  return cls == "QPushButton" || cls == "QCheckBox" || cls == "QRadioButton";
+  const int n = static_cast<int>(indices.size());
+  std::vector<int> parent(n);
+  std::iota(parent.begin(), parent.end(), 0);
+
+  const auto find_root = [&](auto&& self, int i) -> int
+  {
+    if(parent[i] != i)
+      parent[i] = self(self, parent[i]);
+    return parent[i];
+  };
+
+  const auto overlap = [&](int a, int b)
+  {
+    const rect& ra = children[a].bounds;
+    const rect& rb = children[b].bounds;
+    if(vertical)
+      return ra.y < rb.y + rb.h + k_tol && rb.y < ra.y + ra.h + k_tol;
+    return ra.x < rb.x + rb.w + k_tol && rb.x < ra.x + ra.w + k_tol;
+  };
+
+  for(int i = 0; i < n; ++i)
+  {
+    for(int j = i + 1; j < n; ++j)
+    {
+      int ri = find_root(find_root, i);
+      int rj = find_root(find_root, j);
+      if(ri != rj && overlap(indices[i], indices[j]))
+        parent[ri] = rj;
+    }
+  }
+
+  std::vector<int> root_of(n);
+  std::vector<std::vector<int>> local_groups;
+  for(int i = 0; i < n; ++i)
+  {
+    int root = find_root(find_root, i);
+    root_of[i] = root;
+    bool found = false;
+    for(size_t gi = 0; gi < local_groups.size(); ++gi)
+    {
+      if(root_of[local_groups[gi].front()] == root)
+      {
+        local_groups[gi].push_back(i);
+        found = true;
+        break;
+      }
+    }
+    if(!found)
+      local_groups.push_back({ i });
+  }
+
+  std::vector<std::vector<int>> groups;
+  groups.reserve(local_groups.size());
+  for(const auto& lg : local_groups)
+  {
+    std::vector<int> g;
+    g.reserve(lg.size());
+    for(int li : lg)
+      g.push_back(indices[li]);
+    groups.push_back(std::move(g));
+  }
+
+  for(auto& group : groups)
+  {
+    std::stable_sort(group.begin(), group.end(), [&](int a, int b)
+    {
+      const rect& ra = children[a].bounds;
+      const rect& rb = children[b].bounds;
+      if(vertical)
+        return ra.x < rb.x || (ra.x == rb.x && ra.y < rb.y);
+      return ra.y < rb.y || (ra.y == rb.y && ra.x < rb.x);
+    });
+  }
+
+  std::sort(groups.begin(), groups.end(), [&](const std::vector<int>& a,
+                                              const std::vector<int>& b)
+  {
+    const rect& ra = children[a.front()].bounds;
+    const rect& rb = children[b.front()].bounds;
+    if(vertical)
+      return ra.y < rb.y || (ra.y == rb.y && ra.x < rb.x);
+    return ra.x < rb.x || (ra.x == rb.x && ra.y < rb.y);
+  });
+
+  return groups;
 }
 
-int boundary_index(const std::vector<int>& bounds, int value)
+/* Bounding box of a node's leaves. */
+void node_bounds(const std::vector<child>& children, const node& n,
+                 int& min_x, int& min_y, int& max_x, int& max_y)
 {
-  auto it = std::lower_bound(bounds.begin(), bounds.end(), value);
-  return static_cast<int>(it - bounds.begin());
+  if(n.k == node::kind::item)
+  {
+    const rect& b = children[n.control_index].bounds;
+    min_x = std::min(min_x, b.x);
+    min_y = std::min(min_y, b.y);
+    max_x = std::max(max_x, b.x + b.w);
+    max_y = std::max(max_y, b.y + b.h);
+    return;
+  }
+  for(const node& c : n.children)
+    node_bounds(children, c, min_x, min_y, max_x, max_y);
 }
 
-/* Edge-boundary grid fallback: every distinct x-start/x-end and y-start/y-end
-   becomes a column/row boundary, and each child spans exactly the interval its
-   rect covers. Guarantees source-non-overlapping children never share a cell.
-   The boundary vectors are returned for band cell computation. */
-container_plan edge_grid(const std::vector<child>& children,
-                         std::vector<int>* xb_out = nullptr,
-                         std::vector<int>* yb_out = nullptr)
+/* Edge-boundary grid over the given children: every distinct start/end on
+   each axis becomes a row/column boundary and each child spans exactly the
+   interval its rect covers. */
+node build_grid(const std::vector<child>& children, const std::vector<int>& indices)
 {
-  container_plan plan;
-  plan.spans.assign(children.size(), cell_span{});
-  if(children.empty())
-    return plan;
+  node g;
+  g.k = node::kind::grid;
+  if(indices.empty())
+    return g;
 
   std::vector<int> xb;
   std::vector<int> yb;
-  xb.reserve(children.size() * 2);
-  yb.reserve(children.size() * 2);
-  for(const child& c : children)
+  xb.reserve(indices.size() * 2);
+  yb.reserve(indices.size() * 2);
+  for(int idx : indices)
   {
-    xb.push_back(c.bounds.x);
-    xb.push_back(c.bounds.x + c.bounds.w);
-    yb.push_back(c.bounds.y);
-    yb.push_back(c.bounds.y + c.bounds.h);
+    const rect& b = children[idx].bounds;
+    xb.push_back(b.x);
+    xb.push_back(b.x + b.w);
+    yb.push_back(b.y);
+    yb.push_back(b.y + b.h);
   }
   std::sort(xb.begin(), xb.end());
   xb.erase(std::unique(xb.begin(), xb.end()), xb.end());
   std::sort(yb.begin(), yb.end());
   yb.erase(std::unique(yb.begin(), yb.end()), yb.end());
 
-  plan.columns = static_cast<int>(xb.size()) - 1;
-  plan.rows = static_cast<int>(yb.size()) - 1;
+  g.columns = static_cast<int>(xb.size()) - 1;
+  g.rows = static_cast<int>(yb.size()) - 1;
 
-  for(size_t i = 0; i < children.size(); ++i)
+  const auto boundary_index = [](const std::vector<int>& bounds, int value)
   {
-    const rect& b = children[i].bounds;
-    int left = boundary_index(xb, b.x);
-    int right = boundary_index(xb, b.x + b.w);
-    int top = boundary_index(yb, b.y);
-    int bottom = boundary_index(yb, b.y + b.h);
-    cell_span& span = plan.spans[i];
-    span.column = left;
-    span.colspan = std::max(1, right - left);
-    span.row = top;
-    span.rowspan = std::max(1, bottom - top);
-  }
+    return static_cast<int>(
+      std::lower_bound(bounds.begin(), bounds.end(), value) - bounds.begin());
+  };
 
-  if(xb_out)
-    *xb_out = std::move(xb);
-  if(yb_out)
-    *yb_out = std::move(yb);
-  return plan;
-}
-
-/* Group child indices into horizontal bands by row center (tolerance
-   k_band_tol). Bands are returned in top-to-bottom, left-to-right order. */
-std::vector<std::vector<int>> y_bands(const std::vector<child>& children)
-{
-  std::vector<int> order(children.size());
-  for(size_t i = 0; i < order.size(); ++i)
-    order[i] = static_cast<int>(i);
-  std::stable_sort(order.begin(), order.end(), [&](int a, int b)
-  {
-    if(children[a].bounds.y != children[b].bounds.y)
-      return children[a].bounds.y < children[b].bounds.y;
-    return children[a].bounds.x < children[b].bounds.x;
-  });
-
-  std::vector<std::vector<int>> bands;
-  for(int idx : order)
+  for(int idx : indices)
   {
     const rect& b = children[idx].bounds;
-    int center = b.y + b.h / 2;
-    bool placed = false;
-    for(auto& band : bands)
+    node leaf;
+    leaf.control_index = idx;
+    node::cell c;
+    c.column = boundary_index(xb, b.x);
+    c.colspan = std::max(1, boundary_index(xb, b.x + b.w) - c.column);
+    c.row = boundary_index(yb, b.y);
+    c.rowspan = std::max(1, boundary_index(yb, b.y + b.h) - c.row);
+    g.cells.push_back(c);
+    g.children.push_back(std::move(leaf));
+  }
+
+  /* Label/value tables: if column 0 holds only labels and the value column
+     starts one or more empty columns later, extend the label column to the
+     value column's left edge so values land on their RC x position. */
+  if(g.rows >= 2)
+  {
+    bool labels_only = true;
+    for(size_t i = 0; i < g.cells.size(); ++i)
     {
-      const rect& ref = children[band.front()].bounds;
-      if(std::abs(center - (ref.y + ref.h / 2)) <= k_band_tol)
+      if(g.cells[i].column == 0 && g.children[i].k == node::kind::item)
       {
-        band.push_back(idx);
-        placed = true;
-        break;
-      }
-    }
-    if(!placed)
-      bands.push_back({ idx });
-  }
-  for(auto& band : bands)
-  {
-    std::stable_sort(band.begin(), band.end(), [&](int a, int b)
-    {
-      return children[a].bounds.x < children[b].bounds.x;
-    });
-  }
-  return bands;
-}
-
-void assign_row_major(container_plan& plan,
-                      const std::vector<std::vector<int>>& bands)
-{
-  for(size_t r = 0; r < bands.size(); ++r)
-  {
-    for(size_t c = 0; c < bands[r].size(); ++c)
-    {
-      cell_span& span = plan.spans[bands[r][c]];
-      span.row = static_cast<int>(r);
-      span.column = static_cast<int>(c);
-    }
-  }
-}
-
-/* -- whole-container matchers ------------------------------------------- */
-
-/* ButtonRow: every child is a button-class widget, all share one y band and
-   roughly equal heights, and none overlap horizontally. Emitted as a single
-   QHBoxLayout with buttons in left-to-right order. */
-bool match_button_row(const std::vector<child>& children, container_plan& plan)
-{
-  if(children.size() < 2)
-    return false;
-  int y0 = children.front().bounds.y;
-  int h0 = children.front().bounds.h;
-  for(const child& c : children)
-  {
-    if(!is_button_class(c.qt_class))
-      return false;
-    if(std::abs(c.bounds.y - y0) > k_band_tol)
-      return false;
-    if(std::abs(c.bounds.h - h0) > k_h_tol)
-      return false;
-  }
-  for(size_t i = 0; i < children.size(); ++i)
-  {
-    for(size_t j = i + 1; j < children.size(); ++j)
-    {
-      const rect& a = children[i].bounds;
-      const rect& b = children[j].bounds;
-      if(a.x < b.x + b.w && b.x < a.x + a.w)
-        return false;
-    }
-  }
-
-  std::vector<int> order(children.size());
-  for(size_t i = 0; i < order.size(); ++i)
-    order[i] = static_cast<int>(i);
-  std::stable_sort(order.begin(), order.end(), [&](int a, int b)
-  {
-    return children[a].bounds.x < children[b].bounds.x;
-  });
-  for(size_t c = 0; c < order.size(); ++c)
-  {
-    cell_span& span = plan.spans[order[c]];
-    span.row = 0;
-    span.column = static_cast<int>(c);
-  }
-  plan.kind = pattern_kind::button_row;
-  plan.rows = 1;
-  plan.columns = static_cast<int>(children.size());
-  return true;
-}
-
-/* LabelTable: children form rows (y bands) of label + value pairs. Every row
-   has the same column count, its first widget is a QLabel, and the label and
-   value columns share a common x split across rows. Emitted as a QGridLayout
-   with the shared label column enforced via columnminimumwidth. */
-bool match_label_table(const std::vector<child>& children, container_plan& plan)
-{
-  if(children.size() < 4)
-    return false;
-  std::vector<std::vector<int>> bands = y_bands(children);
-  if(bands.size() < 2)
-    return false;
-  size_t cols = bands.front().size();
-  if(cols < 2)
-    return false;
-  for(const auto& band : bands)
-  {
-    if(band.size() != cols)
-      return false;
-    if(children[band.front()].qt_class != "QLabel")
-      return false;
-  }
-
-  int label_x = children[bands.front().front()].bounds.x;
-  int value_x = children[bands.front()[1]].bounds.x;
-  int label_w = 0;
-  for(const auto& band : bands)
-  {
-    if(std::abs(children[band.front()].bounds.x - label_x) > k_x_tol)
-      return false;
-    if(std::abs(children[band[1]].bounds.x - value_x) > k_x_tol)
-      return false;
-    label_w = std::max(label_w, children[band.front()].bounds.w);
-  }
-
-  assign_row_major(plan, bands);
-  plan.kind = pattern_kind::label_table;
-  plan.rows = static_cast<int>(bands.size());
-  plan.columns = static_cast<int>(cols);
-  plan.label_column_minwidth = label_w;
-  return true;
-}
-
-/* StackRows: non-overlapping horizontal bands each holding exactly one widget,
-   so children stack vertically. Emitted as a single QVBoxLayout. */
-bool match_stack_rows(const std::vector<child>& children, container_plan& plan)
-{
-  if(children.size() < 2)
-    return false;
-  std::vector<std::vector<int>> bands = y_bands(children);
-  if(bands.size() != children.size())
-    return false;
-
-  for(size_t r = 0; r < bands.size(); ++r)
-  {
-    cell_span& span = plan.spans[bands[r].front()];
-    span.row = static_cast<int>(r);
-    span.column = 0;
-  }
-  plan.kind = pattern_kind::stack_rows;
-  plan.rows = static_cast<int>(children.size());
-  plan.columns = 1;
-  return true;
-}
-
-/* KeypadGrid: many equal-sized, evenly spaced children forming a dense grid.
-   Emitted as a QGridLayout with equal row/column stretch so cells stay equal
-   on resize. */
-bool match_keypad_grid(const std::vector<child>& children, container_plan& plan)
-{
-  if(children.size() < 6)
-    return false;
-  const rect& r0 = children.front().bounds;
-  for(const child& c : children)
-  {
-    if(std::abs(c.bounds.w - r0.w) > 1 || std::abs(c.bounds.h - r0.h) > 1)
-      return false;
-  }
-
-  /* Uniform spacing: the horizontal and vertical pitch must each be constant
-     across the whole grid. */
-  int pitch_x = 0;
-  int pitch_y = 0;
-  for(const child& c : children)
-  {
-    bool found_x = false;
-    bool found_y = false;
-    for(const child& d : children)
-    {
-      if(&c == &d)
-        continue;
-      if(d.bounds.x > c.bounds.x && d.bounds.y == c.bounds.y &&
-         std::abs(d.bounds.h - c.bounds.h) <= 1 && !found_x)
-      {
-        found_x = true;
-        int px = d.bounds.x - c.bounds.x;
-        if(pitch_x == 0)
-          pitch_x = px;
-        else if(px != pitch_x)
-          return false;
-      }
-      if(d.bounds.y > c.bounds.y && d.bounds.x == c.bounds.x &&
-         std::abs(d.bounds.w - c.bounds.w) <= 1 && !found_y)
-      {
-        found_y = true;
-        int py = d.bounds.y - c.bounds.y;
-        if(pitch_y == 0)
-          pitch_y = py;
-        else if(py != pitch_y)
-          return false;
-      }
-    }
-  }
-  if(pitch_x <= 0 || pitch_y <= 0)
-    return false;
-
-  /* Children must lie exactly on the grid. */
-  int x0 = r0.x;
-  int y0 = r0.y;
-  for(const child& c : children)
-  {
-    if((c.bounds.x - x0) % pitch_x != 0)
-      return false;
-    if((c.bounds.y - y0) % pitch_y != 0)
-      return false;
-  }
-
-  std::vector<std::vector<int>> bands = y_bands(children);
-  size_t rows = bands.size();
-  if(rows < 2)
-    return false;
-  size_t cols = bands.front().size();
-  if(cols < 2 || cols * rows != children.size())
-    return false;
-
-  assign_row_major(plan, bands);
-  plan.kind = pattern_kind::keypad_grid;
-  plan.rows = static_cast<int>(rows);
-  plan.columns = static_cast<int>(cols);
-  return true;
-}
-
-int pattern_score(pattern_kind kind, size_t n)
-{
-  switch(kind)
-  {
-    case pattern_kind::button_row:
-      return static_cast<int>(n) * 4;
-    case pattern_kind::label_table:
-      return static_cast<int>(n) * 3;
-    case pattern_kind::keypad_grid:
-      return static_cast<int>(n) * 2;
-    case pattern_kind::stack_rows:
-      return static_cast<int>(n) * 1;
-    case pattern_kind::none:
-      return 0;
-  }
-  return 0;
-}
-
-/* -- band splits --------------------------------------------------------- */
-
-struct band_candidate
-{
-  pattern_kind kind = pattern_kind::none;
-  std::vector<int> children;
-  std::vector<cell_span> spans;
-  int label_column_minwidth = 0;
-  int score = 0;
-};
-
-bool rects_overlap_x(const rect& a, const rect& b)
-{
-  return a.x < b.x + b.w && b.x < a.x + a.w;
-}
-
-/* Best button_row band: a y-band whose children are all buttons of roughly
-   equal height with no horizontal overlap. */
-band_candidate find_button_row_band(const std::vector<child>& children,
-                                    const std::vector<std::vector<int>>& bands)
-{
-  band_candidate best;
-  for(const auto& band : bands)
-  {
-    if(band.size() < 2)
-      continue;
-    bool ok = true;
-    int h0 = children[band.front()].bounds.h;
-    for(int idx : band)
-    {
-      if(!is_button_class(children[idx].qt_class) ||
-         std::abs(children[idx].bounds.h - h0) > k_h_tol)
-      {
-        ok = false;
-        break;
-      }
-    }
-    if(!ok)
-      continue;
-    for(size_t i = 0; ok && i < band.size(); ++i)
-    {
-      for(size_t j = i + 1; j < band.size(); ++j)
-      {
-        if(rects_overlap_x(children[band[i]].bounds, children[band[j]].bounds))
+        const std::string& cls = children[g.children[i].control_index].qt_class;
+        if(cls != "QLabel" || g.cells[i].colspan != 1)
         {
-          ok = false;
+          labels_only = false;
           break;
         }
       }
     }
-    if(!ok)
-      continue;
-
-    std::vector<int> order = band;
-    std::stable_sort(order.begin(), order.end(), [&](int a, int b)
+    if(labels_only)
     {
-      return children[a].bounds.x < children[b].bounds.x;
-    });
-    band_candidate cand;
-    cand.kind = pattern_kind::button_row;
-    cand.children = order;
-    cand.spans.assign(order.size(), cell_span{});
-    for(size_t c = 0; c < order.size(); ++c)
-      cand.spans[c].column = static_cast<int>(c);
-    cand.score = static_cast<int>(order.size()) * 4;
-    if(cand.score > best.score)
-      best = std::move(cand);
+      int value_col = INT_MAX;
+      for(size_t i = 0; i < g.cells.size(); ++i)
+      {
+        const node::cell& c = g.cells[i];
+        const std::string& cls = children[g.children[i].control_index].qt_class;
+        if(c.column > 0 && cls != "QLabel")
+          value_col = std::min(value_col, c.column);
+      }
+      if(value_col != INT_MAX && value_col < static_cast<int>(xb.size()))
+        g.label_column_minwidth = xb[value_col] - xb[0];
+    }
   }
-  return best;
+
+  /* Keypad-style grids: many equal-sized cells forming a dense rectangle. Give
+     every row/column equal stretch so the cells stay equal on resize. */
+  if(indices.size() >= 6 && g.rows >= 2 && g.columns >= 2 &&
+     g.rows * g.columns == static_cast<int>(indices.size()))
+  {
+    const rect& r0 = children[indices.front()].bounds;
+    bool uniform = true;
+    for(int idx : indices)
+    {
+      const rect& b = children[idx].bounds;
+      if(std::abs(b.w - r0.w) > 1 || std::abs(b.h - r0.h) > 1)
+      {
+        uniform = false;
+        break;
+      }
+    }
+    for(const node::cell& c : g.cells)
+    {
+      if(c.rowspan != 1 || c.colspan != 1)
+      {
+        uniform = false;
+        break;
+      }
+    }
+    if(uniform)
+    {
+      g.equal_row_stretch = 1;
+      g.equal_col_stretch = 1;
+    }
+  }
+
+  return g;
 }
 
-/* Best label_table band: a contiguous run (in y order) of label+value rows
-   sharing a common x split. The run must have at least two rows and four
-   widgets. */
-band_candidate find_label_table_band(const std::vector<child>& children,
-                                     const std::vector<std::vector<int>>& bands)
+/* Cross-axis boundaries strictly inside a group's extent. For a row group
+   (vertical stacking) these are the x coordinates that split the row into
+   columns; for a column group they are the y coordinates that split it into
+   rows. */
+std::vector<int> group_splits(const std::vector<child>& children,
+                              const std::vector<int>& group, bool vertical)
 {
-  auto is_form_row = [&](const std::vector<int>& band, int& label_x, int& value_x)
+  int lo = INT_MAX;
+  int hi = INT_MIN;
+  for(int idx : group)
   {
-    if(band.size() < 2)
+    const rect& b = children[idx].bounds;
+    int s = vertical ? b.x : b.y;
+    int e = vertical ? b.x + b.w : b.y + b.h;
+    lo = std::min(lo, s);
+    hi = std::max(hi, e);
+  }
+  std::vector<int> splits;
+  for(int idx : group)
+  {
+    const rect& b = children[idx].bounds;
+    int s = vertical ? b.x : b.y;
+    int e = vertical ? b.x + b.w : b.y + b.h;
+    if(s > lo && s < hi)
+      splits.push_back(s);
+    if(e > lo && e < hi)
+      splits.push_back(e);
+  }
+  std::sort(splits.begin(), splits.end());
+  splits.erase(std::unique(splits.begin(), splits.end()), splits.end());
+  return splits;
+}
+
+bool splits_compatible(const std::vector<int>& a, const std::vector<int>& b)
+{
+  if(a.size() != b.size())
+    return false;
+  for(size_t i = 0; i < a.size(); ++i)
+  {
+    if(std::abs(a[i] - b[i]) > k_tol)
       return false;
-    if(children[band.front()].qt_class != "QLabel")
-      return false;
-    label_x = children[band.front()].bounds.x;
-    value_x = children[band[1]].bounds.x;
-    return true;
+  }
+  return true;
+}
+
+node solve_rec(const std::vector<child>& children, const std::vector<int>& indices,
+               unsigned enabled, int depth, int container_w, int container_h);
+
+/* Build a box from a group decomposition of its children. vertical selects
+   box_y (groups are horizontal bands) vs box_x (groups are vertical columns).
+   Consecutive groups that share a cross-axis structure become a nested grid
+   subgroup. container_extent is the container size along the box axis
+   (meaningful for the root container only) and drives the trailing spacer. */
+node build_box(const std::vector<child>& children, bool vertical,
+               const std::vector<std::vector<int>>& groups,
+               unsigned enabled, int depth, int container_extent,
+               int container_w, int container_h)
+{
+  node box;
+  box.k = vertical ? node::kind::box_y : node::kind::box_x;
+
+  struct slot
+  {
+    bool is_grid = false;
+    std::vector<int> members;
   };
 
-  band_candidate best;
-  size_t r = 0;
-  while(r < bands.size())
+  std::vector<slot> slots;
+  size_t i = 0;
+  while(i < groups.size())
   {
-    int label_x = 0;
-    int value_x = 0;
-    if(!is_form_row(bands[r], label_x, value_x))
+    if(groups[i].size() < 2 || !(enabled & pattern_grid))
     {
-      ++r;
+      slots.push_back({ false, groups[i] });
+      ++i;
       continue;
     }
-    size_t run_start = r;
-    std::vector<int> run_children = bands[r];
-    int max_label_w = children[bands[r].front()].bounds.w;
-    size_t end = r;
-    while(end + 1 < bands.size())
+    std::vector<int> splits = group_splits(children, groups[i], vertical);
+    size_t j = i + 1;
+    while(j < groups.size() && groups[j].size() >= 2)
     {
-      int lx = 0;
-      int vx = 0;
-      if(!is_form_row(bands[end + 1], lx, vx))
+      if(!splits_compatible(splits, group_splits(children, groups[j], vertical)))
         break;
-      if(std::abs(lx - label_x) > k_x_tol || std::abs(vx - value_x) > k_x_tol)
-        break;
-      ++end;
-      run_children.insert(run_children.end(), bands[end].begin(), bands[end].end());
-      max_label_w = std::max(max_label_w, children[bands[end].front()].bounds.w);
+      ++j;
     }
-    (void)run_start;
-    if(run_children.size() >= 4)
+    if(j - i >= 2)
     {
-      band_candidate cand;
-      cand.kind = pattern_kind::label_table;
-      cand.children = run_children;
-      cand.spans.assign(run_children.size(), cell_span{});
-      for(size_t br = r; br <= end; ++br)
-      {
-        for(size_t bc = 0; bc < bands[br].size(); ++bc)
-        {
-          size_t offset = 0;
-          for(size_t pr = r; pr < br; ++pr)
-            offset += bands[pr].size();
-          offset += bc;
-          cell_span& span = cand.spans[offset];
-          span.row = static_cast<int>(br - r);
-          span.column = static_cast<int>(bc);
-        }
-      }
-      /* Encode the RC alignment directly: column 0 width is chosen so the
-         value column starts exactly at the shared value x. */
-      cand.label_column_minwidth = value_x - label_x - 6;
-      cand.score = static_cast<int>(run_children.size()) * 3;
-      if(cand.score > best.score)
-        best = std::move(cand);
+      std::vector<int> members;
+      for(size_t g = i; g < j; ++g)
+        members.insert(members.end(), groups[g].begin(), groups[g].end());
+      slots.push_back({ true, std::move(members) });
     }
-    r = end + 1;
+    else
+    {
+      slots.push_back({ false, groups[i] });
+    }
+    i = j;
   }
-  return best;
+
+  for(const slot& s : slots)
+  {
+    if(s.is_grid)
+    {
+      box.children.push_back(build_grid(children, s.members));
+    }
+    else
+    {
+      box.children.push_back(solve_rec(children, s.members, enabled, depth + 1,
+                                       container_w, container_h));
+    }
+  }
+
+  /* Cross-axis alignment of each child against the box's overall extent. */
+  int min_a = INT_MAX;
+  int max_a = INT_MIN;
+  {
+    int mnx = INT_MAX, mny = INT_MAX, mxx = INT_MIN, mxy = INT_MIN;
+    node_bounds(children, box, mnx, mny, mxx, mxy);
+    min_a = vertical ? mnx : mny;
+    max_a = vertical ? mxx : mxy;
+  }
+  const int extent = max_a - min_a;
+  for(node& c : box.children)
+  {
+    int mnx = INT_MAX, mny = INT_MAX, mxx = INT_MIN, mxy = INT_MIN;
+    node_bounds(children, c, mnx, mny, mxx, mxy);
+    const int c_lo = vertical ? mnx : mny;
+    const int c_hi = vertical ? mxx : mxy;
+    if(vertical)
+    {
+      if((mxx - mnx) >= extent - k_tol)
+        c.halign = align_h::fill;
+      else if(c.k == node::kind::grid && mnx <= min_a + k_margin &&
+              mxx >= max_a - k_margin)
+      {
+        /* A grid whose content spans nearly the whole band is a full-width row
+           with wide internal gaps: fill it so the empty gap columns expand into
+           real space instead of collapsing under a left alignment. */
+        c.halign = align_h::fill;
+      }
+      else if(c_lo <= min_a + k_margin)
+        c.halign = align_h::left;
+      else if(c_hi >= max_a - k_margin)
+        c.halign = align_h::right;
+      else
+        c.halign = align_h::center;
+    }
+    else
+    {
+      if((mxy - mny) >= extent - k_tol)
+        c.valign = align_v::fill;
+      else if(c.k == node::kind::grid && mny <= min_a + k_margin &&
+              mxy >= max_a - k_margin)
+        c.valign = align_v::fill;
+      else if(c_lo <= min_a + k_margin)
+        c.valign = align_v::top;
+      else if(c_hi >= max_a - k_margin)
+        c.valign = align_v::bottom;
+      else
+        c.valign = align_v::center;
+    }
+  }
+
+  /* Trailing spacer for the free space below the content, so widgets keep
+     their RC positions when the container grows. */
+  if(depth == 0 && (enabled & pattern_spacer) && container_extent > 0)
+  {
+    int mnx = INT_MAX, mny = INT_MAX, mxx = INT_MIN, mxy = INT_MIN;
+    node_bounds(children, box, mnx, mny, mxx, mxy);
+    const int used = vertical ? mxy : mxx;
+    const int leftover = container_extent - used;
+    if(leftover > 0)
+      box.spacer_size = leftover;
+  }
+
+  if(box.children.size() == 1 && box.spacer_size == 0)
+    return std::move(box.children.front());
+
+  return box;
 }
 
-/* Convert a band candidate into the container plan's band record, computing
-   its cell in the top-level edge grid from its bounding box. */
-band finish_band(const band_candidate& cand,
-                             const std::vector<child>& children,
-                             const std::vector<int>& xb, const std::vector<int>& yb)
+node solve_rec(const std::vector<child>& children, const std::vector<int>& indices,
+               unsigned enabled, int depth, int container_w, int container_h)
 {
-  rc::layout::band b;
-  b.kind = cand.kind;
-  b.children = cand.children;
-  b.spans = cand.spans;
-  b.label_column_minwidth = cand.label_column_minwidth;
+  if(indices.empty())
+    return {};
 
-  int min_x = children[cand.children.front()].bounds.x;
-  int max_x = min_x + children[cand.children.front()].bounds.w;
-  int min_y = children[cand.children.front()].bounds.y;
-  int max_y = min_y + children[cand.children.front()].bounds.h;
-  for(int idx : cand.children)
+  if(indices.size() == 1)
   {
-    const rect& r = children[idx].bounds;
-    min_x = std::min(min_x, r.x);
-    min_y = std::min(min_y, r.y);
-    max_x = std::max(max_x, r.x + r.w);
-    max_y = std::max(max_y, r.y + r.h);
+    node leaf;
+    leaf.control_index = indices.front();
+    return leaf;
   }
-  b.column = boundary_index(xb, min_x);
-  int right = boundary_index(xb, max_x);
-  b.colspan = std::max(1, right - b.column);
-  b.row = boundary_index(yb, min_y);
-  int bottom = boundary_index(yb, max_y);
-  b.rowspan = std::max(1, bottom - b.row);
 
-  int max_row = 0;
-  int max_col = 0;
-  for(const cell_span& s : cand.spans)
+  std::vector<std::vector<int>> bands = group_by_interval(children, indices, true);
+  std::vector<std::vector<int>> cols = group_by_interval(children, indices, false);
+
+  if(bands.size() > 1)
   {
-    max_row = std::max(max_row, s.row + s.rowspan);
-    max_col = std::max(max_col, s.column + s.colspan);
+    return build_box(children, true, bands, enabled, depth, container_h,
+                     container_w, container_h);
   }
-  b.rows = max_row;
-  b.columns = max_col;
-  return b;
+
+  /* One horizontal band: several widgets side by side. QGridLayout sizes its
+     columns from the widgets' minimum widths, which reproduces the RC x
+     positions far better than a QHBoxLayout (whose sizeHint-based
+     distribution shifts trailing widgets). Emit a single-row grid. */
+  if(cols.size() > 1)
+  {
+    return build_grid(children, indices);
+  }
+
+  /* One strip on both axes with several children: a genuinely overlapping
+     group, fall back to the edge-boundary grid. */
+  return build_grid(children, indices);
 }
 
 } // namespace
 
-container_plan solve_container(const std::vector<child>& children, unsigned enabled)
+node solve_container(const std::vector<child>& children, unsigned enabled,
+                     int container_w, int container_h)
 {
-  container_plan best = edge_grid(children);
-  int best_score = 0;
+  if(children.empty())
+    return {};
 
-  auto try_match = [&](pattern_kind kind, unsigned flag, bool (*match)(const std::vector<child>&, container_plan&))
-  {
-    if((enabled & flag) == 0)
-      return;
-    container_plan plan;
-    plan.spans.assign(children.size(), cell_span{});
-    if(!match(children, plan))
-      return;
-    int score = pattern_score(kind, children.size());
-    if(score > best_score)
-    {
-      best = plan;
-      best_score = score;
-    }
-  };
+  std::vector<int> indices(children.size());
+  for(size_t i = 0; i < indices.size(); ++i)
+    indices[i] = static_cast<int>(i);
 
-  try_match(pattern_kind::label_table, pattern_label_table, match_label_table);
-  try_match(pattern_kind::button_row, pattern_button_row, match_button_row);
-  try_match(pattern_kind::keypad_grid, pattern_keypad_grid, match_keypad_grid);
-  try_match(pattern_kind::stack_rows, pattern_stack_rows, match_stack_rows);
+  if(!(enabled & pattern_box))
+    return build_grid(children, indices);
 
-  /* Band splits: keep the top-level edge grid and move a detected pattern into
-     a nested layout cell. Only applied when no whole-container pattern won. */
-  if(best.kind == pattern_kind::none)
-  {
-    std::vector<int> xb;
-    std::vector<int> yb;
-    edge_grid(children, &xb, &yb);
+  node root = solve_rec(children, indices, enabled, 0, container_w, container_h);
 
-    std::vector<std::vector<int>> bands = y_bands(children);
-    band_candidate buttons = find_button_row_band(children, bands);
-    band_candidate table = find_label_table_band(children, bands);
+  if(root.k == node::kind::item)
+    return build_grid(children, indices);
 
-    /* Apply every detected band split; the two detectors look at disjoint
-       y-regions (a button row band vs. contiguous form rows), so their cells
-       in the top-level grid never collide. */
-    std::vector<band_candidate*> splits;
-    if((enabled & pattern_button_row) && buttons.score > 0)
-      splits.push_back(&buttons);
-    if((enabled & pattern_label_table) && table.score > 0)
-      splits.push_back(&table);
-
-    for(band_candidate* split : splits)
-    {
-      best.bands.push_back(finish_band(*split, children, xb, yb));
-      /* Band children share the band's grid cell; direct children keep their
-         edge-grid spans. */
-      for(size_t k = 0; k < children.size(); ++k)
-      {
-        bool in_band = false;
-        for(int ci : best.bands.back().children)
-        {
-          if(ci == static_cast<int>(k))
-          {
-            in_band = true;
-            break;
-          }
-        }
-        if(in_band)
-          best.spans[k] = cell_span{ best.bands.back().row,
-                                     best.bands.back().column,
-                                     best.bands.back().rowspan,
-                                     best.bands.back().colspan };
-      }
-    }
-  }
-
-  return best;
+  return root;
 }
 
 } // namespace layout

@@ -465,7 +465,8 @@ struct builder
 QWidget* build_widget(const pugi::xml_node& node, QWidget* parent, builder& b);
 
 void build_layout(const pugi::xml_node& node, QWidget* owner, builder& b,
-                  QLayout* parent_layout, int row, int col, int rowspan, int colspan)
+                  QLayout* parent_layout, int row, int col, int rowspan, int colspan,
+                  Qt::Alignment item_align = Qt::Alignment())
 {
   std::string cls = node.attribute("class").value();
   QLayout* layout = parent_layout ? create_layout(cls, nullptr) : create_layout(cls, owner);
@@ -520,6 +521,8 @@ void build_layout(const pugi::xml_node& node, QWidget* owner, builder& b,
       g->addLayout(layout, row, col, rowspan, colspan);
     else if(auto box = qobject_cast<QBoxLayout*>(parent_layout))
       box->addLayout(layout);
+    if(item_align)
+      parent_layout->setAlignment(layout, item_align);
   }
 
   QWidget* owner_effective = owner;
@@ -534,19 +537,29 @@ void build_layout(const pugi::xml_node& node, QWidget* owner, builder& b,
     int icol = item.attribute("column").as_int(0);
     int irs = item.attribute("rowspan").as_int(1);
     int ics = item.attribute("colspan").as_int(1);
+    Qt::Alignment item_align = Qt::Alignment();
+    std::string align_str = item.attribute("alignment").value();
+    if(!align_str.empty())
+      item_align = alignment_from_set(align_str);
 
     if(child_tag == "widget")
     {
       QWidget* w = build_widget(child, owner_effective, b);
       b.widget_container[w] = owner_effective;
       if(auto g = qobject_cast<QGridLayout*>(layout))
+      {
         g->addWidget(w, irow, icol, irs, ics);
+      }
       else if(auto box = qobject_cast<QBoxLayout*>(layout))
+      {
         box->addWidget(w);
+      }
+      if(item_align)
+        layout->setAlignment(w, item_align);
     }
     else if(child_tag == "layout")
     {
-      build_layout(child, owner, b, layout, irow, icol, irs, ics);
+      build_layout(child, owner, b, layout, irow, icol, irs, ics, item_align);
     }
     else if(child_tag == "spacer")
     {
@@ -562,7 +575,10 @@ void build_layout(const pugi::xml_node& node, QWidget* owner, builder& b,
       if(auto g = qobject_cast<QGridLayout*>(layout))
         g->addItem(new QSpacerItem(sw, sh, policy, policy), irow, icol);
       else if(auto box = qobject_cast<QBoxLayout*>(layout))
+      {
         box->addItem(new QSpacerItem(sw, sh, policy, policy));
+        box->setStretch(box->count() - 1, 1);
+      }
     }
   }
 }
@@ -677,6 +693,10 @@ result verify_layout(const verify_input& input, const std::string& dump_dir)
     dh_sum += std::fabs(dh);
     res.max_dx = std::max(res.max_dx, std::fabs(dx));
     res.max_dy = std::max(res.max_dy, std::fabs(dy));
+    if(std::getenv("RC2QT_VERIFY_DEBUG"))
+      printf("  VW %-24s target(%4d,%4d,%4d,%4d) render(%4d,%4d,%4d,%4d) dx=%4.0f dy=%4.0f\n",
+             name.c_str(), target.x, target.y, target.w, target.h,
+             r.x(), r.y(), r.width(), r.height(), dx, dy);
 
     QRect target_rect(target.x, target.y, target.w, target.h);
     QRect isect = r.intersected(target_rect);

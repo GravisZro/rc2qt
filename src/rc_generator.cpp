@@ -1017,6 +1017,19 @@ void generator::control_layout_pixel_size(const control& ctrl, const std::string
 
 #ifdef HAVE_QT
 
+int generator::multiline_edit_min_height(int height_dlu) const
+{
+  /* RC multiline edit controls are sized with the convention height = 8 DLU
+     per text row plus a 10 DLU frame. Express the minimum height in terms of
+     the rows the control should contain so it always shows that many lines,
+     regardless of the runtime font. */
+  int rows = std::max(1, static_cast<int>(std::lround((height_dlu - 10) / 8.0)));
+  double line_height = m_font_height;
+  double frame = dlu_to_pixel_y(10);
+  int rows_height = static_cast<int>(std::lround(rows * line_height + frame));
+  return std::max(rows_height, dlu_to_pixel_y(height_dlu));
+}
+
 void generator::write_dialog_layout(pugi::xml_node& parent, const resource& res)
 {
   if(!std::holds_alternative<dialog_data>(res.data))
@@ -1088,17 +1101,19 @@ void generator::write_dialog_layout(pugi::xml_node& parent, const resource& res)
   };
 
   build_tree(build_tree, root, -1);
-  emit_layout_container(widget, root, dialog_name);
+  emit_layout_container(widget, root, dialog_name,
+                        dlu_to_pixel_x(dd.width), dlu_to_pixel_y(dd.height));
 }
 
 void generator::emit_layout_container(pugi::xml_node& container_widget, const layout_node& node,
-                                      const std::string& dialog_name)
+                                      const std::string& dialog_name,
+                                      int container_w, int container_h)
 {
   if(node.children.empty())
     return;
 
-  /* Pixel rects feed the edge-boundary solver; they match the geometry
-     write_control() would emit in absolute mode. */
+  /* Pixel rects feed the layout solver; they match the geometry write_control()
+     would emit in absolute mode. */
   std::vector<rc::layout::child> items(node.children.size());
   for(size_t i = 0; i < node.children.size(); ++i)
   {
@@ -1110,175 +1125,162 @@ void generator::emit_layout_container(pugi::xml_node& container_widget, const la
     control_layout_pixel_size(child.ctrl, child.qt_class, items[i].bounds.w, items[i].bounds.h);
   }
 
-  unsigned pattern_flags = rc::layout::pattern_all;
+  /* Default: box decomposition + grid subgroups + per-item alignment. The
+     stretch and trailing-spacer patterns measurably hurt fidelity (they push
+     widgets off their RC positions), so they stay off by default. */
+  unsigned pattern_flags = rc::layout::pattern_box | rc::layout::pattern_grid |
+                           rc::layout::pattern_align;
   if(const char* env = std::getenv("RC2QT_PATTERNS"))
     pattern_flags = static_cast<unsigned>(std::strtoul(env, nullptr, 0));
-  rc::layout::container_plan plan = rc::layout::solve_container(items, pattern_flags);
 
-  /* Emit items in row-major order so the XML is stable and readable. For box
-     layouts this yields the left-to-right/top-to-bottom item order they need
-     (button_row: row 0, columns 0..n-1; stack_rows: rows 0..n-1, column 0). */
-  std::vector<int> order(node.children.size());
-  for(size_t i = 0; i < order.size(); ++i)
-    order[i] = static_cast<int>(i);
-  std::stable_sort(order.begin(), order.end(), [&](int a, int b)
-  {
-    const rc::layout::cell_span& sa = plan.spans[a];
-    const rc::layout::cell_span& sb = plan.spans[b];
-    if(sa.row != sb.row)
-      return sa.row < sb.row;
-    if(sa.column != sb.column)
-      return sa.column < sb.column;
-    if(items[a].bounds.y != items[b].bounds.y)
-      return items[a].bounds.y < items[b].bounds.y;
-    return items[a].bounds.x < items[b].bounds.x;
-  });
+  rc::layout::node root = rc::layout::solve_container(items, pattern_flags,
+                                                      container_w, container_h);
+  emit_layout_node(container_widget, root, node, dialog_name, items, pattern_flags,
+                   container_widget.attribute("name").value());
+}
 
-  bool box_layout = plan.kind == rc::layout::pattern_kind::button_row ||
-                    plan.kind == rc::layout::pattern_kind::stack_rows;
+/* Serialize one layout-tree node under parent (a container widget or an item).
+   Leaves are written with write_control(); nested tree nodes recurse into a
+   nested <layout> element inside the item. */
+void generator::emit_layout_node(pugi::xml_node& parent, const rc::layout::node& ln,
+                                 const layout_node& node, const std::string& dialog_name,
+                                 const std::vector<rc::layout::child>& items,
+                                 unsigned pattern_flags, const std::string& container_name)
+{
+  const bool is_grid = ln.k == rc::layout::node::kind::grid;
+  const bool is_box_x = ln.k == rc::layout::node::kind::box_x;
 
-  /* Band splits emit a top-level grid with nested pattern layouts in cells;
-     every child belonging to a band is written inside its band's layout. */
-  std::vector<int> band_of_child(node.children.size(), -1);
-  for(size_t bi = 0; bi < plan.bands.size(); ++bi)
-  {
-    for(int ci : plan.bands[bi].children)
-      band_of_child[static_cast<size_t>(ci)] = static_cast<int>(bi);
-  }
-
-  auto write_child = [&](pugi::xml_node item, int k)
-  {
-    const layout_child& child = node.children[k];
-    write_control(item, child.ctrl, dialog_name, 0, 0, false);
-
-    if(m_collect_verify)
-    {
-      render::target t;
-      t.x = items[k].bounds.x;
-      t.y = items[k].bounds.y;
-      t.w = items[k].bounds.w;
-      t.h = items[k].bounds.h;
-      t.container = container_widget.attribute("name").value();
-      m_verify_targets[item.last_child().attribute("name").value()] = t;
-    }
-
-    if(child.nested_index >= 0)
-    {
-      pugi::xml_node gb_widget = item.last_child();
-      emit_layout_container(gb_widget, node.nested[child.nested_index], dialog_name);
-    }
-  };
-
-  auto emit_band = [&](pugi::xml_node item, const rc::layout::band& bnd)
-  {
-    pugi::xml_node bl = item.append_child("layout");
-    std::string bl_class = "QGridLayout";
-    bool bnd_box = false;
-    if(bnd.kind == rc::layout::pattern_kind::button_row)
-    {
-      bl_class = "QHBoxLayout";
-      bnd_box = true;
-    }
-    else if(bnd.kind == rc::layout::pattern_kind::stack_rows)
-    {
-      bl_class = "QVBoxLayout";
-      bnd_box = true;
-    }
-    set_attr(bl, "class", bl_class.c_str());
-    set_attr(bl, "name", unique_name("layout"));
-    add_property_int(bl, "spacing", 6);
-    add_property_int(bl, "margin", 0);
-    if(bnd.kind == rc::layout::pattern_kind::label_table &&
-       bnd.label_column_minwidth > 0)
-      set_attr(bl, "columnminimumwidth", bnd.label_column_minwidth);
-    if(bnd.kind == rc::layout::pattern_kind::keypad_grid)
-    {
-      std::string row_stretch;
-      for(int r = 0; r < bnd.rows; ++r)
-        row_stretch += (r ? "," : "") + std::to_string(1);
-      std::string col_stretch;
-      for(int c = 0; c < bnd.columns; ++c)
-        col_stretch += (c ? "," : "") + std::to_string(1);
-      set_attr(bl, "rowstretch", row_stretch.c_str());
-      set_attr(bl, "columnstretch", col_stretch.c_str());
-    }
-    for(size_t bi = 0; bi < bnd.children.size(); ++bi)
-    {
-      pugi::xml_node bitem = bl.append_child("item");
-      if(!bnd_box)
-      {
-        const rc::layout::cell_span& bs = bnd.spans[bi];
-        set_attr(bitem, "row", bs.row);
-        set_attr(bitem, "column", bs.column);
-        if(bs.rowspan > 1)
-          set_attr(bitem, "rowspan", bs.rowspan);
-        if(bs.colspan > 1)
-          set_attr(bitem, "colspan", bs.colspan);
-      }
-      write_child(bitem, bnd.children[bi]);
-    }
-  };
-
-  pugi::xml_node layout = container_widget.append_child("layout");
-  std::string layout_class = "QGridLayout";
-  if(plan.kind == rc::layout::pattern_kind::button_row)
-    layout_class = "QHBoxLayout";
-  else if(plan.kind == rc::layout::pattern_kind::stack_rows)
-    layout_class = "QVBoxLayout";
-  set_attr(layout, "class", layout_class.c_str());
+  pugi::xml_node layout = parent.append_child("layout");
+  set_attr(layout, "class", is_grid ? "QGridLayout"
+                                    : (is_box_x ? "QHBoxLayout" : "QVBoxLayout"));
   set_attr(layout, "name", unique_name("layout"));
   add_property_int(layout, "spacing", 6);
   add_property_int(layout, "margin", 0);
 
-  if(plan.kind == rc::layout::pattern_kind::label_table &&
-     plan.label_column_minwidth > 0)
-    set_attr(layout, "columnminimumwidth", plan.label_column_minwidth);
+  if(is_grid && ln.label_column_minwidth > 0)
+    set_attr(layout, "columnminimumwidth", ln.label_column_minwidth);
 
-  if(plan.kind == rc::layout::pattern_kind::keypad_grid)
+  if(is_grid && (pattern_flags & rc::layout::pattern_stretch) &&
+     ln.equal_row_stretch > 0)
   {
     std::string row_stretch;
-    for(int r = 0; r < plan.rows; ++r)
-      row_stretch += (r ? "," : "") + std::to_string(1);
+    for(int r = 0; r < ln.rows; ++r)
+      row_stretch += (r ? "," : "") + std::to_string(ln.equal_row_stretch);
     std::string col_stretch;
-    for(int c = 0; c < plan.columns; ++c)
-      col_stretch += (c ? "," : "") + std::to_string(1);
+    for(int c = 0; c < ln.columns; ++c)
+      col_stretch += (c ? "," : "") + std::to_string(ln.equal_col_stretch);
     set_attr(layout, "rowstretch", row_stretch.c_str());
     set_attr(layout, "columnstretch", col_stretch.c_str());
   }
 
-  std::vector<bool> band_emitted(plan.bands.size(), false);
+  /* Grid items are emitted in row-major order so the XML is stable; box items
+     keep the solver's reading order. */
+  std::vector<int> order(ln.children.size());
+  for(size_t i = 0; i < order.size(); ++i)
+    order[i] = static_cast<int>(i);
+  if(is_grid)
+  {
+    std::stable_sort(order.begin(), order.end(), [&](int a, int b)
+    {
+      const rc::layout::node::cell& ca = ln.cells[a];
+      const rc::layout::node::cell& cb = ln.cells[b];
+      if(ca.row != cb.row)
+        return ca.row < cb.row;
+      if(ca.column != cb.column)
+        return ca.column < cb.column;
+      const rc::layout::rect& ra = items[ln.children[a].control_index].bounds;
+      const rc::layout::rect& rb = items[ln.children[b].control_index].bounds;
+      if(ra.y != rb.y)
+        return ra.y < rb.y;
+      return ra.x < rb.x;
+    });
+  }
+
+  const auto alignment_attr = [&](const rc::layout::node& c) -> std::string
+  {
+    if(!(pattern_flags & rc::layout::pattern_align))
+      return "";
+    std::string h;
+    std::string v;
+    if(c.halign == rc::layout::align_h::left)
+      h = "Qt::AlignLeft";
+    else if(c.halign == rc::layout::align_h::right)
+      h = "Qt::AlignRight";
+    else if(c.halign == rc::layout::align_h::center)
+      h = "Qt::AlignHCenter";
+    if(c.valign == rc::layout::align_v::top)
+      v = "Qt::AlignTop";
+    else if(c.valign == rc::layout::align_v::bottom)
+      v = "Qt::AlignBottom";
+    else if(c.valign == rc::layout::align_v::center)
+      v = "Qt::AlignVCenter";
+    if(h.empty() && v.empty())
+      return "";
+    return h.empty() ? v : (v.empty() ? h : h + "|" + v);
+  };
+
   for(int k : order)
   {
-    int bi = band_of_child[k];
-    if(bi >= 0)
-    {
-      if(band_emitted[bi])
-        continue;
-      band_emitted[bi] = true;
-      const rc::layout::band& bnd = plan.bands[bi];
-      pugi::xml_node item = layout.append_child("item");
-      set_attr(item, "row", bnd.row);
-      set_attr(item, "column", bnd.column);
-      if(bnd.rowspan > 1)
-        set_attr(item, "rowspan", bnd.rowspan);
-      if(bnd.colspan > 1)
-        set_attr(item, "colspan", bnd.colspan);
-      emit_band(item, bnd);
-      continue;
-    }
-
-    const rc::layout::cell_span& span = plan.spans[k];
+    const rc::layout::node& child = ln.children[k];
     pugi::xml_node item = layout.append_child("item");
-    if(!box_layout)
+    if(is_grid)
     {
-      set_attr(item, "row", span.row);
-      set_attr(item, "column", span.column);
-      if(span.rowspan > 1)
-        set_attr(item, "rowspan", span.rowspan);
-      if(span.colspan > 1)
-        set_attr(item, "colspan", span.colspan);
+      const rc::layout::node::cell& c = ln.cells[k];
+      set_attr(item, "row", c.row);
+      set_attr(item, "column", c.column);
+      if(c.rowspan > 1)
+        set_attr(item, "rowspan", c.rowspan);
+      if(c.colspan > 1)
+        set_attr(item, "colspan", c.colspan);
     }
-    write_child(item, k);
+    std::string align = alignment_attr(child);
+    if(!align.empty())
+      set_attr(item, "alignment", align.c_str());
+
+    if(child.k == rc::layout::node::kind::item)
+    {
+      const int k_ctrl = child.control_index;
+      const layout_child& lc = node.children[k_ctrl];
+      write_control(item, lc.ctrl, dialog_name, 0, 0, false);
+
+      if(m_collect_verify)
+      {
+        render::target t;
+        t.x = items[k_ctrl].bounds.x;
+        t.y = items[k_ctrl].bounds.y;
+        t.w = items[k_ctrl].bounds.w;
+        t.h = items[k_ctrl].bounds.h;
+        t.container = container_name;
+        m_verify_targets[item.last_child().attribute("name").value()] = t;
+      }
+
+      if(lc.nested_index >= 0)
+      {
+        pugi::xml_node gb_widget = item.last_child();
+        emit_layout_container(gb_widget, node.nested[lc.nested_index], dialog_name,
+                              items[k_ctrl].bounds.w, items[k_ctrl].bounds.h);
+      }
+    }
+    else
+    {
+      emit_layout_node(item, child, node, dialog_name, items, pattern_flags,
+                       container_name);
+    }
+  }
+
+  /* Trailing spacer absorbs the free space so the widgets keep their RC
+     positions when the container grows. */
+  if(ln.spacer_size > 0)
+  {
+    pugi::xml_node item = layout.append_child("item");
+    pugi::xml_node spacer = item.append_child("spacer");
+    set_attr(spacer, "name", unique_name("spacer"));
+    set_attr(spacer, "orientation", is_box_x ? "Horizontal" : "Vertical");
+    pugi::xml_node prop = spacer.append_child("property");
+    set_attr(prop, "name", "sizeHint");
+    pugi::xml_node size = prop.append_child("size");
+    size.append_child("width").text() = is_box_x ? ln.spacer_size : 20;
+    size.append_child("height").text() = is_box_x ? 20 : ln.spacer_size;
   }
 }
 
@@ -1514,8 +1516,16 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
   {
     /* In layout mode the geometry rect is replaced by a minimum size (from the
        RC size) plus a size policy, so widgets open at their RC size but reflow
-       when the dialog is resized. */
+       when the dialog is resized. Multiline edits derive their minimum height
+       from the number of text rows they should contain. */
+#ifdef HAVE_QT
+    int layout_ph = ph;
+    if(qt_class == "QTextEdit")
+      layout_ph = multiline_edit_min_height(ctrl_h_dlu);
+    add_property_size(widget, "minimumSize", pw, layout_ph);
+#else
     add_property_size(widget, "minimumSize", pw, ph);
+#endif
     if(layout_class_stretches(qt_class))
       add_property_sizepolicy(widget, "Expanding", "Expanding");
     else
@@ -1770,7 +1780,8 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
           child.qt_class = child_classes[i];
           tab_node.children.push_back(std::move(child));
         }
-        emit_layout_container(tab_widget, tab_node, dialog_name);
+        emit_layout_container(tab_widget, tab_node, dialog_name,
+                              dlu_to_pixel_x(dd.width), dlu_to_pixel_y(dd.height));
       }
       else
 #endif
