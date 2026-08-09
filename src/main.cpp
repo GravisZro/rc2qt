@@ -16,6 +16,7 @@
 #ifdef HAVE_QT
 // needed for font database
 #include <QApplication>
+#include "rc_render.h"
 #endif
 
 #include "rc_tokenizer.h"
@@ -52,6 +53,75 @@ static std::string read_file(const std::string& path)
   return ss.str();
 }
 
+#ifdef HAVE_QT
+static int run_verify_layouts(rc::generator& gen, const std::string& render_dir)
+{
+  std::vector<rc::render::verify_input> inputs = gen.take_verify_inputs();
+  if(inputs.empty())
+  {
+    std::cerr << "Verify: no dialogs collected" << std::endl;
+    return 1;
+  }
+
+  std::cout << "Verify: " << inputs.size() << " dialogs offscreen" << std::endl;
+  int total_targets = 0;
+  int total_rendered = 0;
+  int total_missing = 0;
+  int total_overlaps = 0;
+  double iou_sum = 0.0;
+  double dx_sum = 0.0;
+  double dy_sum = 0.0;
+  double dw_sum = 0.0;
+  double dh_sum = 0.0;
+  int mean_count = 0;
+  double max_dx = 0.0;
+  double max_dy = 0.0;
+
+  for(const auto& input : inputs)
+  {
+    rc::render::result r = rc::render::verify_layout(input, render_dir);
+    std::cout << "  " << input.name << ": targets=" << r.target_widgets
+              << " rendered=" << r.rendered_widgets
+              << " missing=" << r.missing_widgets
+              << " iou=" << r.mean_iou
+              << " dx=" << r.mean_dx << " dy=" << r.mean_dy
+              << " dw=" << r.mean_dw << " dh=" << r.mean_dh
+              << " max_dx=" << r.max_dx << " max_dy=" << r.max_dy
+              << " overlaps=" << r.overlap_violations << std::endl;
+    total_targets += r.target_widgets;
+    total_rendered += r.rendered_widgets;
+    total_missing += r.missing_widgets;
+    total_overlaps += r.overlap_violations;
+    if(r.rendered_widgets > 0)
+    {
+      iou_sum += r.mean_iou;
+      dx_sum += r.mean_dx;
+      dy_sum += r.mean_dy;
+      dw_sum += r.mean_dw;
+      dh_sum += r.mean_dh;
+      ++mean_count;
+    }
+    max_dx = std::max(max_dx, r.max_dx);
+    max_dy = std::max(max_dy, r.max_dy);
+  }
+
+  if(mean_count > 0)
+  {
+    std::cout << "Verify: total targets=" << total_targets
+              << " rendered=" << total_rendered
+              << " missing=" << total_missing
+              << " overlaps=" << total_overlaps
+              << " mean_iou=" << iou_sum / mean_count
+              << " mean_dx=" << dx_sum / mean_count
+              << " mean_dy=" << dy_sum / mean_count
+              << " mean_dw=" << dw_sum / mean_count
+              << " mean_dh=" << dh_sum / mean_count
+              << " max_dx=" << max_dx << " max_dy=" << max_dy << std::endl;
+  }
+  return 0;
+}
+#endif
+
 static void print_usage(const char* program_name)
 {
   std::cerr << "Usage: " << program_name << " [options] <file.rc|file.exe>" << std::endl;
@@ -63,6 +133,8 @@ static void print_usage(const char* program_name)
   std::cerr << "  -f             Prevent font substitutions (keep original font names)" << std::endl;
 #ifdef HAVE_QT
   std::cerr << "  -l             Emit Qt layout managers instead of absolute geometry" << std::endl;
+  std::cerr << "  -v             Verify layout-mode output offscreen (requires -l)" << std::endl;
+  std::cerr << "  -d <dir>       Render dump directory for -v (default: none)" << std::endl;
 #endif
   std::cerr << "  -h             Show this help" << std::endl;
 }
@@ -70,6 +142,24 @@ static void print_usage(const char* program_name)
 int main(int argc, char** argv)
 {
 #ifdef HAVE_QT
+  /* Verify mode renders dialogs offscreen; force the Qt offscreen platform
+     unless the caller already selected one. This must happen before the
+     QApplication is constructed. */
+  for(int i = 1; i < argc; ++i)
+  {
+    std::string arg = argv[i];
+    if(arg.size() >= 2 && arg[0] == '-' && arg[1] != '-' &&
+       arg.find('v') != std::string::npos)
+    {
+      if(qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
+        qputenv("QT_QPA_PLATFORM", "offscreen");
+      /* The generator converts dialog units to pixels at 96 DPI; pin the
+         offscreen render to the same DPI so rendered geometry matches. */
+      if(qEnvironmentVariableIsEmpty("QT_FONT_DPI"))
+        qputenv("QT_FONT_DPI", "96");
+      break;
+    }
+  }
   QApplication app(argc, argv);
 #endif
 
@@ -82,11 +172,13 @@ int main(int argc, char** argv)
   bool prevent_font_substitution = false;
 #ifdef HAVE_QT
   bool use_layouts = false;
+  bool verify_layouts = false;
+  std::string render_dir;
 #endif
 
   int opt;
 #ifdef HAVE_QT
-  while((opt = getopt(argc, argv, "o:r:q:m:hnfl")) != -1)
+  while((opt = getopt(argc, argv, "o:r:q:m:hnflvd:")) != -1)
 #else
   while((opt = getopt(argc, argv, "o:r:q:m:hnf")) != -1)
 #endif
@@ -116,6 +208,16 @@ int main(int argc, char** argv)
         use_layouts = true;
 #endif
         break;
+      case 'v':
+#ifdef HAVE_QT
+        verify_layouts = true;
+#endif
+        break;
+      case 'd':
+#ifdef HAVE_QT
+        render_dir = std::filesystem::path(optarg).generic_string();
+#endif
+        break;
       case 'h':
         print_usage(argv[0]);
         return 0;
@@ -131,6 +233,11 @@ int main(int argc, char** argv)
     return 1;
   }
   input_path = std::filesystem::path(argv[optind]).generic_string();
+
+#ifdef HAVE_QT
+  if(verify_layouts)
+    use_layouts = true;
+#endif
 
   if(metrics_path.empty() && std::filesystem::exists("uimetrics.txt"))
     metrics_path = "uimetrics.txt";
@@ -179,6 +286,7 @@ int main(int argc, char** argv)
       gen.set_prevent_font_substitution(prevent_font_substitution);
 #ifdef HAVE_QT
       gen.set_use_layouts(use_layouts);
+      gen.set_collect_verify(verify_layouts);
 #endif
 
     if(!metrics_path.empty())
@@ -245,6 +353,11 @@ int main(int argc, char** argv)
                 << (out_dir / res_dir_name).generic_string() << std::endl;
     else
       std::cerr << "Error: failed to generate dialogs" << std::endl;
+
+#ifdef HAVE_QT
+    if(verify_layouts)
+      return run_verify_layouts(gen, render_dir);
+#endif
 
     std::filesystem::path qrc_path_fs;
     if(!qrc_path.empty())
@@ -389,6 +502,7 @@ int main(int argc, char** argv)
     gen.set_prevent_font_substitution(prevent_font_substitution);
 #ifdef HAVE_QT
     gen.set_use_layouts(use_layouts);
+    gen.set_collect_verify(verify_layouts);
 #endif
       if(!metrics_path.empty())
       {
@@ -413,6 +527,11 @@ int main(int argc, char** argv)
       if(gen.generate_all(file, out_dir.generic_string(), res_dir_name))
         std::cout << "Generated all dialogs in: "
                   << (out_dir / res_dir_name).generic_string() << std::endl;
+
+#ifdef HAVE_QT
+      if(verify_layouts)
+        return run_verify_layouts(gen, render_dir);
+#endif
 
       std::filesystem::path qrc_path_fs;
       if(!qrc_path.empty())

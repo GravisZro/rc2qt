@@ -430,10 +430,29 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     write_actions(root_widget, file);
 
+#ifdef HAVE_QT
+    if(m_collect_verify)
+    {
+      render::verify_input input;
+      input.name = res.id;
+      input.doc = std::move(doc);
+      input.targets = std::move(m_verify_targets);
+      input.dialog_width = dlu_to_pixel_x(dd.width);
+      input.dialog_height = dlu_to_pixel_y(dd.height);
+      m_verify_targets.clear();
+      m_verify_inputs.push_back(std::move(input));
+      continue;
+    }
+#endif
+
     if(doc.save_file(filename.generic_string().c_str(), "  "))
       generated_files.push_back(filename.generic_string());
   }
 
+#ifdef HAVE_QT
+  if(m_collect_verify)
+    return !m_verify_inputs.empty();
+#endif
   return !generated_files.empty();
 }
 
@@ -1128,6 +1147,18 @@ void generator::emit_layout_container(pugi::xml_node& container_widget, const la
 
     const layout_child& child = node.children[k];
     write_control(item, child.ctrl, dialog_name, 0, 0, false);
+
+    if(m_collect_verify)
+    {
+      render::target t;
+      t.x = items[k].bounds.x;
+      t.y = items[k].bounds.y;
+      t.w = items[k].bounds.w;
+      t.h = items[k].bounds.h;
+      t.container = container_widget.attribute("name").value();
+      m_verify_targets[item.last_child().attribute("name").value()] = t;
+    }
+
     if(child.nested_index >= 0)
     {
       pugi::xml_node gb_widget = item.last_child();

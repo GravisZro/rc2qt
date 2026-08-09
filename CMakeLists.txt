@@ -102,6 +102,7 @@ set(SOURCES
 
 if(BUILD_WITH_QT)
   list(APPEND SOURCES src/rc_layout.cpp)
+  list(APPEND SOURCES src/rc_render.cpp)
 endif()
 
 add_executable(${TARGET_NAME} ${HEADERS} ${SOURCES})

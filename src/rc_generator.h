@@ -15,6 +15,7 @@
 #ifdef HAVE_QT
 # include <QFont>
 # include "rc_layout.h"
+# include "rc_render.h"
 #else
 # include <ft2build.h>
 # include <freetype/freetype.h>
@@ -55,6 +56,19 @@ public:
     m_use_layouts = value;
 #endif
   }
+  void set_collect_verify(bool value)
+  {
+    (void)value;
+#ifdef HAVE_QT
+    m_collect_verify = value;
+#endif
+  }
+#ifdef HAVE_QT
+  std::vector<render::verify_input> take_verify_inputs()
+  {
+    return std::move(m_verify_inputs);
+  }
+#endif
 
 private:
   struct text_fit_info
@@ -178,6 +192,9 @@ private:
   bool m_prevent_font_substitution = false;
 #ifdef HAVE_QT
   bool m_use_layouts = false;
+  bool m_collect_verify = false;
+  std::vector<render::verify_input> m_verify_inputs;
+  std::map<std::string, render::target> m_verify_targets;
 #endif
 
   #ifdef HAVE_QT
