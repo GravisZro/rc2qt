@@ -556,6 +556,17 @@ void parser::parse_dialog_resource(resource& res)
     match(token_type::end);
   }
 
+  /* Controls are processed top to bottom, left to right, so sort them by x
+     first and then by y. Stable so controls at identical positions keep their
+     RC source order. */
+  std::stable_sort(dd.controls.begin(), dd.controls.end(),
+    [](const control& a, const control& b)
+    {
+      if(a.x != b.x)
+        return a.x < b.x;
+      return a.y < b.y;
+    });
+
   res.data = dd;
 }
 
