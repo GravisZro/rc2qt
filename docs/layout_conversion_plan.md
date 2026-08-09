@@ -1,6 +1,7 @@
 # Plan: Convert absolute RC coordinates into Qt layout managers
 
-Status: draft, not yet implemented.
+Status: in progress. Phase 1 (infrastructure) implemented and verified; Phase 2
+(guillotine split) in progress.
 
 ## 1. Objective & scope
 
@@ -122,8 +123,13 @@ a box/grid layout; they reflow by construction. Layout mode logs a warning
 
 ## 6. Phased milestones
 
-- **P1 Infrastructure**: `-l` flag, geometry suppression, `emit_layout` emitting
-  a single grid leaf per container; uic-validate a few dialogs.
+- **P1 Infrastructure** (DONE): `-l` flag, geometry suppression, `emit_layout`
+  emitting a single grid leaf per container; uic-validated the whole corpus.
+  Verified absolute mode is byte-identical to pre-change output across all 522
+  `.rc` files, and layout output is deterministic. Known limitation: a single
+  grid leaf per container stacks widgets whose x- or y-intervals are captured by
+  a wide/tall spanning sibling (825 of 946 stacked cells are grid-induced, i.e.
+  source-non-overlapping).
 - **P2 Guillotine**: H/V cuts + grid leaves, no label-table logic; full-corpus
   uic pass.
 - **P3 Label-table specialization**: shared vertical cuts across row bands with

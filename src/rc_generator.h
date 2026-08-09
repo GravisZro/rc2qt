@@ -47,6 +47,8 @@ public:
     { m_disable_geometry_adjustments = value; }
   void set_prevent_font_substitution(bool value)
     { m_prevent_font_substitution = value; }
+  void set_use_layouts(bool value)
+    { m_use_layouts = value; }
 
 private:
   struct text_fit_info
@@ -62,12 +64,22 @@ private:
     int height_px = 0;
   };
 
+  struct grid_cell
+  {
+    int row = 0;
+    int column = 0;
+    int rowspan = 1;
+    int colspan = 1;
+  };
+
   void collect_global_data(const rc_file& file);
 
   void write_dialog(pugi::xml_node& parent, const resource& res);
+  void write_dialog_absolute(pugi::xml_node& parent, const resource& res);
+  void write_dialog_layout(pugi::xml_node& parent, const resource& res);
   void setup_dialog_font(const dialog_data& dd);
   void write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd, int extra_height = 0);
-  void write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0, int extra_height_px = 0);
+  void write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0, int extra_height_px = 0, bool emit_geometry = true);
   void apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px);
 
   text_fit_info fit_text(const std::string& text, int width_dlu, int height_dlu, const std::string& widget_class);
@@ -104,6 +116,16 @@ private:
   void ensure_text_fits(const std::string& text, int& width_dlu, int& height_dlu,
                         pugi::xml_node& widget, const std::string& widget_class);
 
+  void control_layout_pixel_size(const control& ctrl, const std::string& qt_class,
+                                 int& width_px, int& height_px);
+
+  std::vector<int> compute_parent_groupbox(const std::vector<control>& controls,
+                                           const std::vector<std::string>& qt_classes) const;
+
+  void compute_grid_cells(const std::vector<control>& controls,
+                          const std::vector<std::string>& qt_classes,
+                          std::vector<grid_cell>& cells);
+
   void set_current_font(const std::string& font_name, int font_size, int weight, bool italic);
 
   const dialog_stmt* find_statement(const dialog_data& dd, const std::string& keyword) const;
@@ -139,6 +161,7 @@ private:
   bool m_font_italic = false;
   bool m_disable_geometry_adjustments = false;
   bool m_prevent_font_substitution = false;
+  bool m_use_layouts = false;
 
   #ifdef HAVE_QT
   QFont m_current_font;

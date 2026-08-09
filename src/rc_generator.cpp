@@ -122,6 +122,30 @@ namespace rc
     font.append_child("italic").text() = italic ? "true" : "false";
   }
 
+  static void add_property_sizepolicy(pugi::xml_node& widget, const std::string& htype, const std::string& vtype)
+  {
+    pugi::xml_node prop = widget.append_child("property");
+    set_attr(prop, "name", "sizePolicy");
+    pugi::xml_node policy = prop.append_child("sizepolicy");
+    set_attr(policy, "hsizetype", htype);
+    set_attr(policy, "vsizetype", vtype);
+    policy.append_child("horstretch").text() = 0;
+    policy.append_child("verstretch").text() = 0;
+  }
+
+  /* Widget classes that should grow when their container is resized. Everything
+     else keeps a Preferred size, so a dialog opens close to its RC size. */
+  static bool layout_class_stretches(const std::string& qt_class)
+  {
+    static const std::set<std::string> stretch_classes =
+    {
+      "QTextEdit", "QPlainTextEdit", "QListWidget", "QListView",
+      "QTableWidget", "QTableView", "QTreeWidget", "QTreeView",
+      "QScrollArea", "QWidget", "QOpenGLWidget", "QGLWidget",
+    };
+    return stretch_classes.count(qt_class) != 0;
+  }
+
   static std::string map_keyword_to_widget(const std::string& keyword)
   {
     static const std::map<std::string, std::string> keyword_map =
@@ -608,6 +632,18 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
 
 void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 {
+  if(m_use_layouts)
+  {
+    write_dialog_layout(parent, res);
+  }
+  else
+  {
+    write_dialog_absolute(parent, res);
+  }
+}
+
+void generator::write_dialog_absolute(pugi::xml_node& parent, const resource& res)
+{
   if(!std::holds_alternative<dialog_data>(res.data))
     return;
   const auto& dd = std::get<dialog_data>(res.data);
@@ -635,79 +671,7 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
       contains its rect (allowing a small overshoot past the right or bottom
       edge, see below), and only when that box is strictly larger, which keeps
       the parent relation acyclic. */
-  std::vector<int> parent_groupbox(dd.controls.size(), -1);
-  for(size_t i = 0; i < dd.controls.size(); ++i)
-  {
-    if(qt_classes[i] == "QGroupBox")
-      continue;
-
-    const auto& ctrl = dd.controls[i];
-    int disp_h_dlu = ctrl.height;
-    if(qt_classes[i] == "QComboBox")
-    {
-      int closed_dlu = combo_closed_height_dlu(ctrl);
-      if(closed_dlu > 0)
-        disp_h_dlu = closed_dlu;
-    }
-    int16_t cx = ctrl.x + static_cast<int16_t>(ctrl.width / 2);
-    int16_t cy = ctrl.y + static_cast<int16_t>(disp_h_dlu / 2);
-
-    int best_gi = -1;
-    long best_area = 0;
-    for(int gi : groupbox_indices)
-    {
-      const auto& gb = dd.controls[gi];
-      int16_t gb_x = gb.x;
-      int16_t gb_y = gb.y;
-      uint16_t gb_w = gb.width;
-      uint16_t gb_h = gb.height;
-
-      if(cx >= gb_x && cx < gb_x + static_cast<int16_t>(gb_w) &&
-         cy >= gb_y && cy < gb_y + static_cast<int16_t>(gb_h))
-      {
-        long area = static_cast<long>(gb_w) * gb_h;
-        if(best_gi < 0 || area < best_area)
-        {
-          best_gi = gi;
-          best_area = area;
-        }
-      }
-    }
-    parent_groupbox[i] = best_gi;
-  }
-
-  for(int gi : groupbox_indices)
-  {
-    const auto& gb = dd.controls[gi];
-    long gb_area = static_cast<long>(gb.width) * gb.height;
-
-    int best_gi = -1;
-    long best_area = 0;
-    for(int gj : groupbox_indices)
-    {
-      if(gj == gi)
-        continue;
-      const auto& other = dd.controls[gj];
-      long other_area = static_cast<long>(other.width) * other.height;
-      if(other_area <= gb_area)
-        continue;
-
-      /* RC authors often let a nested box poke a couple of DLUs past the right
-         or bottom edge of its container; treat such a box as contained anyway. */
-      constexpr int containment_slop_dlu = 2;
-      if(gb.x >= other.x && gb.y >= other.y &&
-         static_cast<int>(gb.x) + gb.width <= static_cast<int>(other.x) + other.width + containment_slop_dlu &&
-         static_cast<int>(gb.y) + gb.height <= static_cast<int>(other.y) + other.height + containment_slop_dlu)
-      {
-        if(best_gi < 0 || other_area < best_area)
-        {
-          best_gi = gj;
-          best_area = other_area;
-        }
-      }
-    }
-    parent_groupbox[gi] = best_gi;
-  }
+  std::vector<int> parent_groupbox = compute_parent_groupbox(dd.controls, qt_classes);
 
   /* A groupbox node owns the controls nested directly inside it, in RC order
      including any that appear after the box, laid out relative to the box.
@@ -908,6 +872,366 @@ void generator::write_dialog(pugi::xml_node& parent, const resource& res)
   }
 }
 
+std::vector<int> generator::compute_parent_groupbox(const std::vector<control>& controls,
+                                                    const std::vector<std::string>& qt_classes) const
+{
+  std::vector<int> groupbox_indices;
+  for(size_t i = 0; i < controls.size(); ++i)
+  {
+    if(qt_classes[i] == "QGroupBox")
+      groupbox_indices.push_back(static_cast<int>(i));
+  }
+
+  std::vector<int> parent_groupbox(controls.size(), -1);
+  for(size_t i = 0; i < controls.size(); ++i)
+  {
+    if(qt_classes[i] == "QGroupBox")
+      continue;
+
+    const auto& ctrl = controls[i];
+    int disp_h_dlu = ctrl.height;
+    if(qt_classes[i] == "QComboBox")
+    {
+      int closed_dlu = combo_closed_height_dlu(ctrl);
+      if(closed_dlu > 0)
+        disp_h_dlu = closed_dlu;
+    }
+    int16_t cx = ctrl.x + static_cast<int16_t>(ctrl.width / 2);
+    int16_t cy = ctrl.y + static_cast<int16_t>(disp_h_dlu / 2);
+
+    int best_gi = -1;
+    long best_area = 0;
+    for(int gi : groupbox_indices)
+    {
+      const auto& gb = controls[gi];
+      int16_t gb_x = gb.x;
+      int16_t gb_y = gb.y;
+      uint16_t gb_w = gb.width;
+      uint16_t gb_h = gb.height;
+
+      if(cx >= gb_x && cx < gb_x + static_cast<int16_t>(gb_w) &&
+         cy >= gb_y && cy < gb_y + static_cast<int16_t>(gb_h))
+      {
+        long area = static_cast<long>(gb_w) * gb_h;
+        if(best_gi < 0 || area < best_area)
+        {
+          best_gi = gi;
+          best_area = area;
+        }
+      }
+    }
+    parent_groupbox[i] = best_gi;
+  }
+
+  for(int gi : groupbox_indices)
+  {
+    const auto& gb = controls[gi];
+    long gb_area = static_cast<long>(gb.width) * gb.height;
+
+    int best_gi = -1;
+    long best_area = 0;
+    for(int gj : groupbox_indices)
+    {
+      if(gj == gi)
+        continue;
+      const auto& other = controls[gj];
+      long other_area = static_cast<long>(other.width) * other.height;
+      if(other_area <= gb_area)
+        continue;
+
+      /* RC authors often let a nested box poke a couple of DLUs past the right
+         or bottom edge of its container; treat such a box as contained anyway. */
+      constexpr int containment_slop_dlu = 2;
+      if(gb.x >= other.x && gb.y >= other.y &&
+         static_cast<int>(gb.x) + gb.width <= static_cast<int>(other.x) + other.width + containment_slop_dlu &&
+         static_cast<int>(gb.y) + gb.height <= static_cast<int>(other.y) + other.height + containment_slop_dlu)
+      {
+        if(best_gi < 0 || other_area < best_area)
+        {
+          best_gi = gj;
+          best_area = other_area;
+        }
+      }
+    }
+    parent_groupbox[gi] = best_gi;
+  }
+
+  return parent_groupbox;
+}
+
+void generator::control_layout_pixel_size(const control& ctrl, const std::string& qt_class,
+                                          int& width_px, int& height_px)
+{
+  int width_dlu = ctrl.width;
+  int height_dlu = ctrl.height;
+  if(!m_disable_geometry_adjustments)
+  {
+    try
+    {
+      text_fit_info info = fit_text(ctrl.text, width_dlu, height_dlu, qt_class);
+      width_dlu = info.width_dlu;
+      height_dlu = info.height_dlu;
+    }
+    catch(const std::runtime_error&)
+    {
+      width_dlu = ctrl.width;
+      height_dlu = ctrl.height;
+    }
+  }
+
+  width_px = dlu_to_pixel_x(width_dlu);
+  height_px = dlu_to_pixel_y(height_dlu);
+  if(qt_class == "QComboBox")
+  {
+    int closed_dlu = combo_closed_height_dlu(ctrl);
+    if(closed_dlu > 0)
+      height_px = dlu_to_pixel_y(closed_dlu);
+  }
+  int min_w = min_width_px(qt_class);
+  if(width_px < min_w)
+    width_px = min_w;
+  int min_h = min_height_px(qt_class);
+  if(height_px < min_h)
+    height_px = min_h;
+}
+
+void generator::compute_grid_cells(const std::vector<control>& controls,
+                                   const std::vector<std::string>& qt_classes,
+                                   std::vector<grid_cell>& cells)
+{
+  size_t n = controls.size();
+  cells.assign(n, grid_cell{});
+  if(n == 0)
+    return;
+
+  std::vector<int> x(n), y(n), w(n), h(n);
+  for(size_t i = 0; i < n; ++i)
+  {
+    x[i] = dlu_to_pixel_x(controls[i].x);
+    y[i] = dlu_to_pixel_y(controls[i].y);
+    control_layout_pixel_size(controls[i], qt_classes[i], w[i], h[i]);
+  }
+
+  /* Cluster rows by vertical overlap: each child joins the first row band whose
+     interval it intersects, extending that band, and starts a new band when no
+     band overlaps it. A child spans as many bands as its interval intersects.
+     The same clustering is repeated along the horizontal axis for columns. */
+  std::vector<int> row_lo, row_hi;
+  std::vector<int> row_of(n, 0);
+  std::vector<size_t> order(n);
+  for(size_t i = 0; i < n; ++i)
+    order[i] = i;
+
+  std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b)
+  {
+    if(y[a] != y[b])
+      return y[a] < y[b];
+    return x[a] < x[b];
+  });
+
+  for(size_t k : order)
+  {
+    bool placed = false;
+    for(size_t r = 0; r < row_lo.size(); ++r)
+    {
+      if(y[k] < row_hi[r])
+      {
+        row_of[k] = static_cast<int>(r);
+        if(y[k] + h[k] > row_hi[r])
+          row_hi[r] = y[k] + h[k];
+        placed = true;
+        break;
+      }
+    }
+    if(!placed)
+    {
+      row_of[k] = static_cast<int>(row_lo.size());
+      row_lo.push_back(y[k]);
+      row_hi.push_back(y[k] + h[k]);
+    }
+  }
+
+  for(size_t i = 0; i < n; ++i)
+  {
+    int span = 0;
+    for(size_t r = 0; r < row_lo.size(); ++r)
+    {
+      if(y[i] < row_hi[r] && y[i] + h[i] > row_lo[r])
+        ++span;
+    }
+    if(span < 1)
+      span = 1;
+    cells[i].row = row_of[i];
+    cells[i].rowspan = span;
+  }
+
+  std::vector<int> col_lo, col_hi;
+  std::vector<int> col_of(n, 0);
+
+  std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b)
+  {
+    if(x[a] != x[b])
+      return x[a] < x[b];
+    return y[a] < y[b];
+  });
+
+  for(size_t k : order)
+  {
+    bool placed = false;
+    for(size_t c = 0; c < col_lo.size(); ++c)
+    {
+      if(x[k] < col_hi[c])
+      {
+        col_of[k] = static_cast<int>(c);
+        if(x[k] + w[k] > col_hi[c])
+          col_hi[c] = x[k] + w[k];
+        placed = true;
+        break;
+      }
+    }
+    if(!placed)
+    {
+      col_of[k] = static_cast<int>(col_lo.size());
+      col_lo.push_back(x[k]);
+      col_hi.push_back(x[k] + w[k]);
+    }
+  }
+
+  for(size_t i = 0; i < n; ++i)
+  {
+    int span = 0;
+    for(size_t c = 0; c < col_lo.size(); ++c)
+    {
+      if(x[i] < col_hi[c] && x[i] + w[i] > col_lo[c])
+        ++span;
+    }
+    if(span < 1)
+      span = 1;
+    cells[i].column = col_of[i];
+    cells[i].colspan = span;
+  }
+}
+
+void generator::write_dialog_layout(pugi::xml_node& parent, const resource& res)
+{
+  if(!std::holds_alternative<dialog_data>(res.data))
+    return;
+  const auto& dd = std::get<dialog_data>(res.data);
+  std::string dialog_name = res.id;
+
+  pugi::xml_node widget = parent.append_child("widget");
+  set_attr(widget, "class", "QDialog");
+  set_attr(widget, "name", dialog_name);
+
+  setup_dialog_font(dd);
+
+  std::vector<std::string> qt_classes(dd.controls.size());
+  for(size_t i = 0; i < dd.controls.size(); ++i)
+    qt_classes[i] = widget_class_for_control(dd.controls[i]);
+
+  write_dialog_properties(widget, dd, 0);
+
+  /* In layout mode the dialog keeps its RC size as a minimum so it opens at the
+     original dimensions; fixed-size dialogs already got min==max above. */
+  bool fixed_size = false;
+  if(const dialog_stmt* stmt = find_statement(dd, "STYLE"))
+    fixed_size = has_style(stmt->value, "DS_MODALFRAME");
+  if(!fixed_size)
+  {
+    if(const dialog_stmt* stmt = find_statement(dd, "EXSTYLE"))
+      fixed_size = has_style(stmt->value, "WS_EX_DLGMODALFRAME");
+  }
+  if(!fixed_size)
+  {
+    int pw = dlu_to_pixel_x(dd.width);
+    int ph = dlu_to_pixel_y(dd.height);
+    add_property_size(widget, "minimumSize", pw, ph);
+  }
+
+  std::vector<int> parent_groupbox = compute_parent_groupbox(dd.controls, qt_classes);
+
+  /* Each container (the dialog and every groupbox) is emitted as a single grid
+     layout holding its direct children; groupbox children are laid out relative
+     to the box, exactly as in the absolute path, and nested boxes recurse. */
+  auto emit_children = [&](auto&& self, pugi::xml_node& container_widget, int parent_index) -> void
+  {
+    std::vector<control> children;
+    std::vector<std::string> child_classes;
+    std::vector<int> nested_group;
+    std::vector<int> nested_rc_index;
+
+    for(size_t i = 0; i < dd.controls.size(); ++i)
+    {
+      if(parent_groupbox[i] != parent_index)
+        continue;
+
+      control relative = dd.controls[i];
+      if(parent_index >= 0)
+      {
+        const control& gb = dd.controls[parent_index];
+        relative.x = relative.x - gb.x;
+        relative.y = relative.y - gb.y + 4;
+      }
+      children.push_back(relative);
+      child_classes.push_back(qt_classes[i]);
+
+      if(qt_classes[i] == "QGroupBox")
+      {
+        nested_group.push_back(static_cast<int>(nested_rc_index.size()));
+        nested_rc_index.push_back(static_cast<int>(i));
+      }
+      else
+      {
+        nested_group.push_back(-1);
+      }
+    }
+
+    if(children.empty())
+      return;
+
+    pugi::xml_node layout = container_widget.append_child("layout");
+    set_attr(layout, "class", "QGridLayout");
+    set_attr(layout, "name", unique_name("layout"));
+    add_property_int(layout, "spacing", 6);
+
+    std::vector<grid_cell> cells;
+    compute_grid_cells(children, child_classes, cells);
+
+    std::vector<size_t> order(children.size());
+    for(size_t i = 0; i < order.size(); ++i)
+      order[i] = i;
+    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b)
+    {
+      if(cells[a].row != cells[b].row)
+        return cells[a].row < cells[b].row;
+      if(cells[a].column != cells[b].column)
+        return cells[a].column < cells[b].column;
+      return dlu_to_pixel_y(children[a].y) < dlu_to_pixel_y(children[b].y);
+    });
+
+    for(size_t k : order)
+    {
+      pugi::xml_node item = layout.append_child("item");
+      set_attr(item, "row", cells[k].row);
+      set_attr(item, "column", cells[k].column);
+      if(cells[k].rowspan > 1)
+        set_attr(item, "rowspan", cells[k].rowspan);
+      if(cells[k].colspan > 1)
+        set_attr(item, "colspan", cells[k].colspan);
+
+      write_control(item, children[k], dialog_name, 0, 0, false);
+
+      if(nested_group[k] >= 0)
+      {
+        pugi::xml_node gb_widget = item.last_child();
+        self(self, gb_widget, nested_rc_index[nested_group[k]]);
+      }
+    }
+  };
+
+  emit_children(emit_children, widget, -1);
+}
+
 void generator::setup_dialog_font(const dialog_data& dd)
 {
   std::string original_font_name = "MS Sans Serif";
@@ -1083,7 +1407,7 @@ bool generator::share_common_word(const std::string& id1, const std::string& id2
   return false;
 }
 
-void generator::write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px, int extra_height_px)
+void generator::write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px, int extra_height_px, bool emit_geometry)
 {
   std::string qt_class = widget_class_for_control(ctrl);
 
@@ -1130,7 +1454,21 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
     ph = min_h;
   ph += extra_height_px;
 
-  add_property_rect(widget, px, py, pw, ph);
+  if(emit_geometry)
+  {
+    add_property_rect(widget, px, py, pw, ph);
+  }
+  else
+  {
+    /* In layout mode the geometry rect is replaced by a minimum size (from the
+       RC size) plus a size policy, so widgets open at their RC size but reflow
+       when the dialog is resized. */
+    add_property_size(widget, "minimumSize", pw, ph);
+    if(layout_class_stretches(qt_class))
+      add_property_sizepolicy(widget, "Expanding", "Expanding");
+    else
+      add_property_sizepolicy(widget, "Preferred", "Preferred");
+  }
 
   if(!ctrl.text.empty())
   {
@@ -1350,13 +1688,16 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
       set_attr(tab_attr, "name", "title");
       tab_attr.append_child("string").text() = tab_title.c_str();
 
-      pugi::xml_node tab_prop = tab_widget.append_child("property");
-      set_attr(tab_prop, "name", "geometry");
-      pugi::xml_node tab_rect = tab_prop.append_child("rect");
-      tab_rect.append_child("x").text() = 0;
-      tab_rect.append_child("y").text() = 0;
-      tab_rect.append_child("width").text() = dlu_to_pixel_x(dd.width);
-      tab_rect.append_child("height").text() = dlu_to_pixel_y(dd.height);
+      if(emit_geometry)
+      {
+        pugi::xml_node tab_prop = tab_widget.append_child("property");
+        set_attr(tab_prop, "name", "geometry");
+        pugi::xml_node tab_rect = tab_prop.append_child("rect");
+        tab_rect.append_child("x").text() = 0;
+        tab_rect.append_child("y").text() = 0;
+        tab_rect.append_child("width").text() = dlu_to_pixel_x(dd.width);
+        tab_rect.append_child("height").text() = dlu_to_pixel_y(dd.height);
+      }
 
       std::vector<std::string> child_classes(dd.controls.size());
       for(size_t i = 0; i < dd.controls.size(); ++i)
@@ -1369,13 +1710,39 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
       std::vector<control_layout> child_layout;
       layout_control_sizes(dd.controls, child_classes, child_layout);
 
+      std::vector<grid_cell> cells;
+      pugi::xml_node tab_layout;
+      if(!emit_geometry)
+      {
+        compute_grid_cells(dd.controls, child_classes, cells);
+        tab_layout = tab_widget.append_child("layout");
+        set_attr(tab_layout, "class", "QGridLayout");
+        set_attr(tab_layout, "name", unique_name("layout"));
+        add_property_int(tab_layout, "spacing", 6);
+      }
+
       for(size_t i = 0; i < dd.controls.size(); ++i)
       {
         const auto& child_ctrl = dd.controls[i];
         const std::string& child_class = child_classes[i];
 
-        std::string child_name = unique_name(child_ctrl.id);
-        pugi::xml_node child_widget = add_widget(tab_widget, child_class, child_name);
+        pugi::xml_node item;
+        pugi::xml_node child_widget;
+        if(emit_geometry)
+        {
+          child_widget = add_widget(tab_widget, child_class, unique_name(child_ctrl.id));
+        }
+        else
+        {
+          item = tab_layout.append_child("item");
+          set_attr(item, "row", cells[i].row);
+          set_attr(item, "column", cells[i].column);
+          if(cells[i].rowspan > 1)
+            set_attr(item, "rowspan", cells[i].rowspan);
+          if(cells[i].colspan > 1)
+            set_attr(item, "colspan", cells[i].colspan);
+          child_widget = add_widget(item, child_class, unique_name(child_ctrl.id));
+        }
 
         int child_w_dlu = child_ctrl.width;
         int child_h_dlu = child_ctrl.height;
@@ -1394,7 +1761,18 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         if(ch < child_min_h)
           ch = child_min_h;
 
-        add_property_rect(child_widget, cx, cy, cw, ch);
+        if(emit_geometry)
+        {
+          add_property_rect(child_widget, cx, cy, cw, ch);
+        }
+        else
+        {
+          add_property_size(child_widget, "minimumSize", cw, ch);
+          if(layout_class_stretches(child_class))
+            add_property_sizepolicy(child_widget, "Expanding", "Expanding");
+          else
+            add_property_sizepolicy(child_widget, "Preferred", "Preferred");
+        }
 
         if(!child_ctrl.text.empty())
         {

@@ -61,6 +61,7 @@ static void print_usage(const char* program_name)
   std::cerr << "  -m <file.txt>  Widget metrics file from getuimetrics (default: uimetrics.txt)" << std::endl;
   std::cerr << "  -n             Disable all geometric adjustments" << std::endl;
   std::cerr << "  -f             Prevent font substitutions (keep original font names)" << std::endl;
+  std::cerr << "  -l             Emit Qt layout managers instead of absolute geometry" << std::endl;
   std::cerr << "  -h             Show this help" << std::endl;
 }
 
@@ -77,9 +78,10 @@ int main(int argc, char** argv)
   std::string res_dir_name = "res";
   bool disable_geometry_adjustments = false;
   bool prevent_font_substitution = false;
+  bool use_layouts = false;
 
   int opt;
-  while((opt = getopt(argc, argv, "o:r:q:m:hnf")) != -1)
+  while((opt = getopt(argc, argv, "o:r:q:m:hnfl")) != -1)
   {
     switch(opt)
     {
@@ -100,6 +102,9 @@ int main(int argc, char** argv)
         break;
       case 'f':
         prevent_font_substitution = true;
+        break;
+      case 'l':
+        use_layouts = true;
         break;
       case 'h':
         print_usage(argv[0]);
@@ -162,6 +167,7 @@ int main(int argc, char** argv)
     rc::generator gen;
     gen.set_disable_geometry_adjustments(disable_geometry_adjustments);
     gen.set_prevent_font_substitution(prevent_font_substitution);
+    gen.set_use_layouts(use_layouts);
 
     if(!metrics_path.empty())
     {
@@ -369,6 +375,7 @@ int main(int argc, char** argv)
       rc::generator gen;
       gen.set_disable_geometry_adjustments(disable_geometry_adjustments);
       gen.set_prevent_font_substitution(prevent_font_substitution);
+      gen.set_use_layouts(use_layouts);
       if(!metrics_path.empty())
       {
         if(!gen.load_uimetrics(metrics_path))

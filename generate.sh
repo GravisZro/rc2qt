@@ -11,6 +11,7 @@ usage()
   echo "  options   -h  Show this help"
   echo "            -n  Disable all geometric adjustments"
   echo "            -f  Prevent font substitutions (keep original font names)"
+  echo "            -l  Emit Qt layout managers instead of absolute geometry"
   echo "  all       Generate all .rc files in $TESTDIR/ (default)"
   echo "  name...   Basenames of .rc files in $TESTDIR/ (e.g. editor -> $TESTDIR/editor.rc)"
 }
@@ -22,7 +23,7 @@ run_rc2qt()
   rc_basename=$(basename "$rc_file" .rc)
   qrc_out="$OUTDIR/$rc_basename.qrc"
 
-  # shellcheck disable=SC2086  # $FLAGS holds only -n/-f tokens
+  # shellcheck disable=SC2086  # $FLAGS holds only -n/-f/-l tokens
   output=$("$RC2QT" "$rc_file" -o "$OUTDIR/" -r "$rc_basename" -q "$qrc_out" $FLAGS 2>&1) && rc=0 || rc=$?
   if [ "$rc" -eq 0 ]; then
     success=$((success + 1))
@@ -42,7 +43,7 @@ for arg in "$@"; do
       usage
       exit 0
       ;;
-    -n|-f)
+    -n|-f|-l)
       FLAGS="$FLAGS $arg"
       ;;
     all)
@@ -76,7 +77,7 @@ if [ $saw_all -eq 1 ] || [ $saw_name -eq 0 ]; then
 else
   for arg in "$@"; do
     case "$arg" in
-      -n|-f)
+      -n|-f|-l)
         continue
         ;;
     esac
