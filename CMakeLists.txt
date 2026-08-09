@@ -80,6 +80,7 @@ set(HEADERS
   src/rc_ast.h
   src/rc_constants.h
   src/rc_generator.h
+  src/rc_layout.h
   src/rc_parser.h
   src/rc_resolver.h
   src/rc_tokenizer.h
@@ -98,6 +99,10 @@ set(SOURCES
   src/imageio.cpp
   src/main.cpp
 )
+
+if(BUILD_WITH_QT)
+  list(APPEND SOURCES src/rc_layout.cpp)
+endif()
 
 add_executable(${TARGET_NAME} ${HEADERS} ${SOURCES})
 

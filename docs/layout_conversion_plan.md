@@ -1,8 +1,9 @@
 # Plan: Convert absolute RC coordinates into Qt layout managers
 
 Status: in progress. M1 (edge-boundary grid solver, one QGridLayout per
-container) next; the prior Phase 1/2 guillotine approach was rejected as too
-layout-heavy and is superseded by this plan (see History).
+container, layout feature gated under HAVE_QT) is implemented and verified
+(zero grid-induced stacking, uic 0 failures, byte-determinism, absolute-mode
+byte-identical); M3 (offscreen verifier) next.
 
 ## 1. Objective & scope
 

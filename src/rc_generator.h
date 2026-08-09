@@ -14,6 +14,7 @@
 
 #ifdef HAVE_QT
 # include <QFont>
+# include "rc_layout.h"
 #else
 # include <ft2build.h>
 # include <freetype/freetype.h>
@@ -48,7 +49,12 @@ public:
   void set_prevent_font_substitution(bool value)
     { m_prevent_font_substitution = value; }
   void set_use_layouts(bool value)
-    { m_use_layouts = value; }
+  {
+    (void)value;
+#ifdef HAVE_QT
+    m_use_layouts = value;
+#endif
+  }
 
 private:
   struct text_fit_info
@@ -64,14 +70,7 @@ private:
     int height_px = 0;
   };
 
-  struct grid_cell
-  {
-    int row = 0;
-    int column = 0;
-    int rowspan = 1;
-    int colspan = 1;
-  };
-
+#ifdef HAVE_QT
   struct layout_child
   {
     control ctrl;
@@ -84,23 +83,24 @@ private:
     std::vector<layout_child> children;
     std::vector<layout_node> nested;
   };
+#endif
 
   void collect_global_data(const rc_file& file);
 
   void write_dialog(pugi::xml_node& parent, const resource& res);
   void write_dialog_absolute(pugi::xml_node& parent, const resource& res);
+#ifdef HAVE_QT
   void write_dialog_layout(pugi::xml_node& parent, const resource& res);
+#endif
   void setup_dialog_font(const dialog_data& dd);
   void write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd, int extra_height = 0);
   void write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0, int extra_height_px = 0, bool emit_geometry = true);
   void apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px);
 
+#ifdef HAVE_QT
   void emit_layout_container(pugi::xml_node& container_widget, const layout_node& node,
                              const std::string& dialog_name);
-  void emit_layout_region(pugi::xml_node& parent_widget, const layout_node& node,
-                          std::vector<int> idx, const std::string& dialog_name);
-  pugi::xml_node emit_layout_item(pugi::xml_node& box_layout, const layout_node& node,
-                                  std::vector<int> idx, const std::string& dialog_name);
+#endif
   text_fit_info fit_text(const std::string& text, int width_dlu, int height_dlu, const std::string& widget_class);
   int min_width_px(const std::string& qt_class) const;
   int min_height_px(const std::string& qt_class) const;
@@ -141,10 +141,6 @@ private:
   std::vector<int> compute_parent_groupbox(const std::vector<control>& controls,
                                            const std::vector<std::string>& qt_classes) const;
 
-  void compute_grid_cells(const std::vector<control>& controls,
-                          const std::vector<std::string>& qt_classes,
-                          std::vector<grid_cell>& cells);
-
   void set_current_font(const std::string& font_name, int font_size, int weight, bool italic);
 
   const dialog_stmt* find_statement(const dialog_data& dd, const std::string& keyword) const;
@@ -180,7 +176,9 @@ private:
   bool m_font_italic = false;
   bool m_disable_geometry_adjustments = false;
   bool m_prevent_font_substitution = false;
+#ifdef HAVE_QT
   bool m_use_layouts = false;
+#endif
 
   #ifdef HAVE_QT
   QFont m_current_font;

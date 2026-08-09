@@ -632,14 +632,14 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
 
 void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 {
+#ifdef HAVE_QT
   if(m_use_layouts)
   {
     write_dialog_layout(parent, res);
+    return;
   }
-  else
-  {
-    write_dialog_absolute(parent, res);
-  }
+#endif
+  write_dialog_absolute(parent, res);
 }
 
 void generator::write_dialog_absolute(pugi::xml_node& parent, const resource& res)
@@ -995,122 +995,7 @@ void generator::control_layout_pixel_size(const control& ctrl, const std::string
     height_px = min_h;
 }
 
-void generator::compute_grid_cells(const std::vector<control>& controls,
-                                   const std::vector<std::string>& qt_classes,
-                                   std::vector<grid_cell>& cells)
-{
-  size_t n = controls.size();
-  cells.assign(n, grid_cell{});
-  if(n == 0)
-    return;
-
-  std::vector<int> x(n), y(n), w(n), h(n);
-  for(size_t i = 0; i < n; ++i)
-  {
-    x[i] = dlu_to_pixel_x(controls[i].x);
-    y[i] = dlu_to_pixel_y(controls[i].y);
-    control_layout_pixel_size(controls[i], qt_classes[i], w[i], h[i]);
-  }
-
-  /* Cluster rows by vertical overlap: each child joins the first row band whose
-     interval it intersects, extending that band, and starts a new band when no
-     band overlaps it. A child spans as many bands as its interval intersects.
-     The same clustering is repeated along the horizontal axis for columns. */
-  std::vector<int> row_lo, row_hi;
-  std::vector<int> row_of(n, 0);
-  std::vector<size_t> order(n);
-  for(size_t i = 0; i < n; ++i)
-    order[i] = i;
-
-  std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b)
-  {
-    if(y[a] != y[b])
-      return y[a] < y[b];
-    return x[a] < x[b];
-  });
-
-  for(size_t k : order)
-  {
-    bool placed = false;
-    for(size_t r = 0; r < row_lo.size(); ++r)
-    {
-      if(y[k] < row_hi[r])
-      {
-        row_of[k] = static_cast<int>(r);
-        if(y[k] + h[k] > row_hi[r])
-          row_hi[r] = y[k] + h[k];
-        placed = true;
-        break;
-      }
-    }
-    if(!placed)
-    {
-      row_of[k] = static_cast<int>(row_lo.size());
-      row_lo.push_back(y[k]);
-      row_hi.push_back(y[k] + h[k]);
-    }
-  }
-
-  for(size_t i = 0; i < n; ++i)
-  {
-    int span = 0;
-    for(size_t r = 0; r < row_lo.size(); ++r)
-    {
-      if(y[i] < row_hi[r] && y[i] + h[i] > row_lo[r])
-        ++span;
-    }
-    if(span < 1)
-      span = 1;
-    cells[i].row = row_of[i];
-    cells[i].rowspan = span;
-  }
-
-  std::vector<int> col_lo, col_hi;
-  std::vector<int> col_of(n, 0);
-
-  std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b)
-  {
-    if(x[a] != x[b])
-      return x[a] < x[b];
-    return y[a] < y[b];
-  });
-
-  for(size_t k : order)
-  {
-    bool placed = false;
-    for(size_t c = 0; c < col_lo.size(); ++c)
-    {
-      if(x[k] < col_hi[c])
-      {
-        col_of[k] = static_cast<int>(c);
-        if(x[k] + w[k] > col_hi[c])
-          col_hi[c] = x[k] + w[k];
-        placed = true;
-        break;
-      }
-    }
-    if(!placed)
-    {
-      col_of[k] = static_cast<int>(col_lo.size());
-      col_lo.push_back(x[k]);
-      col_hi.push_back(x[k] + w[k]);
-    }
-  }
-
-  for(size_t i = 0; i < n; ++i)
-  {
-    int span = 0;
-    for(size_t c = 0; c < col_lo.size(); ++c)
-    {
-      if(x[i] < col_hi[c] && x[i] + w[i] > col_lo[c])
-        ++span;
-    }
-    if(span < 1)
-      span = 1;
-    cells[i].column = col_of[i];
-    cells[i].colspan = span;
-  }
-}
+#ifdef HAVE_QT
 
 void generator::write_dialog_layout(pugi::xml_node& parent, const resource& res)
 {
@@ -1192,233 +1077,66 @@ void generator::emit_layout_container(pugi::xml_node& container_widget, const la
   if(node.children.empty())
     return;
 
-  std::vector<int> idx(node.children.size());
-  for(size_t i = 0; i < idx.size(); ++i)
-    idx[i] = static_cast<int>(i);
-  emit_layout_region(container_widget, node, std::move(idx), dialog_name);
-}
-
-void generator::emit_layout_region(pugi::xml_node& parent_widget, const layout_node& node,
-                                   std::vector<int> idx, const std::string& dialog_name)
-{
-  if(idx.empty())
-    return;
-
-  int n = static_cast<int>(idx.size());
-
-  /* Pixel rects used only for cut detection and ordering; min sizes come from
-     control_layout_pixel_size and match what write_control() emits. */
-  std::vector<int> rx(n), ry(n), rw(n), rh(n);
-  for(int k = 0; k < n; ++k)
+  /* Pixel rects feed the edge-boundary solver; they match the geometry
+     write_control() would emit in absolute mode. */
+  std::vector<rc::layout::child> items(node.children.size());
+  for(size_t i = 0; i < node.children.size(); ++i)
   {
-    const layout_child& child = node.children[idx[k]];
-    rx[k] = dlu_to_pixel_x(child.ctrl.x);
-    ry[k] = dlu_to_pixel_y(child.ctrl.y);
-    control_layout_pixel_size(child.ctrl, child.qt_class, rw[k], rh[k]);
+    const layout_child& child = node.children[i];
+    items[i].control_index = static_cast<int>(i);
+    items[i].qt_class = child.qt_class;
+    items[i].bounds.x = dlu_to_pixel_x(child.ctrl.x);
+    items[i].bounds.y = dlu_to_pixel_y(child.ctrl.y);
+    control_layout_pixel_size(child.ctrl, child.qt_class, items[i].bounds.w, items[i].bounds.h);
   }
 
-  /* Guillotine split: prefer the horizontal cut with the largest gap, breaking
-     ties toward an even split. A cut is valid only when every child lies fully
-     above or fully below it (no straddle), so it never slices through a box. */
-  int best_cut = -1;
-  int best_gap = -1;
-  int best_balance = INT_MAX;
-  for(int i = 0; i < n; ++i)
-  {
-    int c = ry[i] + rh[i];
-    int max_above = INT_MIN;
-    int min_below = INT_MAX;
-    bool valid = true;
-    for(int j = 0; j < n; ++j)
-    {
-      if(ry[j] + rh[j] <= c)
-      {
-        if(ry[j] + rh[j] > max_above)
-          max_above = ry[j] + rh[j];
-      }
-      else if(ry[j] >= c)
-      {
-        if(ry[j] < min_below)
-          min_below = ry[j];
-      }
-      else
-      {
-        valid = false;
-        break;
-      }
-    }
-    if(!valid || min_below == INT_MAX)
-      continue;
+  rc::layout::container_plan plan = rc::layout::solve_container(items);
 
-    int gap = min_below - max_above;
-    int above = 0;
-    for(int j = 0; j < n; ++j)
-    {
-      if(ry[j] + rh[j] <= c)
-        ++above;
-    }
-    int balance = std::abs(above - (n - above));
-    if(gap > best_gap || (gap == best_gap && balance < best_balance))
-    {
-      best_gap = gap;
-      best_cut = c;
-      best_balance = balance;
-    }
-  }
-
-  if(best_cut >= 0)
-  {
-    std::vector<int> above, below;
-    for(int k = 0; k < n; ++k)
-    {
-      if(ry[k] + rh[k] <= best_cut)
-        above.push_back(idx[k]);
-      else
-        below.push_back(idx[k]);
-    }
-
-    pugi::xml_node layout = parent_widget.append_child("layout");
-    set_attr(layout, "class", "QVBoxLayout");
-    set_attr(layout, "name", unique_name("layout"));
-    add_property_int(layout, "spacing", 6);
-    emit_layout_item(layout, node, std::move(above), dialog_name);
-    emit_layout_item(layout, node, std::move(below), dialog_name);
-    return;
-  }
-
-  int best_vcut = -1;
-  int best_vgap = -1;
-  int best_vbalance = INT_MAX;
-  for(int i = 0; i < n; ++i)
-  {
-    int c = rx[i] + rw[i];
-    int max_left = INT_MIN;
-    int min_right = INT_MAX;
-    bool valid = true;
-    for(int j = 0; j < n; ++j)
-    {
-      if(rx[j] + rw[j] <= c)
-      {
-        if(rx[j] + rw[j] > max_left)
-          max_left = rx[j] + rw[j];
-      }
-      else if(rx[j] >= c)
-      {
-        if(rx[j] < min_right)
-          min_right = rx[j];
-      }
-      else
-      {
-        valid = false;
-        break;
-      }
-    }
-    if(!valid || min_right == INT_MAX)
-      continue;
-
-    int gap = min_right - max_left;
-    int left = 0;
-    for(int j = 0; j < n; ++j)
-    {
-      if(rx[j] + rw[j] <= c)
-        ++left;
-    }
-    int balance = std::abs(left - (n - left));
-    if(gap > best_vgap || (gap == best_vgap && balance < best_vbalance))
-    {
-      best_vgap = gap;
-      best_vcut = c;
-      best_vbalance = balance;
-    }
-  }
-
-  if(best_vcut >= 0)
-  {
-    std::vector<int> left, right;
-    for(int k = 0; k < n; ++k)
-    {
-      if(rx[k] + rw[k] <= best_vcut)
-        left.push_back(idx[k]);
-      else
-        right.push_back(idx[k]);
-    }
-
-    pugi::xml_node layout = parent_widget.append_child("layout");
-    set_attr(layout, "class", "QHBoxLayout");
-    set_attr(layout, "name", unique_name("layout"));
-    add_property_int(layout, "spacing", 6);
-    emit_layout_item(layout, node, std::move(left), dialog_name);
-    emit_layout_item(layout, node, std::move(right), dialog_name);
-    return;
-  }
-
-  /* No clean cut: cluster rows and columns into a grid leaf. */
-  std::vector<control> controls;
-  std::vector<std::string> classes;
-  controls.reserve(n);
-  classes.reserve(n);
-  for(int k = 0; k < n; ++k)
-  {
-    controls.push_back(node.children[idx[k]].ctrl);
-    classes.push_back(node.children[idx[k]].qt_class);
-  }
-
-  std::vector<grid_cell> cells;
-  compute_grid_cells(controls, classes, cells);
-
-  std::vector<int> order(n);
-  for(int k = 0; k < n; ++k)
-    order[k] = k;
+  /* Emit items in row-major order so the XML is stable and readable. */
+  std::vector<int> order(node.children.size());
+  for(size_t i = 0; i < order.size(); ++i)
+    order[i] = static_cast<int>(i);
   std::stable_sort(order.begin(), order.end(), [&](int a, int b)
   {
-    if(cells[a].row != cells[b].row)
-      return cells[a].row < cells[b].row;
-    if(cells[a].column != cells[b].column)
-      return cells[a].column < cells[b].column;
-    return ry[a] < ry[b];
+    const rc::layout::cell_span& sa = plan.spans[a];
+    const rc::layout::cell_span& sb = plan.spans[b];
+    if(sa.row != sb.row)
+      return sa.row < sb.row;
+    if(sa.column != sb.column)
+      return sa.column < sb.column;
+    if(items[a].bounds.y != items[b].bounds.y)
+      return items[a].bounds.y < items[b].bounds.y;
+    return items[a].bounds.x < items[b].bounds.x;
   });
 
-  pugi::xml_node layout = parent_widget.append_child("layout");
+  pugi::xml_node layout = container_widget.append_child("layout");
   set_attr(layout, "class", "QGridLayout");
   set_attr(layout, "name", unique_name("layout"));
   add_property_int(layout, "spacing", 6);
+  add_property_int(layout, "margin", 0);
 
   for(int k : order)
   {
-    pugi::xml_node item = emit_layout_item(layout, node, { idx[k] }, dialog_name);
-    set_attr(item, "row", cells[k].row);
-    set_attr(item, "column", cells[k].column);
-    if(cells[k].rowspan > 1)
-      set_attr(item, "rowspan", cells[k].rowspan);
-    if(cells[k].colspan > 1)
-      set_attr(item, "colspan", cells[k].colspan);
-  }
-}
+    const rc::layout::cell_span& span = plan.spans[k];
+    pugi::xml_node item = layout.append_child("item");
+    set_attr(item, "row", span.row);
+    set_attr(item, "column", span.column);
+    if(span.rowspan > 1)
+      set_attr(item, "rowspan", span.rowspan);
+    if(span.colspan > 1)
+      set_attr(item, "colspan", span.colspan);
 
-pugi::xml_node generator::emit_layout_item(pugi::xml_node& box_layout, const layout_node& node,
-                                           std::vector<int> idx, const std::string& dialog_name)
-{
-  pugi::xml_node item = box_layout.append_child("item");
-
-  if(idx.empty())
-    return item;
-
-  if(idx.size() == 1)
-  {
-    const layout_child& child = node.children[idx[0]];
+    const layout_child& child = node.children[k];
     write_control(item, child.ctrl, dialog_name, 0, 0, false);
-
     if(child.nested_index >= 0)
     {
       pugi::xml_node gb_widget = item.last_child();
       emit_layout_container(gb_widget, node.nested[child.nested_index], dialog_name);
     }
-    return item;
   }
-
-  emit_layout_region(item, node, std::move(idx), dialog_name);
-  return item;
 }
+
+#endif
 
 void generator::setup_dialog_font(const dialog_data& dd)
 {
@@ -1895,6 +1613,7 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         child_classes[i] = child_class;
       }
 
+#ifdef HAVE_QT
       if(!emit_geometry)
       {
         layout_node tab_node;
@@ -1908,6 +1627,7 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         emit_layout_container(tab_widget, tab_node, dialog_name);
       }
       else
+#endif
       {
         std::vector<control_layout> child_layout;
         layout_control_sizes(dd.controls, child_classes, child_layout);
