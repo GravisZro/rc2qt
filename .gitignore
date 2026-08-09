@@ -23,6 +23,8 @@ temporary_files/
 
 # generated file
 uimetrics.txt
+*.ui
+*.qrc
 
 # generated resource output
 res/
