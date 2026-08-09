@@ -10,6 +10,8 @@
 
 #include <pugixml.hpp>
 
+#include "rc_ast.h"
+
 #ifdef HAVE_QT
 # include <QFont>
 #else
@@ -22,8 +24,6 @@ namespace rc
 
 struct rc_file;
 struct resource;
-struct dialog_data;
-struct control;
 struct dialog_stmt;
 struct style_expr;
 struct menu_data;
@@ -72,6 +72,19 @@ private:
     int colspan = 1;
   };
 
+  struct layout_child
+  {
+    control ctrl;
+    std::string qt_class;
+    int nested_index = -1;
+  };
+
+  struct layout_node
+  {
+    std::vector<layout_child> children;
+    std::vector<layout_node> nested;
+  };
+
   void collect_global_data(const rc_file& file);
 
   void write_dialog(pugi::xml_node& parent, const resource& res);
@@ -82,6 +95,12 @@ private:
   void write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0, int extra_height_px = 0, bool emit_geometry = true);
   void apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px);
 
+  void emit_layout_container(pugi::xml_node& container_widget, const layout_node& node,
+                             const std::string& dialog_name);
+  void emit_layout_region(pugi::xml_node& parent_widget, const layout_node& node,
+                          std::vector<int> idx, const std::string& dialog_name);
+  pugi::xml_node emit_layout_item(pugi::xml_node& box_layout, const layout_node& node,
+                                  std::vector<int> idx, const std::string& dialog_name);
   text_fit_info fit_text(const std::string& text, int width_dlu, int height_dlu, const std::string& widget_class);
   int min_width_px(const std::string& qt_class) const;
   int min_height_px(const std::string& qt_class) const;
