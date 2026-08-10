@@ -5,8 +5,11 @@
 #include <cstdlib>
 #include <format>
 #include <iostream>
+#include <set>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace
@@ -305,6 +308,40 @@ void process(pugi::xml_node widget, const std::string& cls,
   }
 }
 
+void comment_out_duplicate_cells(pugi::xml_node node)
+{
+  for(pugi::xml_node child : node.children())
+  {
+    if(std::string_view(child.name()) == "layout" &&
+       std::string_view(child.attribute("class").value()) == "QGridLayout")
+    {
+      std::vector<pugi::xml_node> items;
+      for(pugi::xml_node item : child.children("item"))
+      {
+        if(item.attribute("row") && item.attribute("column"))
+          items.push_back(item);
+      }
+
+      std::set<std::pair<int, int>> seen;
+      for(pugi::xml_node item : items)
+      {
+        const int row = item.attribute("row").as_int();
+        const int col = item.attribute("column").as_int();
+        if(!seen.emplace(row, col).second)
+        {
+          std::ostringstream out;
+          item.print(out, "  ");
+          std::string content = out.str();
+          pugi::xml_node comment = child.insert_child_before(pugi::node_comment, item);
+          comment.set_value(content.c_str());
+          child.remove_child(item);
+        }
+      }
+    }
+    comment_out_duplicate_cells(child);
+  }
+}
+
 }  // namespace
 
 int main(int argc, char** argv)
@@ -362,6 +399,8 @@ int main(int argc, char** argv)
   rc::layout::rect root_bounds;
   get_geometry(root, root_bounds);
   process(root, root.attribute("class").as_string(), root_bounds);
+
+  comment_out_duplicate_cells(ui);
 
   if(!doc.save_file(out_path.c_str(), "  "))
   {
