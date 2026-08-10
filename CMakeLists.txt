@@ -154,6 +154,17 @@ add_executable(ui_overlap
 target_include_directories(ui_overlap PRIVATE src)
 target_link_libraries(ui_overlap PRIVATE pugixml::pugixml)
 
+# ui_relayout: converts absolute-positioned .ui files to layout-based .ui
+# files. Reuses the pure-geometry layout solver (src/rc_layout.cpp) and only
+# depends on pugixml, so it builds without Qt.
+add_executable(ui_relayout
+  src/rc_layout.cpp
+  src/ui_relayout.cpp
+)
+target_include_directories(ui_relayout PRIVATE src ${EXTRA_DIRS})
+target_link_libraries(ui_relayout PRIVATE pugixml::pugixml ${EXTRA_LIBS})
+target_compile_definitions(ui_relayout PRIVATE ${EXTRA_DEFS})
+
 
 # getuimetrics: standalone Qt tool that renders rc2qt widget classes
 # offscreen and writes their component metrics to a text file for the
