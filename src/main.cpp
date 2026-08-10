@@ -131,8 +131,8 @@ static void print_usage(const char* program_name)
   std::cerr << "  -m <file.txt>  Widget metrics file from getuimetrics (default: uimetrics.txt)" << std::endl;
   std::cerr << "  -n             Disable all geometric adjustments" << std::endl;
   std::cerr << "  -f             Prevent font substitutions (keep original font names)" << std::endl;
+  std::cerr << "  -l             Emit Qt layout managers instead of absolute geometry (experimental)" << std::endl;
 #ifdef HAVE_QT
-  std::cerr << "  -l             Emit Qt layout managers instead of absolute geometry" << std::endl;
   std::cerr << "  -v             Verify layout-mode output offscreen (requires -l)" << std::endl;
   std::cerr << "  -d <dir>       Render dump directory for -v (default: none)" << std::endl;
 #endif
@@ -151,12 +151,10 @@ int main(int argc, char** argv)
     if(arg.size() >= 2 && arg[0] == '-' && arg[1] != '-' &&
        arg.find('v') != std::string::npos)
     {
-      if(qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
-        qputenv("QT_QPA_PLATFORM", "offscreen");
+      qputenv("QT_QPA_PLATFORM", "offscreen");
       /* The generator converts dialog units to pixels at 96 DPI; pin the
          offscreen render to the same DPI so rendered geometry matches. */
-      if(qEnvironmentVariableIsEmpty("QT_FONT_DPI"))
-        qputenv("QT_FONT_DPI", "96");
+      qputenv("QT_FONT_DPI", "96");
       break;
     }
   }
@@ -170,8 +168,8 @@ int main(int argc, char** argv)
   std::string res_dir_name = "res";
   bool disable_geometry_adjustments = false;
   bool prevent_font_substitution = false;
-#ifdef HAVE_QT
   bool use_layouts = false;
+#ifdef HAVE_QT
   bool verify_layouts = false;
   std::string render_dir;
 #endif
@@ -180,7 +178,7 @@ int main(int argc, char** argv)
 #ifdef HAVE_QT
   while((opt = getopt(argc, argv, "o:r:q:m:hnflvd:")) != -1)
 #else
-  while((opt = getopt(argc, argv, "o:r:q:m:hnf")) != -1)
+  while((opt = getopt(argc, argv, "o:r:q:m:hnfl")) != -1)
 #endif
   {
     switch(opt)
@@ -204,9 +202,7 @@ int main(int argc, char** argv)
         prevent_font_substitution = true;
         break;
       case 'l':
-#ifdef HAVE_QT
         use_layouts = true;
-#endif
         break;
       case 'v':
 #ifdef HAVE_QT
@@ -284,8 +280,8 @@ int main(int argc, char** argv)
     rc::generator gen;
       gen.set_disable_geometry_adjustments(disable_geometry_adjustments);
       gen.set_prevent_font_substitution(prevent_font_substitution);
-#ifdef HAVE_QT
       gen.set_use_layouts(use_layouts);
+#ifdef HAVE_QT
       gen.set_collect_verify(verify_layouts);
 #endif
 
@@ -500,8 +496,8 @@ int main(int argc, char** argv)
     rc::generator gen;
     gen.set_disable_geometry_adjustments(disable_geometry_adjustments);
     gen.set_prevent_font_substitution(prevent_font_substitution);
-#ifdef HAVE_QT
     gen.set_use_layouts(use_layouts);
+#ifdef HAVE_QT
     gen.set_collect_verify(verify_layouts);
 #endif
       if(!metrics_path.empty())

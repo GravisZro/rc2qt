@@ -468,7 +468,8 @@ node solve_rec(const std::vector<child>& children, const std::vector<int>& indic
 
 } // namespace
 
-node solve_container(const std::vector<child>& children, unsigned enabled,
+node solve_container(const std::vector<child>& children,
+                     pattern_flag flags,
                      int container_w, int container_h)
 {
   if(children.empty())
@@ -478,10 +479,10 @@ node solve_container(const std::vector<child>& children, unsigned enabled,
   for(size_t i = 0; i < indices.size(); ++i)
     indices[i] = static_cast<int>(i);
 
-  if(!(enabled & pattern_box))
+  if(!(flags & pattern_box))
     return build_grid(children, indices);
 
-  node root = solve_rec(children, indices, enabled, 0, container_w, container_h);
+  node root = solve_rec(children, indices, flags, 0, container_w, container_h);
 
   if(root.k == node::kind::item)
     return build_grid(children, indices);

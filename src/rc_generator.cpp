@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -21,12 +22,10 @@
 # include <QtMath>
 # include <QFontDatabase>
 # include <QFontMetrics>
-# include <cstdlib>
 #elif HAVE_FREETYPE
 # include <ft2build.h>
 # include <freetype/freetype.h>
 # include <fontconfig/fontconfig.h>
-# include <cmath>
 #endif
 
 namespace rc
@@ -652,13 +651,11 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
 
 void generator::write_dialog(pugi::xml_node& parent, const resource& res)
 {
-#ifdef HAVE_QT
   if(m_use_layouts)
   {
     write_dialog_layout(parent, res);
     return;
   }
-#endif
   write_dialog_absolute(parent, res);
 }
 
@@ -1015,8 +1012,6 @@ void generator::control_layout_pixel_size(const control& ctrl, const std::string
     height_px = min_h;
 }
 
-#ifdef HAVE_QT
-
 int generator::multiline_edit_min_height(int height_dlu) const
 {
   /* RC multiline edit controls are sized with the convention height = 8 DLU
@@ -1128,13 +1123,14 @@ void generator::emit_layout_container(pugi::xml_node& container_widget, const la
   /* Default: box decomposition + grid subgroups + per-item alignment. The
      stretch and trailing-spacer patterns measurably hurt fidelity (they push
      widgets off their RC positions), so they stay off by default. */
-  unsigned pattern_flags = rc::layout::pattern_box | rc::layout::pattern_grid |
-                           rc::layout::pattern_align;
+  layout::pattern_flag pattern_flags = rc::layout::pattern_box |
+                                           rc::layout::pattern_grid |
+                                           rc::layout::pattern_align;
   if(const char* env = std::getenv("RC2QT_PATTERNS"))
-    pattern_flags = static_cast<unsigned>(std::strtoul(env, nullptr, 0));
+    pattern_flags = static_cast<layout::pattern_flag>(std::strtoul(env, nullptr, 0));
 
-  rc::layout::node root = rc::layout::solve_container(items, pattern_flags,
-                                                      container_w, container_h);
+  layout::node root = layout::solve_container(items, pattern_flags,
+                                              container_w, container_h);
   emit_layout_node(container_widget, root, node, dialog_name, items, pattern_flags,
                    container_widget.attribute("name").value());
 }
@@ -1145,7 +1141,8 @@ void generator::emit_layout_container(pugi::xml_node& container_widget, const la
 void generator::emit_layout_node(pugi::xml_node& parent, const rc::layout::node& ln,
                                  const layout_node& node, const std::string& dialog_name,
                                  const std::vector<rc::layout::child>& items,
-                                 unsigned pattern_flags, const std::string& container_name)
+                                 layout::pattern_flag pattern_flags,
+                                 const std::string& container_name)
 {
   const bool is_grid = ln.k == rc::layout::node::kind::grid;
   const bool is_box_x = ln.k == rc::layout::node::kind::box_x;
@@ -1243,6 +1240,7 @@ void generator::emit_layout_node(pugi::xml_node& parent, const rc::layout::node&
       const layout_child& lc = node.children[k_ctrl];
       write_control(item, lc.ctrl, dialog_name, 0, 0, false);
 
+#ifdef HAVE_QT
       if(m_collect_verify)
       {
         render::target t;
@@ -1253,6 +1251,7 @@ void generator::emit_layout_node(pugi::xml_node& parent, const rc::layout::node&
         t.container = container_name;
         m_verify_targets[item.last_child().attribute("name").value()] = t;
       }
+#endif
 
       if(lc.nested_index >= 0)
       {
@@ -1283,8 +1282,6 @@ void generator::emit_layout_node(pugi::xml_node& parent, const rc::layout::node&
     size.append_child("height").text() = is_box_x ? 20 : ln.spacer_size;
   }
 }
-
-#endif
 
 void generator::setup_dialog_font(const dialog_data& dd)
 {
@@ -1518,14 +1515,10 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
        RC size) plus a size policy, so widgets open at their RC size but reflow
        when the dialog is resized. Multiline edits derive their minimum height
        from the number of text rows they should contain. */
-#ifdef HAVE_QT
     int layout_ph = ph;
     if(qt_class == "QTextEdit")
       layout_ph = multiline_edit_min_height(ctrl_h_dlu);
     add_property_size(widget, "minimumSize", pw, layout_ph);
-#else
-    add_property_size(widget, "minimumSize", pw, ph);
-#endif
     if(layout_class_stretches(qt_class))
       add_property_sizepolicy(widget, "Expanding", "Expanding");
     else
@@ -1769,7 +1762,6 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
         child_classes[i] = child_class;
       }
 
-#ifdef HAVE_QT
       if(!emit_geometry)
       {
         layout_node tab_node;
@@ -1784,7 +1776,6 @@ void generator::write_control(pugi::xml_node& parent, const control& ctrl, const
                               dlu_to_pixel_x(dd.width), dlu_to_pixel_y(dd.height));
       }
       else
-#endif
       {
         std::vector<control_layout> child_layout;
         layout_control_sizes(dd.controls, child_classes, child_layout);

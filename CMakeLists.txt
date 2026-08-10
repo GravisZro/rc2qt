@@ -97,11 +97,11 @@ set(SOURCES
   src/rc_tokenizer.cpp
   src/pe_resource_decoder.cpp
   src/imageio.cpp
+  src/rc_layout.cpp
   src/main.cpp
 )
 
 if(BUILD_WITH_QT)
-  list(APPEND SOURCES src/rc_layout.cpp)
   list(APPEND SOURCES src/rc_render.cpp)
 endif()
 

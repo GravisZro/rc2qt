@@ -12,9 +12,10 @@
 
 #include "rc_ast.h"
 
+#include "rc_layout.h"
+
 #ifdef HAVE_QT
 # include <QFont>
-# include "rc_layout.h"
 # include "rc_render.h"
 #else
 # include <ft2build.h>
@@ -50,12 +51,7 @@ public:
   void set_prevent_font_substitution(bool value)
     { m_prevent_font_substitution = value; }
   void set_use_layouts(bool value)
-  {
-    (void)value;
-#ifdef HAVE_QT
-    m_use_layouts = value;
-#endif
-  }
+    { m_use_layouts = value; }
   void set_collect_verify(bool value)
   {
     (void)value;
@@ -84,7 +80,6 @@ private:
     int height_px = 0;
   };
 
-#ifdef HAVE_QT
   struct layout_child
   {
     control ctrl;
@@ -97,30 +92,26 @@ private:
     std::vector<layout_child> children;
     std::vector<layout_node> nested;
   };
-#endif
 
   void collect_global_data(const rc_file& file);
 
   void write_dialog(pugi::xml_node& parent, const resource& res);
   void write_dialog_absolute(pugi::xml_node& parent, const resource& res);
-#ifdef HAVE_QT
   void write_dialog_layout(pugi::xml_node& parent, const resource& res);
-#endif
   void setup_dialog_font(const dialog_data& dd);
   void write_dialog_properties(pugi::xml_node& widget, const dialog_data& dd, int extra_height = 0);
   void write_control(pugi::xml_node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0, int extra_height_px = 0, bool emit_geometry = true);
   void apply_combo_dropdown_height(pugi::xml_node& widget, const control& ctrl, bool is_combo, int& height_px);
 
-#ifdef HAVE_QT
   void emit_layout_container(pugi::xml_node& container_widget, const layout_node& node,
                              const std::string& dialog_name,
                              int container_w = 0, int container_h = 0);
   void emit_layout_node(pugi::xml_node& parent, const rc::layout::node& ln,
                         const layout_node& node, const std::string& dialog_name,
                         const std::vector<rc::layout::child>& items,
-                        unsigned pattern_flags, const std::string& container_name);
+                        layout::pattern_flag pattern_flags,
+                        const std::string& container_name);
   int multiline_edit_min_height(int height_dlu) const;
-#endif
   text_fit_info fit_text(const std::string& text, int width_dlu, int height_dlu, const std::string& widget_class);
   int min_width_px(const std::string& qt_class) const;
   int min_height_px(const std::string& qt_class) const;
@@ -196,8 +187,8 @@ private:
   bool m_font_italic = false;
   bool m_disable_geometry_adjustments = false;
   bool m_prevent_font_substitution = false;
-#ifdef HAVE_QT
   bool m_use_layouts = false;
+#ifdef HAVE_QT
   bool m_collect_verify = false;
   std::vector<render::verify_input> m_verify_inputs;
   std::map<std::string, render::target> m_verify_targets;

@@ -106,14 +106,14 @@ struct node
 /* A/B testing switch: the layout solver only applies the components whose bit
    is set, so they can be disabled to measure their individual impact. With a
    mask of 0 the solver falls back to the M1 edge-boundary grid. */
-enum pattern_flag : unsigned
+enum pattern_flag : uint8_t
 {
-  pattern_none = 0,
-  pattern_box = 1u << 0,     /* box decomposition (VLayout/HLayout) */
-  pattern_grid = 1u << 1,    /* grid subgroups inside boxes */
-  pattern_align = 1u << 2,   /* per-item alignment */
-  pattern_stretch = 1u << 3, /* grid equal row/column stretch */
-  pattern_spacer = 1u << 4,  /* trailing spacer items for free space */
+  pattern_none    = 0x00,
+  pattern_box     = 0x01, // box decomposition (VLayout/HLayout)
+  pattern_grid    = 0x02, // grid subgroups inside boxes
+  pattern_align   = 0x04, // per-item alignment
+  pattern_stretch = 0x08, // grid equal row/column stretch
+  pattern_spacer  = 0x10, // trailing spacer items for free space
   pattern_all = pattern_box | pattern_grid | pattern_align |
                 pattern_stretch | pattern_spacer,
 };
@@ -124,7 +124,7 @@ enum pattern_flag : unsigned
    container's pixel size; they let boxes size their trailing spacer so the
    RC layout's free space is reproduced. */
 node solve_container(const std::vector<child>& children,
-                     unsigned enabled = pattern_all,
+                     pattern_flag enabled = pattern_all,
                      int container_w = 0,
                      int container_h = 0);
 
