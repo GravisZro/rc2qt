@@ -18,6 +18,10 @@ namespace
    and the Qt style's own metrics. */
 constexpr int k_tol = 2;
 constexpr int k_margin = 24;
+/* A widget start that lands this many pixels or fewer after the previous
+   column boundary is a deliberate indent (RC places checkbox/radio text a few
+   DLU right of its label), not a real column break. */
+constexpr int k_start_snap = 8;
 
 /* Group indices into components of the interval-overlap graph on one axis.
    Two children belong to the same group when their intervals on that axis
@@ -159,7 +163,35 @@ node build_grid(const std::vector<child>& children, const std::vector<int>& indi
   std::sort(yb.begin(), yb.end());
   yb.erase(std::unique(yb.begin(), yb.end()), yb.end());
 
-  g.columns = static_cast<int>(xb.size()) - 1;
+  /* A boundary that is only a widget *start* (nothing ends there) and that
+     lies within a small gap of the previous boundary is an artifact of an
+     intentionally indented control (e.g. a checkbox 5 DLU right of its
+     label). Collapse it into the previous boundary so the control shares the
+     label column instead of getting its own narrow column that QGridLayout
+     then inflates far beyond the RC position. */
+  std::vector<int> x_ends;
+  for(int idx : indices)
+    x_ends.push_back(children[idx].bounds.x + children[idx].bounds.w);
+  std::sort(x_ends.begin(), x_ends.end());
+  const auto is_x_end = [&](int value)
+  {
+    return std::binary_search(x_ends.begin(), x_ends.end(), value);
+  };
+  std::vector<int> xb_trim;
+  xb_trim.reserve(xb.size());
+  for(int b : xb)
+  {
+    if(!xb_trim.empty() && b - xb_trim.back() <= k_start_snap && !is_x_end(b))
+      continue;
+    xb_trim.push_back(b);
+  }
+  const auto snapped_start = [&](int value)
+  {
+    auto it = std::upper_bound(xb_trim.begin(), xb_trim.end(), value);
+    return it == xb_trim.begin() ? xb_trim.front() : *std::prev(it);
+  };
+
+  g.columns = static_cast<int>(xb_trim.size()) - 1;
   g.rows = static_cast<int>(yb.size()) - 1;
 
   const auto boundary_index = [](const std::vector<int>& bounds, int value)
@@ -174,8 +206,8 @@ node build_grid(const std::vector<child>& children, const std::vector<int>& indi
     node leaf;
     leaf.control_index = idx;
     node::cell c;
-    c.column = boundary_index(xb, b.x);
-    c.colspan = std::max(1, boundary_index(xb, b.x + b.w) - c.column);
+    c.column = boundary_index(xb_trim, snapped_start(b.x));
+    c.colspan = std::max(1, boundary_index(xb_trim, b.x + b.w) - c.column);
     c.row = boundary_index(yb, b.y);
     c.rowspan = std::max(1, boundary_index(yb, b.y + b.h) - c.row);
     g.cells.push_back(c);
