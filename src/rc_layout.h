@@ -25,6 +25,11 @@ struct child
   int control_index = -1;
   std::string qt_class;
   rect bounds;
+  /* Extra margin of error (pixels) for this widget when deciding layout
+     uniformity: row/column grouping, split compatibility, and alignment.
+     0 = no override; the effective tolerance of a pair of widgets is the
+     larger of the base tolerance and the two widgets' margins. */
+  int tol = 0;
 };
 
 /* Alignment of a node on the cross axis of its parent box (or within a grid
@@ -126,7 +131,8 @@ enum pattern_flag : uint8_t
 node solve_container(const std::vector<child>& children,
                      pattern_flag enabled = pattern_all,
                      int container_w = 0,
-                     int container_h = 0);
+                     int container_h = 0,
+                     int tol = 2);
 
 } // namespace layout
 } // namespace rc

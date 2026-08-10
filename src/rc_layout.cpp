@@ -13,24 +13,32 @@ namespace layout
 namespace
 {
 
-/* Pixel tolerance for grouping and alignment. RC dialogs are grid-aligned;
-   these absorb small rounding differences between the DLU->pixel conversion
-   and the Qt style's own metrics. */
-constexpr int k_tol = 2;
+/* Base pixel tolerance for grouping and alignment. RC dialogs are
+   grid-aligned; these absorb small rounding differences between the DLU->pixel
+   conversion and the Qt style's own metrics. ui_relayout can override the
+   tolerance per widget via a margins-of-error file. */
+constexpr int k_default_tol = 2;
 constexpr int k_margin = 24;
 /* A widget start that lands this many pixels or fewer after the previous
    column boundary is a deliberate indent (RC places checkbox/radio text a few
    DLU right of its label), not a real column break. */
 constexpr int k_start_snap = 8;
 
+/* Effective tolerance for a pair of widgets: the larger of the base tolerance
+   and either widget's per-widget margin of error. */
+int eff_tol(const child& a, const child& b, int base)
+{
+  return std::max(base, std::max(a.tol, b.tol));
+}
+
 /* Group indices into components of the interval-overlap graph on one axis.
    Two children belong to the same group when their intervals on that axis
-   overlap (within k_tol), transitively. vertical selects the y axis. Groups
-   come back ordered (top to bottom / left to right), members in reading
-   order. */
+   overlap (within the tolerance), transitively. vertical selects the y axis.
+   Groups come back ordered (top to bottom / left to right), members in
+   reading order. */
 std::vector<std::vector<int>> group_by_interval(const std::vector<child>& children,
                                                 const std::vector<int>& indices,
-                                                bool vertical)
+                                                bool vertical, int tol)
 {
   const int n = static_cast<int>(indices.size());
   std::vector<int> parent(n);
@@ -47,9 +55,10 @@ std::vector<std::vector<int>> group_by_interval(const std::vector<child>& childr
   {
     const rect& ra = children[a].bounds;
     const rect& rb = children[b].bounds;
+    const int t = eff_tol(children[a], children[b], tol);
     if(vertical)
-      return ra.y < rb.y + rb.h + k_tol && rb.y < ra.y + ra.h + k_tol;
-    return ra.x < rb.x + rb.w + k_tol && rb.x < ra.x + ra.w + k_tol;
+      return ra.y < rb.y + rb.h + t && rb.y < ra.y + ra.h + t;
+    return ra.x < rb.x + rb.w + t && rb.x < ra.x + ra.w + t;
   };
 
   for(int i = 0; i < n; ++i)
@@ -314,20 +323,22 @@ std::vector<int> group_splits(const std::vector<child>& children,
   return splits;
 }
 
-bool splits_compatible(const std::vector<int>& a, const std::vector<int>& b)
+bool splits_compatible(const std::vector<int>& a, const std::vector<int>& b,
+                       int tol)
 {
   if(a.size() != b.size())
     return false;
   for(size_t i = 0; i < a.size(); ++i)
   {
-    if(std::abs(a[i] - b[i]) > k_tol)
+    if(std::abs(a[i] - b[i]) > tol)
       return false;
   }
   return true;
 }
 
 node solve_rec(const std::vector<child>& children, const std::vector<int>& indices,
-               unsigned enabled, int depth, int container_w, int container_h);
+               unsigned enabled, int depth, int container_w, int container_h,
+               int tol);
 
 /* Build a box from a group decomposition of its children. vertical selects
    box_y (groups are horizontal bands) vs box_x (groups are vertical columns).
@@ -337,7 +348,7 @@ node solve_rec(const std::vector<child>& children, const std::vector<int>& indic
 node build_box(const std::vector<child>& children, bool vertical,
                const std::vector<std::vector<int>>& groups,
                unsigned enabled, int depth, int container_extent,
-               int container_w, int container_h)
+               int container_w, int container_h, int tol)
 {
   node box;
   box.k = vertical ? node::kind::box_y : node::kind::box_x;
@@ -346,6 +357,14 @@ node build_box(const std::vector<child>& children, bool vertical,
   {
     bool is_grid = false;
     std::vector<int> members;
+  };
+
+  const auto group_max_tol = [&](const std::vector<int>& group)
+  {
+    int t = 0;
+    for(int idx : group)
+      t = std::max(t, children[idx].tol);
+    return t;
   };
 
   std::vector<slot> slots;
@@ -362,7 +381,10 @@ node build_box(const std::vector<child>& children, bool vertical,
     size_t j = i + 1;
     while(j < groups.size() && groups[j].size() >= 2)
     {
-      if(!splits_compatible(splits, group_splits(children, groups[j], vertical)))
+      const int cmp_tol = std::max(tol, std::max(group_max_tol(groups[i]),
+                                                 group_max_tol(groups[j])));
+      if(!splits_compatible(splits, group_splits(children, groups[j], vertical),
+                            cmp_tol))
         break;
       ++j;
     }
@@ -389,7 +411,7 @@ node build_box(const std::vector<child>& children, bool vertical,
     else
     {
       box.children.push_back(solve_rec(children, s.members, enabled, depth + 1,
-                                       container_w, container_h));
+                                       container_w, container_h, tol));
     }
   }
 
@@ -411,7 +433,7 @@ node build_box(const std::vector<child>& children, bool vertical,
     const int c_hi = vertical ? mxx : mxy;
     if(vertical)
     {
-      if((mxx - mnx) >= extent - k_tol)
+      if((mxx - mnx) >= extent - tol)
         c.halign = align_h::fill;
       else if(c.k == node::kind::grid && mnx <= min_a + k_margin &&
               mxx >= max_a - k_margin)
@@ -430,7 +452,7 @@ node build_box(const std::vector<child>& children, bool vertical,
     }
     else
     {
-      if((mxy - mny) >= extent - k_tol)
+      if((mxy - mny) >= extent - tol)
         c.valign = align_v::fill;
       else if(c.k == node::kind::grid && mny <= min_a + k_margin &&
               mxy >= max_a - k_margin)
@@ -463,7 +485,8 @@ node build_box(const std::vector<child>& children, bool vertical,
 }
 
 node solve_rec(const std::vector<child>& children, const std::vector<int>& indices,
-               unsigned enabled, int depth, int container_w, int container_h)
+               unsigned enabled, int depth, int container_w, int container_h,
+               int tol)
 {
   if(indices.empty())
     return {};
@@ -475,13 +498,13 @@ node solve_rec(const std::vector<child>& children, const std::vector<int>& indic
     return leaf;
   }
 
-  std::vector<std::vector<int>> bands = group_by_interval(children, indices, true);
-  std::vector<std::vector<int>> cols = group_by_interval(children, indices, false);
+  std::vector<std::vector<int>> bands = group_by_interval(children, indices, true, tol);
+  std::vector<std::vector<int>> cols = group_by_interval(children, indices, false, tol);
 
   if(bands.size() > 1)
   {
     return build_box(children, true, bands, enabled, depth, container_h,
-                     container_w, container_h);
+                     container_w, container_h, tol);
   }
 
   /* One horizontal band: several widgets side by side. QGridLayout sizes its
@@ -502,7 +525,8 @@ node solve_rec(const std::vector<child>& children, const std::vector<int>& indic
 
 node solve_container(const std::vector<child>& children,
                      pattern_flag flags,
-                     int container_w, int container_h)
+                     int container_w, int container_h,
+                     int tol)
 {
   if(children.empty())
     return {};
@@ -514,7 +538,8 @@ node solve_container(const std::vector<child>& children,
   if(!(flags & pattern_box))
     return build_grid(children, indices);
 
-  node root = solve_rec(children, indices, flags, 0, container_w, container_h);
+  node root = solve_rec(children, indices, flags, 0, container_w, container_h,
+                        tol);
 
   if(root.k == node::kind::item)
     return build_grid(children, indices);

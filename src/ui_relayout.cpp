@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <cstdlib>
 #include <format>
+#include <fstream>
 #include <iostream>
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -22,9 +24,13 @@ struct ui_child
   pugi::xml_node widget;
   rc::layout::rect bounds;
   std::string qt_class;
+  std::string name;
 };
 
 int g_name_counts = 0;
+
+int g_default_tol = 2;
+std::map<std::string, int> g_widget_tol;
 
 std::string unique_name(const char* base)
 {
@@ -98,6 +104,31 @@ bool layout_class_stretches(const std::string& qt_class)
   };
   return std::find(stretch_classes.begin(), stretch_classes.end(), qt_class) !=
          stretch_classes.end();
+}
+
+bool load_margins_file(const std::string& path, int& default_tol,
+                       std::map<std::string, int>& widget_tol)
+{
+  std::ifstream in(path);
+  if(!in)
+    return false;
+  std::string line;
+  while(std::getline(in, line))
+  {
+    size_t hash = line.find('#');
+    if(hash != std::string::npos)
+      line = line.substr(0, hash);
+    std::istringstream iss(line);
+    std::string key;
+    int value;
+    if(!(iss >> key) || !(iss >> value) || value < 0)
+      continue;
+    if(key == "default")
+      default_tol = value;
+    else
+      widget_tol[key] = value;
+  }
+  return true;
 }
 
 void remove_property(pugi::xml_node widget, const char* name)
@@ -262,6 +293,7 @@ void process(pugi::xml_node widget, const std::string& cls,
       ui_child c;
       c.widget = child;
       c.qt_class = child.attribute("class").as_string();
+      c.name = child.attribute("name").as_string();
       if(get_geometry(child, c.bounds))
         positioned.push_back(std::move(c));
     }
@@ -279,6 +311,9 @@ void process(pugi::xml_node widget, const std::string& cls,
         ch.control_index = static_cast<int>(i);
         ch.qt_class = positioned[i].qt_class;
         ch.bounds = positioned[i].bounds;
+        auto it = g_widget_tol.find(positioned[i].name);
+        if(it != g_widget_tol.end())
+          ch.tol = it->second;
         lchildren.push_back(std::move(ch));
       }
 
@@ -290,7 +325,7 @@ void process(pugi::xml_node widget, const std::string& cls,
             std::strtoul(env, nullptr, 0));
 
       rc::layout::node plan = rc::layout::solve_container(
-          lchildren, pattern_flags, bounds.w, bounds.h);
+          lchildren, pattern_flags, bounds.w, bounds.h, g_default_tol);
 
       pugi::xml_node layout = emit_layout_node(widget, plan, positioned);
 
@@ -331,7 +366,7 @@ void comment_out_duplicate_cells(pugi::xml_node node)
         {
           std::ostringstream out;
           item.print(out, "  ");
-          std::string content = out.str();
+          std::string content = "\n" + out.str();
           pugi::xml_node comment = child.insert_child_before(pugi::node_comment, item);
           comment.set_value(content.c_str());
           child.remove_child(item);
@@ -348,6 +383,7 @@ int main(int argc, char** argv)
 {
   std::string in_path;
   std::string out_path;
+  std::string margins_path;
 
   for(int i = 1; i < argc; ++i)
   {
@@ -360,6 +396,15 @@ int main(int argc, char** argv)
         return 1;
       }
       out_path = argv[++i];
+    }
+    else if(arg == "-t" || arg == "--margins-file")
+    {
+      if(i + 1 >= argc)
+      {
+        std::cerr << "error: -t requires a file path\n";
+        return 1;
+      }
+      margins_path = argv[++i];
     }
     else if(!in_path.empty())
     {
@@ -374,7 +419,14 @@ int main(int argc, char** argv)
 
   if(in_path.empty() || out_path.empty())
   {
-    std::cerr << "usage: ui_relayout -o <out.ui> <in.ui>\n";
+    std::cerr << "usage: ui_relayout -o <out.ui> [-t <margins.txt>] <in.ui>\n";
+    return 1;
+  }
+
+  if(!margins_path.empty() && !load_margins_file(margins_path, g_default_tol,
+                                                 g_widget_tol))
+  {
+    std::cerr << "error: could not read margins file \"" << margins_path << "\"\n";
     return 1;
   }
 
