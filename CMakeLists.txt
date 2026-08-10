@@ -77,7 +77,7 @@ set(BUILD_SHARED_LIBS ON)
 set(HEADERS
   src/utils.h
   src/xmlhelpers.h
-  src/rc_ast.h
+  src/rc_types.h
   src/rc_constants.h
   src/rc_generator.h
   src/rc_layout.h

@@ -1,5 +1,5 @@
 #include "rc_generator.h"
-#include "rc_ast.h"
+#include "rc_types.h"
 #include "rc_constants.h"
 #include "utils.h"
 #include "xmlhelpers.h"

@@ -1,7 +1,7 @@
 #ifndef RC_PARSER_H
 #define RC_PARSER_H
 
-#include "rc_ast.h"
+#include "rc_types.h"
 #include "rc_tokenizer.h"
 
 #include <map>

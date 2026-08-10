@@ -1,4 +1,4 @@
-#include "rc_ast.h"
+#include "rc_types.h"
 #include "rc_parser.h"
 #include "rc_tokenizer.h"
 

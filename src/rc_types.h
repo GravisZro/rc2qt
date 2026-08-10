@@ -1,5 +1,5 @@
-#ifndef RC_AST_H
-#define RC_AST_H
+#ifndef RC_TYPES_H
+#define RC_TYPES_H
 
 #include <cstdint>
 #include <map>
@@ -197,4 +197,4 @@ struct rc_file
 
 }
 
-#endif // RC_AST_H
+#endif // RC_TYPES_H

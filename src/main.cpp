@@ -21,7 +21,7 @@
 
 #include "rc_tokenizer.h"
 #include "rc_parser.h"
-#include "rc_ast.h"
+#include "rc_types.h"
 #include "rc_resolver.h"
 #include "rc_constants.h"
 #include "rc_generator.h"

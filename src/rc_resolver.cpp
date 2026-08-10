@@ -1,5 +1,5 @@
 #include "rc_resolver.h"
-#include "rc_ast.h"
+#include "rc_types.h"
 #include "rc_constants.h"
 
 #include <algorithm>

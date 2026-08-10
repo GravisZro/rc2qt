@@ -10,7 +10,7 @@
 
 #include <pugixml.hpp>
 
-#include "rc_ast.h"
+#include "rc_types.h"
 
 #include "rc_layout.h"
 
