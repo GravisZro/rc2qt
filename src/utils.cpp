@@ -30,7 +30,7 @@ bool is_expression_text(const std::string& s)
   bool found = false;
   for(size_t i = 0; i < s.size(); ++i)
   {
-    if(s[i] == '(' || (i > 0 && strchr("+-*/&|^", s[i]) != nullptr))
+    if(s[i] == '(' || (i > 0 && strchr("+-&|^", s[i]) != nullptr))
       found = true;
   }
   return found;
@@ -38,8 +38,44 @@ bool is_expression_text(const std::string& s)
 
 int64_t eval_expr(const std::string& text, size_t& pos);
 
+// Parses an integer literal at pos: 0x/0X hexadecimal, 0o/0O octal, or
+// decimal. Returns 0 without advancing pos when no literal is present.
+// std::stoll is always given an explicit base: a base of 0 would auto-detect
+// octal for any leading zero, which conflicts with RC decimal literals.
+int64_t parse_number(const std::string& s, size_t& pos)
+{
+  size_t start = pos;
+  if(pos + 1 < s.size() && s[pos] == '0' &&
+     (s[pos + 1] == 'x' || s[pos + 1] == 'X'))
+  {
+    pos += 2;
+    size_t digits = pos;
+    while(pos < s.size() && std::isxdigit(static_cast<unsigned char>(s[pos])))
+      ++pos;
+    if(pos > digits)
+      return std::stoll(s.substr(start, pos - start), nullptr, 16);
+    pos = start;
+  }
+  if(pos + 1 < s.size() && s[pos] == '0' &&
+     (s[pos + 1] == 'o' || s[pos + 1] == 'O'))
+  {
+    pos += 2;
+    size_t digits = pos;
+    while(pos < s.size() && s[pos] >= '0' && s[pos] <= '7')
+      ++pos;
+    if(pos > digits)
+      return std::stoll(s.substr(digits, pos - digits), nullptr, 8);
+    pos = start;
+  }
+  while(pos < s.size() && std::isdigit(static_cast<unsigned char>(s[pos])))
+    ++pos;
+  if(pos == start)
+    return 0;
+  return std::stoll(s.substr(start, pos - start), nullptr, 10);
+}
+
 // Reads a single operand: an optional unary sign followed by an integer
-// literal (decimal or 0x hex) or a parenthesized subexpression.
+// literal (decimal, 0x hex, or 0o octal) or a parenthesized subexpression.
 int64_t eval_term(const std::string& text, size_t& pos)
 {
   int sign = 1;
@@ -64,22 +100,10 @@ int64_t eval_term(const std::string& text, size_t& pos)
     return sign * value;
   }
   size_t start = pos;
-  if(pos + 1 < text.size() && text[pos] == '0' &&
-     (text[pos + 1] == 'x' || text[pos + 1] == 'X'))
-  {
-    pos += 2;
-    size_t digits = pos;
-    while(pos < text.size() && std::isxdigit(static_cast<unsigned char>(text[pos])))
-      ++pos;
-    if(pos > digits)
-      return sign * std::stoll(text.substr(start, pos - start), nullptr, 16);
-    pos = start;
-  }
-  while(pos < text.size() && std::isdigit(static_cast<unsigned char>(text[pos])))
-    ++pos;
+  int64_t value = parse_number(text, pos);
   if(pos == start)
     return 0;
-  return sign * std::stoll(text.substr(start, pos - start));
+  return sign * value;
 }
 
 // Evaluates binary operators left-to-right with equal precedence, matching
@@ -94,7 +118,7 @@ int64_t eval_expr(const std::string& text, size_t& pos)
     if(pos >= text.size())
       break;
     char op = text[pos];
-    if(strchr("+-*/&|^", op) == nullptr)
+    if(strchr("+-&|^", op) == nullptr)
       break;
     ++pos;
     int64_t rhs = eval_term(text, pos);
@@ -105,13 +129,6 @@ int64_t eval_expr(const std::string& text, size_t& pos)
         break;
       case '-':
         value -= rhs;
-        break;
-      case '*':
-        value *= rhs;
-        break;
-      case '/':
-        if(rhs != 0)
-          value /= rhs;
         break;
       case '&':
         value &= rhs;
@@ -135,11 +152,19 @@ int64_t safe_stoi(const std::string& s, int64_t default_value)
     return evaluate_expression(s, default_value);
   try
   {
+    size_t pos = 0;
+    int sign = 1;
     if(!s.empty() && (s[0] == '+' || s[0] == '-'))
-      return std::stoll(s);
-    if(s.size() > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
-      return std::stoll(s, nullptr, 16);
-    return std::stoll(s);
+    {
+      if(s[0] == '-')
+        sign = -1;
+      pos = 1;
+    }
+    size_t start = pos;
+    int64_t value = parse_number(s, pos);
+    if(pos == start)
+      return default_value;
+    return sign * value;
   }
   catch(const std::exception&)
   {

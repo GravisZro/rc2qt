@@ -210,9 +210,10 @@ static std::pair<token_type, std::string> read_numeric(const std::string& input,
   }
 
   // Detect a trailing arithmetic expression, e.g. "200 - 8" or "295-7".
-  // Expressions use the operators + - * / & | ^ and always end at a comma
-  // or a newline; the raw text of the whole expression is stored as-is
-  // and marked with the expression token type.
+  // Expressions use the operators + - & | ^ (and parentheses for grouping)
+  // and always end at a comma or a newline; the raw text of the whole
+  // expression is stored as-is and marked with the expression token type.
+  // Binary operators have equal precedence and are evaluated left-to-right.
   size_t probe = pos;
   while(probe < input.size() &&
         std::isspace(static_cast<unsigned char>(input[probe])))
