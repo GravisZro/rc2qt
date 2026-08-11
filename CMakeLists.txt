@@ -35,16 +35,10 @@ endif()
 
 if(BUILD_WITH_QT)
   set(CMAKE_AUTOMOC ON)
-  find_package(Qt5 REQUIRED COMPONENTS Widgets)
-  list(APPEND EXTRA_LIBS Qt5::Widgets)
+  find_package(Qt5 REQUIRED COMPONENTS Widgets Xml)
+  list(APPEND EXTRA_LIBS Qt5::Widgets Qt5::Xml)
   list(APPEND EXTRA_DEFS HAVE_QT)
-
-  # temporary until Qt transition
-  find_package(pugixml REQUIRED)
-  list(APPEND EXTRA_LIBS pugixml::pugixml)
-  list(APPEND EXTRA_DEFS HAVE_PUGIXML)
 else()
-#xml stuff
   find_package(pugixml REQUIRED)
   list(APPEND EXTRA_LIBS pugixml::pugixml)
   list(APPEND EXTRA_DEFS HAVE_PUGIXML)
@@ -56,6 +50,19 @@ else()
   list(APPEND EXTRA_LIBS Fontconfig::Fontconfig)
   list(APPEND EXTRA_DIRS ${FREETYPE_INCLUDE_DIRS})
   list(APPEND EXTRA_DEFS HAVE_FREETYPE)
+endif()
+
+# Select the XML backend implementation once; every tool that touches XML
+# (the main binary, ui_overlap, ui_relayout) compiles the same backend source
+# and links the matching library, exactly like rc2qt does.
+if(BUILD_WITH_QT)
+  set(XML_BACKEND_SOURCES src/xml_qt.cpp)
+  set(XML_BACKEND_LIBS Qt5::Xml)
+  set(XML_BACKEND_DEFS HAVE_QT)
+else()
+  set(XML_BACKEND_SOURCES src/xml_pugi.cpp)
+  set(XML_BACKEND_LIBS pugixml::pugixml)
+  set(XML_BACKEND_DEFS HAVE_PUGIXML)
 endif()
 
 if(BUILD_WITH_ICU)
@@ -76,7 +83,7 @@ set(BUILD_SHARED_LIBS ON)
 
 set(HEADERS
   src/utils.h
-  src/xmlhelpers.h
+  src/xml.h
   src/rc_types.h
   src/rc_constants.h
   src/rc_generator.h
@@ -104,6 +111,7 @@ set(SOURCES
 if(BUILD_WITH_QT)
   list(APPEND SOURCES src/rc_render.cpp)
 endif()
+list(APPEND SOURCES ${XML_BACKEND_SOURCES})
 
 add_executable(${TARGET_NAME} ${HEADERS} ${SOURCES})
 
@@ -150,20 +158,23 @@ target_compile_definitions(rc_overlap PRIVATE ${EXTRA_DEFS})
 # tab page); tab pages stacked by design are excluded from sibling checks.
 add_executable(ui_overlap
   tools/ui_overlap.cpp
+  ${XML_BACKEND_SOURCES}
 )
-target_include_directories(ui_overlap PRIVATE src)
-target_link_libraries(ui_overlap PRIVATE pugixml::pugixml)
+target_include_directories(ui_overlap PRIVATE src ${EXTRA_DIRS})
+target_link_libraries(ui_overlap PRIVATE ${XML_BACKEND_LIBS})
+target_compile_definitions(ui_overlap PRIVATE ${XML_BACKEND_DEFS})
 
 # ui_relayout: converts absolute-positioned .ui files to layout-based .ui
 # files. Reuses the pure-geometry layout solver (src/rc_layout.cpp) and only
-# depends on pugixml, so it builds without Qt.
+# depends on the XML backend, so it builds with either pugixml or Qt.
 add_executable(ui_relayout
   src/rc_layout.cpp
   src/ui_relayout.cpp
+  ${XML_BACKEND_SOURCES}
 )
 target_include_directories(ui_relayout PRIVATE src ${EXTRA_DIRS})
-target_link_libraries(ui_relayout PRIVATE pugixml::pugixml ${EXTRA_LIBS})
-target_compile_definitions(ui_relayout PRIVATE ${EXTRA_DEFS})
+target_link_libraries(ui_relayout PRIVATE ${XML_BACKEND_LIBS} ${EXTRA_LIBS})
+target_compile_definitions(ui_relayout PRIVATE ${XML_BACKEND_DEFS} ${EXTRA_DEFS})
 
 
 # getuimetrics: standalone Qt tool that renders rc2qt widget classes

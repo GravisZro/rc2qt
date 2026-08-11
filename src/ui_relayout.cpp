@@ -1,5 +1,6 @@
 #include "rc_layout.h"
-#include "xmlhelpers.h"
+#include "utils.h"
+#include "xml.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -21,7 +22,7 @@ constexpr int k_spacing = 6;
 
 struct ui_child
 {
-  pugi::xml_node widget;
+  rc::xml::node widget;
   rc::layout::rect bounds;
   std::string qt_class;
   std::string name;
@@ -46,14 +47,14 @@ bool is_container_class(const std::string& cls)
          cls == "QFrame";
 }
 
-bool get_geometry(const pugi::xml_node& widget, rc::layout::rect& out)
+bool get_geometry(const rc::xml::node& widget, rc::layout::rect& out)
 {
   bool ok = false;
-  for(pugi::xml_node prop : widget.children("property"))
+  for(rc::xml::node prop : widget.children("property"))
   {
     if(std::string_view(prop.attribute("name").value()) != "geometry")
       continue;
-    pugi::xml_node rect = prop.child("rect");
+    rc::xml::node rect = prop.child("rect");
     if(rect)
     {
       out.x = rect.child("x").text().as_int(0);
@@ -67,30 +68,30 @@ bool get_geometry(const pugi::xml_node& widget, rc::layout::rect& out)
   return ok;
 }
 
-void add_property_int(pugi::xml_node node, const char* name, int value)
+void add_property_int(rc::xml::node node, const char* name, int value)
 {
-  pugi::xml_node prop = node.append_child("property");
-  xml::set_attr(prop, "name", name);
+  rc::xml::node prop = node.append_child("property");
+  prop.add_attr("name", name);
   prop.append_child("number").text() = value;
 }
 
-void add_property_size(pugi::xml_node widget, const char* name, int width, int height)
+void add_property_size(rc::xml::node widget, const char* name, int width, int height)
 {
-  pugi::xml_node prop = widget.append_child("property");
-  xml::set_attr(prop, "name", name);
-  pugi::xml_node size = prop.append_child("size");
+  rc::xml::node prop = widget.append_child("property");
+  prop.add_attr("name", name);
+  rc::xml::node size = prop.append_child("size");
   size.append_child("width").text() = width;
   size.append_child("height").text() = height;
 }
 
-void add_property_sizepolicy(pugi::xml_node widget, const std::string& htype,
+void add_property_sizepolicy(rc::xml::node widget, const std::string& htype,
                              const std::string& vtype)
 {
-  pugi::xml_node prop = widget.append_child("property");
-  xml::set_attr(prop, "name", "sizePolicy");
-  pugi::xml_node policy = prop.append_child("sizepolicy");
-  xml::set_attr(policy, "hsizetype", htype);
-  xml::set_attr(policy, "vsizetype", vtype);
+  rc::xml::node prop = widget.append_child("property");
+  prop.add_attr("name", "sizePolicy");
+  rc::xml::node policy = prop.append_child("sizepolicy");
+  policy.add_attr("hsizetype", htype);
+  policy.add_attr("vsizetype", vtype);
   policy.append_child("horstretch").text() = 0;
   policy.append_child("verstretch").text() = 0;
 }
@@ -131,11 +132,11 @@ bool load_margins_file(const std::string& path, int& default_tol,
   return true;
 }
 
-void remove_property(pugi::xml_node widget, const char* name)
+void remove_property(rc::xml::node widget, const char* name)
 {
-  for(pugi::xml_node prop = widget.first_child(); prop;)
+  for(rc::xml::node prop = widget.first_child(); prop;)
   {
-    pugi::xml_node next = prop.next_sibling();
+    rc::xml::node next = prop.next_sibling();
     if(std::string_view(prop.name()) == "property" &&
        std::string_view(prop.attribute("name").value()) == name)
     {
@@ -145,22 +146,22 @@ void remove_property(pugi::xml_node widget, const char* name)
   }
 }
 
-pugi::xml_node emit_layout_node(pugi::xml_node& parent, const rc::layout::node& ln,
+rc::xml::node emit_layout_node(rc::xml::node& parent, const rc::layout::node& ln,
                                 const std::vector<ui_child>& items)
 {
   const bool is_grid = ln.k == rc::layout::node::kind::grid;
   const bool is_box_x = ln.k == rc::layout::node::kind::box_x;
 
-  pugi::xml_node layout = parent.append_child("layout");
-  xml::set_attr(layout, "class",
+  rc::xml::node layout = parent.append_child("layout");
+  layout.add_attr("class",
                 is_grid ? "QGridLayout"
                         : (is_box_x ? "QHBoxLayout" : "QVBoxLayout"));
-  xml::set_attr(layout, "name", unique_name("layout").c_str());
+  layout.add_attr("name", unique_name("layout").c_str());
   add_property_int(layout, "spacing", k_spacing);
   add_property_int(layout, "margin", 0);
 
   if(is_grid && ln.label_column_minwidth > 0)
-    xml::set_attr(layout, "columnminimumwidth", ln.label_column_minwidth);
+    layout.add_attr("columnminimumwidth", ln.label_column_minwidth);
 
   if(is_grid && ln.equal_row_stretch > 0)
   {
@@ -170,8 +171,8 @@ pugi::xml_node emit_layout_node(pugi::xml_node& parent, const rc::layout::node& 
     std::string col_stretch;
     for(int c = 0; c < ln.columns; ++c)
       col_stretch += (c ? "," : "") + std::to_string(ln.equal_col_stretch);
-    xml::set_attr(layout, "rowstretch", row_stretch.c_str());
-    xml::set_attr(layout, "columnstretch", col_stretch.c_str());
+    layout.add_attr("rowstretch", row_stretch.c_str());
+    layout.add_attr("columnstretch", col_stretch.c_str());
   }
 
   std::vector<int> order(ln.children.size());
@@ -219,27 +220,27 @@ pugi::xml_node emit_layout_node(pugi::xml_node& parent, const rc::layout::node& 
   for(int k : order)
   {
     const rc::layout::node& child = ln.children[k];
-    pugi::xml_node item = layout.append_child("item");
+    rc::xml::node item = layout.append_child("item");
     if(is_grid)
     {
       const rc::layout::node::cell& c = ln.cells[k];
-      xml::set_attr(item, "row", c.row);
-      xml::set_attr(item, "column", c.column);
+      item.add_attr("row", c.row);
+      item.add_attr("column", c.column);
       if(c.rowspan > 1)
-        xml::set_attr(item, "rowspan", c.rowspan);
+        item.add_attr("rowspan", c.rowspan);
       if(c.colspan > 1)
-        xml::set_attr(item, "colspan", c.colspan);
+        item.add_attr("colspan", c.colspan);
     }
     std::string align = alignment_attr(child);
     if(!align.empty())
-      xml::set_attr(item, "alignment", align.c_str());
+      item.add_attr("alignment", align.c_str());
 
     if(child.k == rc::layout::node::kind::item)
     {
       const int k_ctrl = child.control_index;
       const ui_child& uc = items[k_ctrl];
       item.append_copy(uc.widget);
-      pugi::xml_node w = item.last_child();
+      rc::xml::node w = item.last_child();
       remove_property(w, "geometry");
       add_property_size(w, "minimumSize", uc.bounds.w, uc.bounds.h);
       if(layout_class_stretches(uc.qt_class))
@@ -255,16 +256,16 @@ pugi::xml_node emit_layout_node(pugi::xml_node& parent, const rc::layout::node& 
 
   if(ln.spacer_size > 0)
   {
-    pugi::xml_node item = layout.append_child("item");
-    pugi::xml_node spacer = item.append_child("spacer");
-    xml::set_attr(spacer, "name", unique_name("spacer").c_str());
-    pugi::xml_node orient = spacer.append_child("property");
-    xml::set_attr(orient, "name", "orientation");
+    rc::xml::node item = layout.append_child("item");
+    rc::xml::node spacer = item.append_child("spacer");
+    spacer.add_attr("name", unique_name("spacer").c_str());
+    rc::xml::node orient = spacer.append_child("property");
+    orient.add_attr("name", "orientation");
     orient.append_child("enum").text() = is_box_x ? "Qt::Horizontal" : "Qt::Vertical";
-    pugi::xml_node prop = spacer.append_child("property");
-    xml::set_attr(prop, "name", "sizeHint");
-    xml::set_attr(prop, "stdset", 0);
-    pugi::xml_node size = prop.append_child("size");
+    rc::xml::node prop = spacer.append_child("property");
+    prop.add_attr("name", "sizeHint");
+    prop.add_attr("stdset", 0);
+    rc::xml::node size = prop.append_child("size");
     size.append_child("width").text() = is_box_x ? ln.spacer_size : 20;
     size.append_child("height").text() = is_box_x ? 20 : ln.spacer_size;
   }
@@ -272,12 +273,12 @@ pugi::xml_node emit_layout_node(pugi::xml_node& parent, const rc::layout::node& 
   return layout;
 }
 
-void process(pugi::xml_node widget, const std::string& cls,
+void process(rc::xml::node widget, const std::string& cls,
              rc::layout::rect bounds)
 {
   if(cls == "QTabWidget")
   {
-    for(pugi::xml_node page : widget.children("widget"))
+    for(rc::xml::node page : widget.children("widget"))
     {
       rc::layout::rect page_bounds;
       if(get_geometry(page, page_bounds))
@@ -288,7 +289,7 @@ void process(pugi::xml_node widget, const std::string& cls,
   else if(is_container_class(cls))
   {
     std::vector<ui_child> positioned;
-    for(pugi::xml_node child : widget.children("widget"))
+    for(rc::xml::node child : widget.children("widget"))
     {
       ui_child c;
       c.widget = child;
@@ -327,14 +328,14 @@ void process(pugi::xml_node widget, const std::string& cls,
       rc::layout::node plan = rc::layout::solve_container(
           lchildren, pattern_flags, bounds.w, bounds.h, g_default_tol);
 
-      pugi::xml_node layout = emit_layout_node(widget, plan, positioned);
+      rc::xml::node layout = emit_layout_node(widget, plan, positioned);
 
       for(const auto& c : positioned)
         widget.remove_child(c.widget);
 
-      for(pugi::xml_node l = widget.child("layout"); l;)
+      for(rc::xml::node l = widget.child("layout"); l;)
       {
-        pugi::xml_node next = l.next_sibling("layout");
+        rc::xml::node next = l.next_sibling("layout");
         if(l != layout)
           widget.remove_child(l);
         l = next;
@@ -343,22 +344,22 @@ void process(pugi::xml_node widget, const std::string& cls,
   }
 }
 
-void comment_out_duplicate_cells(pugi::xml_node node)
+void comment_out_duplicate_cells(rc::xml::node node)
 {
-  for(pugi::xml_node child : node.children())
+  for(rc::xml::node child : node.children())
   {
     if(std::string_view(child.name()) == "layout" &&
        std::string_view(child.attribute("class").value()) == "QGridLayout")
     {
-      std::vector<pugi::xml_node> items;
-      for(pugi::xml_node item : child.children("item"))
+      std::vector<rc::xml::node> items;
+      for(rc::xml::node item : child.children("item"))
       {
         if(item.attribute("row") && item.attribute("column"))
           items.push_back(item);
       }
 
       std::set<std::pair<int, int>> seen;
-      for(pugi::xml_node item : items)
+      for(rc::xml::node item : items)
       {
         const int row = item.attribute("row").as_int();
         const int col = item.attribute("column").as_int();
@@ -367,7 +368,7 @@ void comment_out_duplicate_cells(pugi::xml_node node)
           std::ostringstream out;
           item.print(out, "  ");
           std::string content = "\n" + out.str();
-          pugi::xml_node comment = child.insert_child_before(pugi::node_comment, item);
+          rc::xml::node comment = child.insert_child_before(rc::xml::node_type::comment, item);
           comment.set_value(content.c_str());
           child.remove_child(item);
         }
@@ -430,18 +431,18 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  pugi::xml_document doc;
-  pugi::xml_parse_result result = doc.load_file(
-      in_path.c_str(), pugi::parse_default | pugi::parse_declaration |
-                           pugi::parse_doctype | pugi::parse_pi);
+  rc::xml::document doc;
+  rc::xml::parse_result result = doc.load_file(
+      in_path.c_str(), rc::xml::parse_default | rc::xml::parse_flags::declaration |
+                           rc::xml::parse_flags::doctype | rc::xml::parse_flags::pi);
   if(!result)
   {
     std::cerr << "error: " << in_path << ": " << result.description() << "\n";
     return 1;
   }
 
-  pugi::xml_node ui = doc.child("ui");
-  pugi::xml_node root = ui.child("widget");
+  rc::xml::node ui = doc.child("ui");
+  rc::xml::node root = ui.child("widget");
   if(!root)
   {
     std::cerr << "error: " << in_path << ": no <widget> under <ui>\n";

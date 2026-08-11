@@ -1,4 +1,4 @@
-#include <pugixml.hpp>
+#include "xml.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -16,13 +16,13 @@ struct rect
   int h;
 };
 
-bool read_rect(pugi::xml_node widget, rect& out)
+bool read_rect(rc::xml::node widget, rect& out)
 {
-  for(pugi::xml_node prop : widget.children("property"))
+  for(rc::xml::node prop : widget.children("property"))
   {
     if(std::string(prop.attribute("name").value()) != "geometry")
       continue;
-    pugi::xml_node r = prop.child("rect");
+    rc::xml::node r = prop.child("rect");
     if(!r)
       return false;
     out.x = r.child("x").text().as_int();
@@ -60,14 +60,14 @@ void report(const rect& a, const rect& b, const std::string& name_a,
             << "  Overlap Region: (" << rx1 << ", " << ry1 << ", " << rx2 << ", " << ry2 << ")\n";
 }
 
-int scan(pugi::xml_node container, const std::string& path)
+int scan(rc::xml::node container, const std::string& path)
 {
   int count = 0;
   std::string class_name = container.attribute("class").value();
   bool is_tab = (class_name == "QTabWidget");
 
-  std::vector<pugi::xml_node> children;
-  for(pugi::xml_node child : container.children("widget"))
+  std::vector<rc::xml::node> children;
+  for(rc::xml::node child : container.children("widget"))
     children.push_back(child);
 
   // Compare siblings within the same coordinate space. Tab pages are stacked
@@ -98,7 +98,7 @@ int scan(pugi::xml_node container, const std::string& path)
     }
   }
 
-  for(pugi::xml_node child : children)
+  for(rc::xml::node child : children)
   {
     std::string child_path = path + "/" + child.attribute("name").value();
     count += scan(child, child_path);
@@ -108,17 +108,17 @@ int scan(pugi::xml_node container, const std::string& path)
 
 void check_file(const std::string& file)
 {
-  pugi::xml_document doc;
-  pugi::xml_parse_result result = doc.load_file(file.c_str());
+  rc::xml::document doc;
+  rc::xml::parse_result result = doc.load_file(file.c_str());
   if(!result)
   {
     std::cerr << file << ": parse error: " << result.description() << "\n";
     return;
   }
 
-  pugi::xml_node ui = doc.child("ui");
+  rc::xml::node ui = doc.child("ui");
   int count = 0;
-  for(pugi::xml_node widget : ui.children("widget"))
+  for(rc::xml::node widget : ui.children("widget"))
     count += scan(widget, widget.attribute("name").value());
   std::cout << file << ": " << count << " overlapping sibling pair(s)\n\n";
 }

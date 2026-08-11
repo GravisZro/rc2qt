@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <pugixml.hpp>
+#include "xml.h"
 
 namespace rc
 {
@@ -30,7 +30,7 @@ struct target
 struct verify_input
 {
   std::string name;
-  pugi::xml_document doc;
+  rc::xml::document doc;
   std::map<std::string, target> targets;
   int dialog_width = 0;
   int dialog_height = 0;

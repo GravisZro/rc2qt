@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -283,6 +284,36 @@ public:
   rc::xml::attribute append_attribute(const char* name);
   bool remove_attribute(const char* name);
   std::vector<rc::xml::attribute> attributes() const;
+
+  /* Convenience writers: append an attribute, skipping empty/null strings. */
+  void add_attr(const char* name, const char* value)
+  {
+    if (value && *value)
+      append_attribute(name).set_value(value);
+  }
+
+  void add_attr(const char* name, const std::string& value)
+  {
+    if (!value.empty())
+      append_attribute(name).set_value(value.c_str());
+  }
+
+  /* Prevent string literals from binding to the bool overload. */
+  void add_attr(const char* name, bool value)
+  {
+    append_attribute(name).set_value(value ? "true" : "false");
+  }
+
+  template<std::integral T>
+  void add_attr(const char* name, T value)
+  {
+    append_attribute(name).set_value(value);
+  }
+
+  void add_attr(const char* name, float value, int precision = default_float_precision)
+  {
+    append_attribute(name).set_value(value, precision);
+  }
 
   rc::xml::text text() const;
   bool set_value(const char* value);

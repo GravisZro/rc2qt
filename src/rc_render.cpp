@@ -66,21 +66,21 @@ namespace render
 namespace
 {
 
-int int_child(const pugi::xml_node& node, const char* tag)
+int int_child(const rc::xml::node& node, const char* tag)
 {
-  pugi::xml_node c = node.child(tag);
+  rc::xml::node c = node.child(tag);
   return c ? c.text().as_int(0) : 0;
 }
 
-std::string text_child(const pugi::xml_node& node, const char* tag)
+std::string text_child(const rc::xml::node& node, const char* tag)
 {
-  pugi::xml_node c = node.child(tag);
+  rc::xml::node c = node.child(tag);
   return c ? c.text().get() : "";
 }
 
-void apply_size(QWidget* w, const pugi::xml_node& prop)
+void apply_size(QWidget* w, const rc::xml::node& prop)
 {
-  pugi::xml_node s = prop.child("size");
+  rc::xml::node s = prop.child("size");
   if(!s)
     return;
   QSize size(int_child(s, "width"), int_child(s, "height"));
@@ -112,9 +112,9 @@ QSizePolicy::Policy policy_from_name(const std::string& name)
   return QSizePolicy::Preferred;
 }
 
-void apply_sizepolicy(QWidget* w, const pugi::xml_node& prop)
+void apply_sizepolicy(QWidget* w, const rc::xml::node& prop)
 {
-  pugi::xml_node sp = prop.child("sizepolicy");
+  rc::xml::node sp = prop.child("sizepolicy");
   if(!sp)
     return;
   QSizePolicy policy(
@@ -177,7 +177,7 @@ Qt::WindowFlags flags_from_set(const std::string& value)
   return flags;
 }
 
-void apply_font(QWidget* w, const pugi::xml_node& font)
+void apply_font(QWidget* w, const rc::xml::node& font)
 {
   QFont f = w->font();
   std::string family = text_child(font, "family");
@@ -185,26 +185,26 @@ void apply_font(QWidget* w, const pugi::xml_node& font)
     f.setFamily(QString::fromStdString(family));
   if(int pointsize = int_child(font, "pointsize"); pointsize > 0)
     f.setPointSize(pointsize);
-  if(pugi::xml_node b = font.child("bold"))
+  if(rc::xml::node b = font.child("bold"))
     f.setBold(b.text().as_bool(false));
-  if(pugi::xml_node i = font.child("italic"))
+  if(rc::xml::node i = font.child("italic"))
     f.setItalic(i.text().as_bool(false));
   w->setFont(f);
 }
 
-void apply_widget_properties(QWidget* w, const pugi::xml_node& node)
+void apply_widget_properties(QWidget* w, const rc::xml::node& node)
 {
-  for(pugi::xml_node prop : node.children("property"))
+  for(rc::xml::node prop : node.children("property"))
   {
     std::string name = prop.attribute("name").value();
-    pugi::xml_node value = prop.first_child();
+    rc::xml::node value = prop.first_child();
     if(!value)
       continue;
     std::string tag = value.name();
 
     if(tag == "rect")
     {
-      pugi::xml_node r = prop.child("rect");
+      rc::xml::node r = prop.child("rect");
       if(r)
       {
         w->setGeometry(
@@ -324,12 +324,12 @@ void apply_widget_properties(QWidget* w, const pugi::xml_node& node)
   }
 }
 
-void apply_layout_properties(QLayout* layout, const pugi::xml_node& node)
+void apply_layout_properties(QLayout* layout, const rc::xml::node& node)
 {
-  for(pugi::xml_node prop : node.children("property"))
+  for(rc::xml::node prop : node.children("property"))
   {
     std::string name = prop.attribute("name").value();
-    pugi::xml_node value = prop.first_child();
+    rc::xml::node value = prop.first_child();
     if(!value)
       continue;
     if(name == "spacing")
@@ -462,9 +462,9 @@ struct builder
   std::map<QWidget*, QWidget*> widget_container;
 };
 
-QWidget* build_widget(const pugi::xml_node& node, QWidget* parent, builder& b);
+QWidget* build_widget(const rc::xml::node& node, QWidget* parent, builder& b);
 
-void build_layout(const pugi::xml_node& node, QWidget* owner, builder& b,
+void build_layout(const rc::xml::node& node, QWidget* owner, builder& b,
                   QLayout* parent_layout, int row, int col, int rowspan, int colspan,
                   Qt::Alignment item_align = Qt::Alignment())
 {
@@ -527,9 +527,9 @@ void build_layout(const pugi::xml_node& node, QWidget* owner, builder& b,
 
   QWidget* owner_effective = owner;
 
-  for(pugi::xml_node item : node.children("item"))
+  for(rc::xml::node item : node.children("item"))
   {
-    pugi::xml_node child = item.first_child();
+    rc::xml::node child = item.first_child();
     if(!child)
       continue;
     std::string child_tag = child.name();
@@ -566,8 +566,8 @@ void build_layout(const pugi::xml_node& node, QWidget* owner, builder& b,
       QSizePolicy::Policy policy = QSizePolicy::Expanding;
       int sw = 20;
       int sh = 20;
-      pugi::xml_node prop = child.find_child_by_attribute("property", "name", "sizeHint");
-      if(pugi::xml_node s = prop.child("size"))
+      rc::xml::node prop = child.find_child_by_attribute("property", "name", "sizeHint");
+      if(rc::xml::node s = prop.child("size"))
       {
         sw = int_child(s, "width");
         sh = int_child(s, "height");
@@ -583,7 +583,7 @@ void build_layout(const pugi::xml_node& node, QWidget* owner, builder& b,
   }
 }
 
-QWidget* build_widget(const pugi::xml_node& node, QWidget* parent, builder& b)
+QWidget* build_widget(const rc::xml::node& node, QWidget* parent, builder& b)
 {
   std::string cls = node.attribute("class").value();
   std::string name = node.attribute("name").value();
@@ -593,17 +593,17 @@ QWidget* build_widget(const pugi::xml_node& node, QWidget* parent, builder& b)
   if(!name.empty())
     b.by_name[name] = w;
 
-  if(pugi::xml_node layout = node.child("layout"))
+  if(rc::xml::node layout = node.child("layout"))
     build_layout(layout, w, b, nullptr, 0, 0, 1, 1);
 
   if(auto tw = qobject_cast<QTabWidget*>(w))
   {
-    for(pugi::xml_node page : node.children("widget"))
+    for(rc::xml::node page : node.children("widget"))
     {
       QString title;
-      if(pugi::xml_node attr = page.child("attribute");
+      if(rc::xml::node attr = page.child("attribute");
          attr && std::string(attr.attribute("name").value()) == "title")
-        title = QString::fromUtf8(attr.child("string").text().get());
+        title = QString::fromStdString(attr.child("string").text().get());
       QWidget* pw = build_widget(page, tw, b);
       tw->addTab(pw, title);
     }
@@ -640,8 +640,8 @@ result verify_layout(const verify_input& input, const std::string& dump_dir)
     style_set = true;
   }
 
-  pugi::xml_node ui = input.doc.child("ui");
-  pugi::xml_node root_node = ui.child("widget");
+  rc::xml::node ui = input.doc.child("ui");
+  rc::xml::node root_node = ui.child("widget");
   if(!root_node)
     return res;
 
