@@ -60,6 +60,7 @@ constexpr std::string to_upper(const std::string& s)
 }
 
 int64_t safe_stoi(const std::string& s, int64_t default_value = 0);
+int64_t evaluate_expression(const std::string& text, int64_t default_value = 0);
 uint64_t safe_stoul(const std::string& s, int base = 0, uint64_t default_value = 0);
 
 void set_codepage(std::string& codepage);

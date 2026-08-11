@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <array>
 #include <ranges>
 #include <vector>
@@ -21,8 +22,117 @@ constexpr std::string to_lower(const std::string& s)
 }
 
 
+namespace
+{
+
+bool is_expression_text(const std::string& s)
+{
+  bool found = false;
+  for(size_t i = 0; i < s.size(); ++i)
+  {
+    if(s[i] == '(' || (i > 0 && strchr("+-*/&|^", s[i]) != nullptr))
+      found = true;
+  }
+  return found;
+}
+
+int64_t eval_expr(const std::string& text, size_t& pos);
+
+// Reads a single operand: an optional unary sign followed by an integer
+// literal (decimal or 0x hex) or a parenthesized subexpression.
+int64_t eval_term(const std::string& text, size_t& pos)
+{
+  int sign = 1;
+  while(pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos])))
+    ++pos;
+  if(pos < text.size() && (text[pos] == '+' || text[pos] == '-'))
+  {
+    if(text[pos] == '-')
+      sign = -1;
+    ++pos;
+    while(pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos])))
+      ++pos;
+  }
+  if(pos < text.size() && text[pos] == '(')
+  {
+    ++pos;
+    int64_t value = eval_expr(text, pos);
+    while(pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos])))
+      ++pos;
+    if(pos < text.size() && text[pos] == ')')
+      ++pos;
+    return sign * value;
+  }
+  size_t start = pos;
+  if(pos + 1 < text.size() && text[pos] == '0' &&
+     (text[pos + 1] == 'x' || text[pos + 1] == 'X'))
+  {
+    pos += 2;
+    size_t digits = pos;
+    while(pos < text.size() && std::isxdigit(static_cast<unsigned char>(text[pos])))
+      ++pos;
+    if(pos > digits)
+      return sign * std::stoll(text.substr(start, pos - start), nullptr, 16);
+    pos = start;
+  }
+  while(pos < text.size() && std::isdigit(static_cast<unsigned char>(text[pos])))
+    ++pos;
+  if(pos == start)
+    return 0;
+  return sign * std::stoll(text.substr(start, pos - start));
+}
+
+// Evaluates binary operators left-to-right with equal precedence, matching
+// the RC resource compiler. A closing parenthesis ends the expression.
+int64_t eval_expr(const std::string& text, size_t& pos)
+{
+  int64_t value = eval_term(text, pos);
+  for(;;)
+  {
+    while(pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos])))
+      ++pos;
+    if(pos >= text.size())
+      break;
+    char op = text[pos];
+    if(strchr("+-*/&|^", op) == nullptr)
+      break;
+    ++pos;
+    int64_t rhs = eval_term(text, pos);
+    switch(op)
+    {
+      case '+':
+        value += rhs;
+        break;
+      case '-':
+        value -= rhs;
+        break;
+      case '*':
+        value *= rhs;
+        break;
+      case '/':
+        if(rhs != 0)
+          value /= rhs;
+        break;
+      case '&':
+        value &= rhs;
+        break;
+      case '|':
+        value |= rhs;
+        break;
+      case '^':
+        value ^= rhs;
+        break;
+    }
+  }
+  return value;
+}
+
+}
+
 int64_t safe_stoi(const std::string& s, int64_t default_value)
 {
+  if(is_expression_text(s))
+    return evaluate_expression(s, default_value);
   try
   {
     if(!s.empty() && (s[0] == '+' || s[0] == '-'))
@@ -30,6 +140,22 @@ int64_t safe_stoi(const std::string& s, int64_t default_value)
     if(s.size() > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
       return std::stoll(s, nullptr, 16);
     return std::stoll(s);
+  }
+  catch(const std::exception&)
+  {
+    return default_value;
+  }
+}
+
+int64_t evaluate_expression(const std::string& text, int64_t default_value)
+{
+  size_t pos = 0;
+  try
+  {
+    int64_t result = eval_expr(text, pos);
+    if(pos == 0)
+      return default_value;
+    return result;
   }
   catch(const std::exception&)
   {

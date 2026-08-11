@@ -2537,7 +2537,7 @@ static void test_numeric_token_types()
   try
   {
     auto tokens = rc::tokenize(
-      "295-7, 200 + DEFINED_NUM, 1024, 0x029a, 0o733, 0x10 | 0x08\n"
+      "295-7, 200 + DEFINED_NUM, 1024, 0x029a, 0o733, 0x10 | 0x08, (1+5)&1\n"
     );
     std::vector<rc::token> values;
     for (const auto& tok : tokens)
@@ -2547,7 +2547,7 @@ static void test_numeric_token_types()
         continue;
       values.push_back(tok);
     }
-    assert(values.size() == 6);
+    assert(values.size() == 7);
     assert(values[0].type == rc::token_type::expression);
     assert(values[0].value == "295-7");
     assert(values[1].type == rc::token_type::expression);
@@ -2560,11 +2560,48 @@ static void test_numeric_token_types()
     assert(values[4].value == "0o733");
     assert(values[5].type == rc::token_type::expression);
     assert(values[5].value == "0x10 | 0x08");
+    assert(values[6].type == rc::token_type::expression);
+    assert(values[6].value == "(1+5)&1");
     record_result("numeric_token_types", true);
   }
   catch (const std::exception& e)
   {
     record_result("numeric_token_types", false, e.what());
+  }
+}
+
+// Verifies that evaluate_expression and safe_stoi compute arithmetic
+// expressions. Binary operators have equal precedence and are evaluated
+// left-to-right, matching the RC resource compiler; parentheses override
+// that order. E.g. (1+5)&1 == 0 and 5&1+1 == 2.
+static void test_expression_evaluation()
+{
+  try
+  {
+    assert(evaluate_expression("(1+5)&1") == 0);
+    assert(evaluate_expression("1+5&1") == 0);
+    assert(evaluate_expression("5&1+1") == 2);
+    assert(evaluate_expression("295-7") == 288);
+    assert(evaluate_expression("200 - 8") == 192);
+    assert(evaluate_expression("0x10 | 0x08") == 24);
+    assert(evaluate_expression("1 + 2 * 3") == 9);
+    assert(evaluate_expression("0x1f & 0x0f") == 15);
+    assert(evaluate_expression("((1+5)&1)") == 0);
+    assert(evaluate_expression("1024") == 1024);
+    assert(evaluate_expression("not_a_number") == 0);
+    assert(safe_stoi("(1+5)&1") == 0);
+    assert(safe_stoi("5&1+1") == 2);
+    assert(safe_stoi("295-7") == 288);
+    assert(safe_stoi("200 - 8") == 192);
+    assert(safe_stoi("0x10 | 0x08") == 24);
+    assert(safe_stoi("-5") == -5);
+    assert(safe_stoi("1024") == 1024);
+    assert(safe_stoi("not_a_number") == 0);
+    record_result("expression_evaluation", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("expression_evaluation", false, e.what());
   }
 }
 
@@ -2841,6 +2878,7 @@ int main()
   test_string_escape_sequences();
   test_numeric_expressions();
   test_numeric_token_types();
+  test_expression_evaluation();
 
   std::cout << "\n--- Widget Class Tests ---\n";
   test_comboboxex32();
