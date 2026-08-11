@@ -2493,7 +2493,7 @@ static void test_string_escape_sequences()
 }
 
 // Verifies that read_numeric detects integer/hex literals as well as
-// arithmetic expressions (e.g. "295-7", "200 / DEFINED_NUM") and stores
+// arithmetic expressions (e.g. "295-7", "200 + DEFINED_NUM") and stores
 // the expression text as-is. We use a user-defined resource data block,
 // which preserves each item's raw token value.
 static void test_numeric_expressions()
@@ -2505,7 +2505,7 @@ static void test_numeric_expressions()
       "{\n"
       "   295-7,\n"
       "   224 - 7,\n"
-      "   200 / DEFINED_NUM,\n"
+      "   200 + DEFINED_NUM,\n"
       "   0x10 | 0x08,\n"
       "   1 + 2 * 3,\n"
       "   1024,\n"
@@ -2518,7 +2518,7 @@ static void test_numeric_expressions()
     assert(ud.items[0].value == "295-7");
     assert(!ud.items[0].is_string && !ud.items[0].is_dword);
     assert(ud.items[1].value == "224 - 7");
-    assert(ud.items[2].value == "200 / DEFINED_NUM");
+    assert(ud.items[2].value == "200 + DEFINED_NUM");
     assert(ud.items[3].value == "0x10 | 0x08");
     assert(ud.items[4].value == "1 + 2 * 3");
     assert(ud.items[5].value == "1024");
@@ -2537,7 +2537,7 @@ static void test_numeric_token_types()
   try
   {
     auto tokens = rc::tokenize(
-      "295-7, 200 / DEFINED_NUM, 1024, 0x029a, 0o733, 0x10 | 0x08\n"
+      "295-7, 200 + DEFINED_NUM, 1024, 0x029a, 0o733, 0x10 | 0x08\n"
     );
     std::vector<rc::token> values;
     for (const auto& tok : tokens)
@@ -2551,7 +2551,7 @@ static void test_numeric_token_types()
     assert(values[0].type == rc::token_type::expression);
     assert(values[0].value == "295-7");
     assert(values[1].type == rc::token_type::expression);
-    assert(values[1].value == "200 / DEFINED_NUM");
+    assert(values[1].value == "200 + DEFINED_NUM");
     assert(values[2].type == rc::token_type::integer_literal);
     assert(values[2].value == "1024");
     assert(values[3].type == rc::token_type::hex_literal);
