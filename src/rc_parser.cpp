@@ -909,7 +909,7 @@ void parser::parse_dlginit_resource(resource& res)
       if(msg.size() > 2 && msg[0] == '0' && (msg[1] == 'x' || msg[1] == 'X'))
         entry.message = static_cast<uint16_t>(safe_stoul(msg, 16));
       else
-        entry.message = static_cast<uint16_t>(safe_stoul(msg));
+        entry.message = static_cast<uint16_t>(safe_stoul(msg, 10));
       advance();
     }
 
