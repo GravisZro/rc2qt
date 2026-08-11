@@ -22,7 +22,7 @@ constexpr int k_spacing = 6;
 
 struct ui_child
 {
-  rc::xml::node widget;
+  xml::node widget;
   rc::layout::rect bounds;
   std::string qt_class;
   std::string name;
@@ -47,14 +47,14 @@ bool is_container_class(const std::string& cls)
          cls == "QFrame";
 }
 
-bool get_geometry(const rc::xml::node& widget, rc::layout::rect& out)
+bool get_geometry(const xml::node& widget, rc::layout::rect& out)
 {
   bool ok = false;
-  for(rc::xml::node prop : widget.children("property"))
+  for(xml::node prop : widget.children("property"))
   {
     if(std::string_view(prop.attribute("name").value()) != "geometry")
       continue;
-    rc::xml::node rect = prop.child("rect");
+    xml::node rect = prop.child("rect");
     if(rect)
     {
       out.x = rect.child("x").text().as_int(0);
@@ -68,28 +68,28 @@ bool get_geometry(const rc::xml::node& widget, rc::layout::rect& out)
   return ok;
 }
 
-void add_property_int(rc::xml::node node, const char* name, int value)
+void add_property_int(xml::node node, const char* name, int value)
 {
-  rc::xml::node prop = node.append_child("property");
+  xml::node prop = node.append_child("property");
   prop.add_attr("name", name);
   prop.append_child("number").text() = value;
 }
 
-void add_property_size(rc::xml::node widget, const char* name, int width, int height)
+void add_property_size(xml::node widget, const char* name, int width, int height)
 {
-  rc::xml::node prop = widget.append_child("property");
+  xml::node prop = widget.append_child("property");
   prop.add_attr("name", name);
-  rc::xml::node size = prop.append_child("size");
+  xml::node size = prop.append_child("size");
   size.append_child("width").text() = width;
   size.append_child("height").text() = height;
 }
 
-void add_property_sizepolicy(rc::xml::node widget, const std::string& htype,
+void add_property_sizepolicy(xml::node widget, const std::string& htype,
                              const std::string& vtype)
 {
-  rc::xml::node prop = widget.append_child("property");
+  xml::node prop = widget.append_child("property");
   prop.add_attr("name", "sizePolicy");
-  rc::xml::node policy = prop.append_child("sizepolicy");
+  xml::node policy = prop.append_child("sizepolicy");
   policy.add_attr("hsizetype", htype);
   policy.add_attr("vsizetype", vtype);
   policy.append_child("horstretch").text() = 0;
@@ -132,11 +132,11 @@ bool load_margins_file(const std::string& path, int& default_tol,
   return true;
 }
 
-void remove_property(rc::xml::node widget, const char* name)
+void remove_property(xml::node widget, const char* name)
 {
-  for(rc::xml::node prop = widget.first_child(); prop;)
+  for(xml::node prop = widget.first_child(); prop;)
   {
-    rc::xml::node next = prop.next_sibling();
+    xml::node next = prop.next_sibling();
     if(std::string_view(prop.name()) == "property" &&
        std::string_view(prop.attribute("name").value()) == name)
     {
@@ -146,13 +146,13 @@ void remove_property(rc::xml::node widget, const char* name)
   }
 }
 
-rc::xml::node emit_layout_node(rc::xml::node& parent, const rc::layout::node& ln,
+xml::node emit_layout_node(xml::node& parent, const rc::layout::node& ln,
                                 const std::vector<ui_child>& items)
 {
   const bool is_grid = ln.k == rc::layout::node::kind::grid;
   const bool is_box_x = ln.k == rc::layout::node::kind::box_x;
 
-  rc::xml::node layout = parent.append_child("layout");
+  xml::node layout = parent.append_child("layout");
   layout.add_attr("class",
                 is_grid ? "QGridLayout"
                         : (is_box_x ? "QHBoxLayout" : "QVBoxLayout"));
@@ -220,7 +220,7 @@ rc::xml::node emit_layout_node(rc::xml::node& parent, const rc::layout::node& ln
   for(int k : order)
   {
     const rc::layout::node& child = ln.children[k];
-    rc::xml::node item = layout.append_child("item");
+    xml::node item = layout.append_child("item");
     if(is_grid)
     {
       const rc::layout::node::cell& c = ln.cells[k];
@@ -240,7 +240,7 @@ rc::xml::node emit_layout_node(rc::xml::node& parent, const rc::layout::node& ln
       const int k_ctrl = child.control_index;
       const ui_child& uc = items[k_ctrl];
       item.append_copy(uc.widget);
-      rc::xml::node w = item.last_child();
+      xml::node w = item.last_child();
       remove_property(w, "geometry");
       add_property_size(w, "minimumSize", uc.bounds.w, uc.bounds.h);
       if(layout_class_stretches(uc.qt_class))
@@ -256,16 +256,16 @@ rc::xml::node emit_layout_node(rc::xml::node& parent, const rc::layout::node& ln
 
   if(ln.spacer_size > 0)
   {
-    rc::xml::node item = layout.append_child("item");
-    rc::xml::node spacer = item.append_child("spacer");
+    xml::node item = layout.append_child("item");
+    xml::node spacer = item.append_child("spacer");
     spacer.add_attr("name", unique_name("spacer").c_str());
-    rc::xml::node orient = spacer.append_child("property");
+    xml::node orient = spacer.append_child("property");
     orient.add_attr("name", "orientation");
     orient.append_child("enum").text() = is_box_x ? "Qt::Horizontal" : "Qt::Vertical";
-    rc::xml::node prop = spacer.append_child("property");
+    xml::node prop = spacer.append_child("property");
     prop.add_attr("name", "sizeHint");
     prop.add_attr("stdset", 0);
-    rc::xml::node size = prop.append_child("size");
+    xml::node size = prop.append_child("size");
     size.append_child("width").text() = is_box_x ? ln.spacer_size : 20;
     size.append_child("height").text() = is_box_x ? 20 : ln.spacer_size;
   }
@@ -273,12 +273,12 @@ rc::xml::node emit_layout_node(rc::xml::node& parent, const rc::layout::node& ln
   return layout;
 }
 
-void process(rc::xml::node widget, const std::string& cls,
+void process(xml::node widget, const std::string& cls,
              rc::layout::rect bounds)
 {
   if(cls == "QTabWidget")
   {
-    for(rc::xml::node page : widget.children("widget"))
+    for(xml::node page : widget.children("widget"))
     {
       rc::layout::rect page_bounds;
       if(get_geometry(page, page_bounds))
@@ -289,7 +289,7 @@ void process(rc::xml::node widget, const std::string& cls,
   else if(is_container_class(cls))
   {
     std::vector<ui_child> positioned;
-    for(rc::xml::node child : widget.children("widget"))
+    for(xml::node child : widget.children("widget"))
     {
       ui_child c;
       c.widget = child;
@@ -328,14 +328,14 @@ void process(rc::xml::node widget, const std::string& cls,
       rc::layout::node plan = rc::layout::solve_container(
           lchildren, pattern_flags, bounds.w, bounds.h, g_default_tol);
 
-      rc::xml::node layout = emit_layout_node(widget, plan, positioned);
+      xml::node layout = emit_layout_node(widget, plan, positioned);
 
       for(const auto& c : positioned)
         widget.remove_child(c.widget);
 
-      for(rc::xml::node l = widget.child("layout"); l;)
+      for(xml::node l = widget.child("layout"); l;)
       {
-        rc::xml::node next = l.next_sibling("layout");
+        xml::node next = l.next_sibling("layout");
         if(l != layout)
           widget.remove_child(l);
         l = next;
@@ -344,22 +344,22 @@ void process(rc::xml::node widget, const std::string& cls,
   }
 }
 
-void comment_out_duplicate_cells(rc::xml::node node)
+void comment_out_duplicate_cells(xml::node node)
 {
-  for(rc::xml::node child : node.children())
+  for(xml::node child : node.children())
   {
     if(std::string_view(child.name()) == "layout" &&
        std::string_view(child.attribute("class").value()) == "QGridLayout")
     {
-      std::vector<rc::xml::node> items;
-      for(rc::xml::node item : child.children("item"))
+      std::vector<xml::node> items;
+      for(xml::node item : child.children("item"))
       {
         if(item.attribute("row") && item.attribute("column"))
           items.push_back(item);
       }
 
       std::set<std::pair<int, int>> seen;
-      for(rc::xml::node item : items)
+      for(xml::node item : items)
       {
         const int row = item.attribute("row").as_int();
         const int col = item.attribute("column").as_int();
@@ -368,7 +368,7 @@ void comment_out_duplicate_cells(rc::xml::node node)
           std::ostringstream out;
           item.print(out, "  ");
           std::string content = "\n" + out.str();
-          rc::xml::node comment = child.insert_child_before(rc::xml::node_type::comment, item);
+          xml::node comment = child.insert_child_before(xml::node_type::comment, item);
           comment.set_value(content.c_str());
           child.remove_child(item);
         }
@@ -431,18 +431,18 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  rc::xml::document doc;
-  rc::xml::parse_result result = doc.load_file(
-      in_path.c_str(), rc::xml::parse_default | rc::xml::parse_flags::declaration |
-                           rc::xml::parse_flags::doctype | rc::xml::parse_flags::pi);
+  xml::document doc;
+  xml::parse_result result = doc.load_file(
+      in_path.c_str(), xml::parse_default | xml::parse_flags::declaration |
+                           xml::parse_flags::doctype | xml::parse_flags::pi);
   if(!result)
   {
     std::cerr << "error: " << in_path << ": " << result.description() << "\n";
     return 1;
   }
 
-  rc::xml::node ui = doc.child("ui");
-  rc::xml::node root = ui.child("widget");
+  xml::node ui = doc.child("ui");
+  xml::node root = ui.child("widget");
   if(!root)
   {
     std::cerr << "error: " << in_path << ": no <widget> under <ui>\n";

@@ -29,37 +29,37 @@
 
 namespace rc
 {
-  static rc::xml::node add_tag(rc::xml::node parent, const char* const tag_name, const std::string& name)
+  static xml::node add_tag(xml::node parent, const char* const tag_name, const std::string& name)
   {
-    rc::xml::node child = parent.append_child(tag_name);
+    xml::node child = parent.append_child(tag_name);
     child.append_attribute("name").set_value(name.c_str());
     return child;
   }
 
-  static rc::xml::node add_widget(rc::xml::node& parent, const std::string& qt_class, const std::string& name)
+  static xml::node add_widget(xml::node& parent, const std::string& qt_class, const std::string& name)
   {
-    rc::xml::node widget = parent.append_child("widget");
+    xml::node widget = parent.append_child("widget");
     widget.add_attr("class", qt_class);
     widget.add_attr("name", name);
     return widget;
   }
 
-  static void add_property_rect(rc::xml::node& widget, int x, int y, int width, int height)
+  static void add_property_rect(xml::node& widget, int x, int y, int width, int height)
   {
-    rc::xml::node prop = widget.append_child("property");
+    xml::node prop = widget.append_child("property");
     prop.add_attr("name", "geometry");
-    rc::xml::node rect = prop.append_child("rect");
+    xml::node rect = prop.append_child("rect");
     rect.append_child("x").text() = x;
     rect.append_child("y").text() = y;
     rect.append_child("width").text() = width;
     rect.append_child("height").text() = height;
   }
 
-  static void add_property_string(rc::xml::node& widget, const std::string& name, const std::string& value)
+  static void add_property_string(xml::node& widget, const std::string& name, const std::string& value)
   {
-    rc::xml::node prop = widget.append_child("property");
+    xml::node prop = widget.append_child("property");
     prop.add_attr("name", name);
-    rc::xml::node str_node = prop.append_child("string");
+    xml::node str_node = prop.append_child("string");
     std::string safe_value;
     for(char c : value)
     {
@@ -71,59 +71,59 @@ namespace rc
     str_node.text() = safe_value.c_str();
   }
 
-  static void add_property_bool(rc::xml::node& widget, const std::string& name, bool value)
+  static void add_property_bool(xml::node& widget, const std::string& name, bool value)
   {
-    rc::xml::node prop = widget.append_child("property");
+    xml::node prop = widget.append_child("property");
     prop.add_attr("name", name);
     prop.append_child("bool").text() = value ? "true" : "false";
   }
 
-  static void add_property_int(rc::xml::node& widget, const std::string& name, int value)
+  static void add_property_int(xml::node& widget, const std::string& name, int value)
   {
-    rc::xml::node prop = widget.append_child("property");
+    xml::node prop = widget.append_child("property");
     prop.add_attr("name", name);
     prop.append_child("number").text() = value;
   }
 
-  static void add_property_size(rc::xml::node& widget, const std::string& name, int width, int height)
+  static void add_property_size(xml::node& widget, const std::string& name, int width, int height)
   {
-    rc::xml::node prop = widget.append_child("property");
+    xml::node prop = widget.append_child("property");
     prop.add_attr("name", name);
-    rc::xml::node size = prop.append_child("size");
+    xml::node size = prop.append_child("size");
     size.append_child("width").text() = width;
     size.append_child("height").text() = height;
   }
 
-  static void add_property_set(rc::xml::node& widget, const std::string& name, const std::string& value)
+  static void add_property_set(xml::node& widget, const std::string& name, const std::string& value)
   {
-    rc::xml::node prop = widget.append_child("property");
+    xml::node prop = widget.append_child("property");
     prop.add_attr("name", name);
     prop.append_child("set").text() = value.c_str();
   }
 
-  static void add_property_enum(rc::xml::node& widget, const std::string& name, const std::string& value)
+  static void add_property_enum(xml::node& widget, const std::string& name, const std::string& value)
   {
-    rc::xml::node prop = widget.append_child("property");
+    xml::node prop = widget.append_child("property");
     prop.add_attr("name", name);
     prop.append_child("enum").text() = value.c_str();
   }
 
-  static void add_property_font(rc::xml::node& widget, const std::string& family, int pointsize, bool bold, bool italic)
+  static void add_property_font(xml::node& widget, const std::string& family, int pointsize, bool bold, bool italic)
   {
-    rc::xml::node prop = widget.append_child("property");
+    xml::node prop = widget.append_child("property");
     prop.add_attr("name", "font");
-    rc::xml::node font = prop.append_child("font");
+    xml::node font = prop.append_child("font");
     font.append_child("family").text() = family.c_str();
     font.append_child("pointsize").text() = pointsize;
     font.append_child("bold").text() = bold ? "true" : "false";
     font.append_child("italic").text() = italic ? "true" : "false";
   }
 
-  static void add_property_sizepolicy(rc::xml::node& widget, const std::string& htype, const std::string& vtype)
+  static void add_property_sizepolicy(xml::node& widget, const std::string& htype, const std::string& vtype)
   {
-    rc::xml::node prop = widget.append_child("property");
+    xml::node prop = widget.append_child("property");
     prop.add_attr("name", "sizePolicy");
-    rc::xml::node policy = prop.append_child("sizepolicy");
+    xml::node policy = prop.append_child("sizepolicy");
     policy.add_attr("hsizetype", htype);
     policy.add_attr("vsizetype", vtype);
     policy.append_child("horstretch").text() = 0;
@@ -387,17 +387,17 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     m_name_counts.clear();
     m_action_counter = 0;
-    m_menubar_node = rc::xml::node();
+    m_menubar_node = xml::node();
 
 
-    rc::xml::document doc;
-    rc::xml::node ui = doc.append_child("ui");
+    xml::document doc;
+    xml::node ui = doc.append_child("ui");
     ui.add_attr("version", "4.0");
     ui.append_child("class").text() = "Form";
 
     write_dialog(ui, res);
 
-    rc::xml::node root_widget = ui.child("widget");
+    xml::node root_widget = ui.child("widget");
 
     std::string menu_id;
     if(const dialog_stmt* stmt = find_statement(dd, "MENU"))
@@ -465,7 +465,7 @@ void generator::collect_global_data(const rc_file& file)
   m_name_counts.clear();
     m_action_counter = 0;
 
-  m_menubar_node = rc::xml::node();
+  m_menubar_node = xml::node();
 
   for(const auto& res : file.resources)
   {
@@ -598,10 +598,10 @@ void generator::collect_global_data(const rc_file& file)
 
 bool generator::generate_qrc(const rc_file& file, const std::string& output_path, const std::vector<std::string>& ui_paths)
 {
-  rc::xml::document doc;
+  xml::document doc;
 
-  rc::xml::node qresource = doc.append_child("RCC");
-  rc::xml::node res_node = qresource.append_child("qresource");
+  xml::node qresource = doc.append_child("RCC");
+  xml::node res_node = qresource.append_child("qresource");
 
   std::filesystem::path qrc_path_full = std::filesystem::absolute(output_path);
   std::filesystem::path qrc_dir_fs;
@@ -614,7 +614,7 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
   {
     if(!up.empty())
     {
-      rc::xml::node file_node = res_node.append_child("file");
+      xml::node file_node = res_node.append_child("file");
       std::string normalized = up;
       std::replace(normalized.begin(), normalized.end(), '\\', '/');
       std::filesystem::path abs_path = std::filesystem::absolute(normalized);
@@ -631,7 +631,7 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
 
     if(match_string(res.type, { "BITMAP", "ICON", "CURSOR", "RT_MANIFEST", "REGISTRY", "TYPELIB", "DATA"}))
     {
-      rc::xml::node file_node = res_node.append_child("file");
+      xml::node file_node = res_node.append_child("file");
       file_node.add_attr("alias", res.id);
       // Paths in an .rc file are relative to the .rc file's own directory,
       // so the filename must be emitted verbatim rather than resolved
@@ -646,7 +646,7 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
   return doc.save_file(output_path.c_str(), "  ");
 }
 
-void generator::write_dialog(rc::xml::node& parent, const resource& res)
+void generator::write_dialog(xml::node& parent, const resource& res)
 {
   if(m_use_layouts)
   {
@@ -656,14 +656,14 @@ void generator::write_dialog(rc::xml::node& parent, const resource& res)
   write_dialog_absolute(parent, res);
 }
 
-void generator::write_dialog_absolute(rc::xml::node& parent, const resource& res)
+void generator::write_dialog_absolute(xml::node& parent, const resource& res)
 {
   if(!std::holds_alternative<dialog_data>(res.data))
     return;
   const auto& dd = std::get<dialog_data>(res.data);
   std::string dialog_name = res.id;
 
-  rc::xml::node widget = parent.append_child("widget");
+  xml::node widget = parent.append_child("widget");
   widget.add_attr("class", "QDialog");
   widget.add_attr("name", dialog_name);
 
@@ -847,13 +847,13 @@ void generator::write_dialog_absolute(rc::xml::node& parent, const resource& res
 
   std::vector<bool> written(dd.controls.size(), false);
 
-  auto write_node = [&](auto&& self, rc::xml::node& parent, const groupbox_node& node, const control& ctrl, int y_shift_px) -> void
+  auto write_node = [&](auto&& self, xml::node& parent, const groupbox_node& node, const control& ctrl, int y_shift_px) -> void
   {
     int gi = node.rc_index;
     write_control(parent, ctrl, dialog_name, y_shift_px, node.extra_height_px);
     written[gi] = true;
 
-    rc::xml::node gb_widget = parent.last_child();
+    xml::node gb_widget = parent.last_child();
 
     for(size_t j = 0; j < node.children.size(); ++j)
     {
@@ -1022,14 +1022,14 @@ int generator::multiline_edit_min_height(int height_dlu) const
   return std::max(rows_height, dlu_to_pixel_y(height_dlu));
 }
 
-void generator::write_dialog_layout(rc::xml::node& parent, const resource& res)
+void generator::write_dialog_layout(xml::node& parent, const resource& res)
 {
   if(!std::holds_alternative<dialog_data>(res.data))
     return;
   const auto& dd = std::get<dialog_data>(res.data);
   std::string dialog_name = res.id;
 
-  rc::xml::node widget = parent.append_child("widget");
+  xml::node widget = parent.append_child("widget");
   widget.add_attr("class", "QDialog");
   widget.add_attr("name", dialog_name);
 
@@ -1097,7 +1097,7 @@ void generator::write_dialog_layout(rc::xml::node& parent, const resource& res)
                         dlu_to_pixel_x(dd.width), dlu_to_pixel_y(dd.height));
 }
 
-void generator::emit_layout_container(rc::xml::node& container_widget, const layout_node& node,
+void generator::emit_layout_container(xml::node& container_widget, const layout_node& node,
                                       const std::string& dialog_name,
                                       int container_w, int container_h)
 {
@@ -1135,7 +1135,7 @@ void generator::emit_layout_container(rc::xml::node& container_widget, const lay
 /* Serialize one layout-tree node under parent (a container widget or an item).
    Leaves are written with write_control(); nested tree nodes recurse into a
    nested <layout> element inside the item. */
-void generator::emit_layout_node(rc::xml::node& parent, const rc::layout::node& ln,
+void generator::emit_layout_node(xml::node& parent, const rc::layout::node& ln,
                                  const layout_node& node, const std::string& dialog_name,
                                  const std::vector<rc::layout::child>& items,
                                  layout::pattern_flag pattern_flags,
@@ -1144,7 +1144,7 @@ void generator::emit_layout_node(rc::xml::node& parent, const rc::layout::node& 
   const bool is_grid = ln.k == rc::layout::node::kind::grid;
   const bool is_box_x = ln.k == rc::layout::node::kind::box_x;
 
-  rc::xml::node layout = parent.append_child("layout");
+  xml::node layout = parent.append_child("layout");
   layout.add_attr("class", is_grid ? "QGridLayout"
                                     : (is_box_x ? "QHBoxLayout" : "QVBoxLayout"));
   layout.add_attr("name", unique_name("layout"));
@@ -1216,7 +1216,7 @@ void generator::emit_layout_node(rc::xml::node& parent, const rc::layout::node& 
   for(int k : order)
   {
     const rc::layout::node& child = ln.children[k];
-    rc::xml::node item = layout.append_child("item");
+    xml::node item = layout.append_child("item");
     if(is_grid)
     {
       const rc::layout::node::cell& c = ln.cells[k];
@@ -1252,7 +1252,7 @@ void generator::emit_layout_node(rc::xml::node& parent, const rc::layout::node& 
 
       if(lc.nested_index >= 0)
       {
-        rc::xml::node gb_widget = item.last_child();
+        xml::node gb_widget = item.last_child();
         emit_layout_container(gb_widget, node.nested[lc.nested_index], dialog_name,
                               items[k_ctrl].bounds.w, items[k_ctrl].bounds.h);
       }
@@ -1268,13 +1268,13 @@ void generator::emit_layout_node(rc::xml::node& parent, const rc::layout::node& 
      positions when the container grows. */
   if(ln.spacer_size > 0)
   {
-    rc::xml::node item = layout.append_child("item");
-    rc::xml::node spacer = item.append_child("spacer");
+    xml::node item = layout.append_child("item");
+    xml::node spacer = item.append_child("spacer");
     spacer.add_attr("name", unique_name("spacer"));
     spacer.add_attr("orientation", is_box_x ? "Horizontal" : "Vertical");
-    rc::xml::node prop = spacer.append_child("property");
+    xml::node prop = spacer.append_child("property");
     prop.add_attr("name", "sizeHint");
-    rc::xml::node size = prop.append_child("size");
+    xml::node size = prop.append_child("size");
     size.append_child("width").text() = is_box_x ? ln.spacer_size : 20;
     size.append_child("height").text() = is_box_x ? 20 : ln.spacer_size;
   }
@@ -1317,7 +1317,7 @@ void generator::setup_dialog_font(const dialog_data& dd)
   set_current_font(m_mapped_font_name, m_font_size, m_font_weight, m_font_italic);
 }
 
-void generator::write_dialog_properties(rc::xml::node& widget, const dialog_data& dd, int extra_height)
+void generator::write_dialog_properties(xml::node& widget, const dialog_data& dd, int extra_height)
 {
   int px = dlu_to_pixel_x(dd.x);
   int py = dlu_to_pixel_y(dd.y);
@@ -1455,7 +1455,7 @@ bool generator::share_common_word(const std::string& id1, const std::string& id2
   return false;
 }
 
-void generator::write_control(rc::xml::node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px, int extra_height_px, bool emit_geometry)
+void generator::write_control(xml::node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px, int extra_height_px, bool emit_geometry)
 {
   std::string qt_class = widget_class_for_control(ctrl);
 
@@ -1479,7 +1479,7 @@ void generator::write_control(rc::xml::node& parent, const control& ctrl, const 
       name_id = "static_" + text_id;
   }
   std::string name = unique_name(name_id);
-  rc::xml::node widget = add_widget(parent, qt_class, name);
+  xml::node widget = add_widget(parent, qt_class, name);
 
   int ctrl_w_dlu = ctrl.width;
   int ctrl_h_dlu = ctrl.height;
@@ -1601,7 +1601,7 @@ void generator::write_control(rc::xml::node& parent, const control& ctrl, const 
     {
       for(const auto& item_text : it->second)
       {
-        rc::xml::node item_node = widget.append_child("item");
+        xml::node item_node = widget.append_child("item");
         add_property_string(item_node, "text", item_text);
       }
     }
@@ -1734,17 +1734,17 @@ void generator::write_control(rc::xml::node& parent, const control& ctrl, const 
 
       std::string tab_name = std::format("tabPage{}", tab_idx);
 
-      rc::xml::node tab_widget = add_widget(widget, "QWidget", tab_name);
+      xml::node tab_widget = add_widget(widget, "QWidget", tab_name);
 
-      rc::xml::node tab_attr = tab_widget.append_child("attribute");
+      xml::node tab_attr = tab_widget.append_child("attribute");
       tab_attr.add_attr("name", "title");
       tab_attr.append_child("string").text() = tab_title.c_str();
 
       if(emit_geometry)
       {
-        rc::xml::node tab_prop = tab_widget.append_child("property");
+        xml::node tab_prop = tab_widget.append_child("property");
         tab_prop.add_attr("name", "geometry");
-        rc::xml::node tab_rect = tab_prop.append_child("rect");
+        xml::node tab_rect = tab_prop.append_child("rect");
         tab_rect.append_child("x").text() = 0;
         tab_rect.append_child("y").text() = 0;
         tab_rect.append_child("width").text() = dlu_to_pixel_x(dd.width);
@@ -1783,7 +1783,7 @@ void generator::write_control(rc::xml::node& parent, const control& ctrl, const 
           const std::string& child_class = child_classes[i];
 
           std::string child_name = unique_name(child_ctrl.id);
-          rc::xml::node child_widget = add_widget(tab_widget, child_class, child_name);
+          xml::node child_widget = add_widget(tab_widget, child_class, child_name);
 
           int child_w_dlu = child_ctrl.width;
           int child_h_dlu = child_ctrl.height;
@@ -1830,14 +1830,14 @@ void generator::write_control(rc::xml::node& parent, const control& ctrl, const 
     {
       for(const auto& item_text : it->second)
       {
-        rc::xml::node item_node = widget.append_child("item");
+        xml::node item_node = widget.append_child("item");
         add_property_string(item_node, "text", item_text);
       }
     }
   }
 }
 
-void generator::apply_combo_dropdown_height(rc::xml::node& widget, const control& ctrl, bool is_combo, int& height_px)
+void generator::apply_combo_dropdown_height(xml::node& widget, const control& ctrl, bool is_combo, int& height_px)
 {
   if(m_disable_geometry_adjustments)
     return;
@@ -2375,7 +2375,7 @@ generator::text_fit_info generator::fit_text(const std::string& text, int width_
 }
 
 void generator::ensure_text_fits(const std::string& text, int& width_dlu, int& height_dlu,
-                                 rc::xml::node& widget, const std::string& widget_class)
+                                 xml::node& widget, const std::string& widget_class)
 {
   if(m_disable_geometry_adjustments || text.empty())
     return;
@@ -2417,7 +2417,7 @@ bool generator::has_dialog_flag(const dialog_data& dd, const std::string& keywor
   return false;
 }
 
-void generator::write_menu(rc::xml::node& parent, const resource& res)
+void generator::write_menu(xml::node& parent, const resource& res)
 {
   if(!std::holds_alternative<menu_data>(res.data))
     return;
@@ -2429,9 +2429,9 @@ void generator::write_menu(rc::xml::node& parent, const resource& res)
     m_menubar_node.add_attr("class", "QMenuBar");
     m_menubar_node.add_attr("name", "menubar");
 
-    rc::xml::node geom = m_menubar_node.append_child("property");
+    xml::node geom = m_menubar_node.append_child("property");
     geom.add_attr("name", "geometry");
-    rc::xml::node rect = geom.append_child("rect");
+    xml::node rect = geom.append_child("rect");
     rect.append_child("x").text() = 0;
     rect.append_child("y").text() = 0;
     rect.append_child("width").text() = 800;
@@ -2451,7 +2451,7 @@ void generator::write_menu(rc::xml::node& parent, const resource& res)
         cleaned = "m" + cleaned;
       menu_name = unique_name(cleaned);
 
-      rc::xml::node menu = m_menubar_node.append_child("widget");
+      xml::node menu = m_menubar_node.append_child("widget");
       menu.add_attr("class", "QMenu");
       menu.add_attr("name", menu_name);
 
@@ -2463,7 +2463,7 @@ void generator::write_menu(rc::xml::node& parent, const resource& res)
   }
 }
 
-void generator::write_menu_entries(rc::xml::node& menu_node, const std::vector<menu_entry>& entries)
+void generator::write_menu_entries(xml::node& menu_node, const std::vector<menu_entry>& entries)
 {
   for(const auto& entry : entries)
   {
@@ -2492,7 +2492,7 @@ void generator::write_menu_entries(rc::xml::node& menu_node, const std::vector<m
         cleaned = "m" + cleaned;
       sub_name = unique_name(cleaned);
 
-      rc::xml::node sub_menu = menu_node.append_child("widget");
+      xml::node sub_menu = menu_node.append_child("widget");
       sub_menu.add_attr("class", "QMenu");
       sub_menu.add_attr("name", sub_name);
 
@@ -2503,14 +2503,14 @@ void generator::write_menu_entries(rc::xml::node& menu_node, const std::vector<m
   }
 }
 
-void generator::write_toolbar(rc::xml::node& parent, const resource& res)
+void generator::write_toolbar(xml::node& parent, const resource& res)
 {
   const auto& td = std::get<toolbar_data>(res.data);
   std::string tb_name = "toolBar";
   if(!res.id.empty())
     tb_name = res.id;
 
-  rc::xml::node toolbar = parent.append_child("widget");
+  xml::node toolbar = parent.append_child("widget");
   toolbar.add_attr("class", "QToolBar");
   toolbar.add_attr("name", tb_name);
 
@@ -2523,7 +2523,7 @@ void generator::write_toolbar(rc::xml::node& parent, const resource& res)
   }
 }
 
-void generator::write_actions(rc::xml::node& parent, const rc_file& file)
+void generator::write_actions(xml::node& parent, const rc_file& file)
 {
   std::map<std::string, bool> actions_defined;
 

@@ -95,18 +95,18 @@ private:
 
   void collect_global_data(const rc_file& file);
 
-  void write_dialog(rc::xml::node& parent, const resource& res);
-  void write_dialog_absolute(rc::xml::node& parent, const resource& res);
-  void write_dialog_layout(rc::xml::node& parent, const resource& res);
+  void write_dialog(xml::node& parent, const resource& res);
+  void write_dialog_absolute(xml::node& parent, const resource& res);
+  void write_dialog_layout(xml::node& parent, const resource& res);
   void setup_dialog_font(const dialog_data& dd);
-  void write_dialog_properties(rc::xml::node& widget, const dialog_data& dd, int extra_height = 0);
-  void write_control(rc::xml::node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0, int extra_height_px = 0, bool emit_geometry = true);
-  void apply_combo_dropdown_height(rc::xml::node& widget, const control& ctrl, bool is_combo, int& height_px);
+  void write_dialog_properties(xml::node& widget, const dialog_data& dd, int extra_height = 0);
+  void write_control(xml::node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0, int extra_height_px = 0, bool emit_geometry = true);
+  void apply_combo_dropdown_height(xml::node& widget, const control& ctrl, bool is_combo, int& height_px);
 
-  void emit_layout_container(rc::xml::node& container_widget, const layout_node& node,
+  void emit_layout_container(xml::node& container_widget, const layout_node& node,
                              const std::string& dialog_name,
                              int container_w = 0, int container_h = 0);
-  void emit_layout_node(rc::xml::node& parent, const rc::layout::node& ln,
+  void emit_layout_node(xml::node& parent, const rc::layout::node& ln,
                         const layout_node& node, const std::string& dialog_name,
                         const std::vector<rc::layout::child>& items,
                         layout::pattern_flag pattern_flags,
@@ -125,10 +125,10 @@ private:
 
   std::set<std::string> id_words(const std::string& id) const;
   bool share_common_word(const std::string& id1, const std::string& id2) const;
-  void write_menu(rc::xml::node& parent, const resource& res);
-  void write_menu_entries(rc::xml::node& menu_node, const std::vector<menu_entry>& entries);
-  void write_toolbar(rc::xml::node& parent, const resource& res);
-  void write_actions(rc::xml::node& parent, const rc_file& file);
+  void write_menu(xml::node& parent, const resource& res);
+  void write_menu_entries(xml::node& menu_node, const std::vector<menu_entry>& entries);
+  void write_toolbar(xml::node& parent, const resource& res);
+  void write_actions(xml::node& parent, const rc_file& file);
 
   std::string unique_name(const std::string& id);
   std::string map_vk_to_qt(const std::string& vk_code);
@@ -144,7 +144,7 @@ private:
   std::vector<std::string> wrap_text(const std::string& text, int width_dlu);
 
   void ensure_text_fits(const std::string& text, int& width_dlu, int& height_dlu,
-                        rc::xml::node& widget, const std::string& widget_class);
+                        xml::node& widget, const std::string& widget_class);
 
   void control_layout_pixel_size(const control& ctrl, const std::string& qt_class,
                                  int& width_px, int& height_px);
@@ -170,7 +170,7 @@ private:
   std::map<std::string, std::vector<std::string>> m_dlginit_map;
   std::map<std::string, const dialog_data*> m_ds_control_dialogs;
   std::map<std::string, std::string> m_substitute_fonts;
-  rc::xml::node m_menubar_node;
+  xml::node m_menubar_node;
 
   std::map<std::string, std::map<std::string, std::string>> m_uimetrics;
 

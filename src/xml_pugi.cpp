@@ -2,8 +2,6 @@
 
 #include <sstream>
 
-namespace rc
-{
 namespace xml
 {
 
@@ -330,14 +328,14 @@ node node::append_copy(const node& n)
   return node(m_impl.append_copy(n.m_impl));
 }
 
-rc::xml::attribute node::attribute(const char* name) const
+xml::attribute node::attribute(const char* name) const
 {
-  return rc::xml::attribute(m_impl.attribute(name));
+  return xml::attribute(m_impl.attribute(name));
 }
 
-rc::xml::attribute node::append_attribute(const char* name)
+xml::attribute node::append_attribute(const char* name)
 {
-  return rc::xml::attribute(m_impl.append_attribute(name));
+  return xml::attribute(m_impl.append_attribute(name));
 }
 
 bool node::remove_attribute(const char* name)
@@ -345,17 +343,17 @@ bool node::remove_attribute(const char* name)
   return m_impl.remove_attribute(name);
 }
 
-std::vector<rc::xml::attribute> node::attributes() const
+std::vector<xml::attribute> node::attributes() const
 {
-  std::vector<rc::xml::attribute> out;
+  std::vector<xml::attribute> out;
   for(pugi::xml_attribute a : m_impl.attributes())
-    out.push_back(rc::xml::attribute(a));
+    out.push_back(xml::attribute(a));
   return out;
 }
 
-rc::xml::text node::text() const
+xml::text node::text() const
 {
-  return rc::xml::text(m_impl.text());
+  return xml::text(m_impl.text());
 }
 
 bool node::set_value(const char* value)
@@ -445,4 +443,3 @@ node document::document_element() const
 }
 
 } // namespace xml
-} // namespace rc

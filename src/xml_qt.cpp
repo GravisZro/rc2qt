@@ -8,8 +8,6 @@
 #include <cstring>
 #include <sstream>
 
-namespace rc
-{
 namespace xml
 {
 
@@ -614,29 +612,29 @@ node node::append_copy(const node& n)
   return node(added);
 }
 
-rc::xml::attribute node::attribute(const char* name) const
+xml::attribute node::attribute(const char* name) const
 {
   if(m_impl.isNull())
-    return rc::xml::attribute();
+    return xml::attribute();
   QDomElement e = m_impl.toElement();
   if(e.isNull())
-    return rc::xml::attribute();
-  return rc::xml::attribute(e.attributeNode(QString::fromUtf8(name)));
+    return xml::attribute();
+  return xml::attribute(e.attributeNode(QString::fromUtf8(name)));
 }
 
-rc::xml::attribute node::append_attribute(const char* name)
+xml::attribute node::append_attribute(const char* name)
 {
   if(m_impl.isNull())
-    return rc::xml::attribute();
+    return xml::attribute();
   QDomElement e = m_impl.toElement();
   if(e.isNull())
-    return rc::xml::attribute();
+    return xml::attribute();
   QDomDocument doc = owner_document(e);
   if(doc.isNull())
-    return rc::xml::attribute();
+    return xml::attribute();
   QDomAttr attr = doc.createAttribute(QString::fromUtf8(name));
   e.setAttributeNode(attr);
-  return rc::xml::attribute(attr);
+  return xml::attribute(attr);
 }
 
 bool node::remove_attribute(const char* name)
@@ -652,9 +650,9 @@ bool node::remove_attribute(const char* name)
   return existed;
 }
 
-std::vector<rc::xml::attribute> node::attributes() const
+std::vector<xml::attribute> node::attributes() const
 {
-  std::vector<rc::xml::attribute> out;
+  std::vector<xml::attribute> out;
   if(m_impl.isNull())
     return out;
   QDomElement e = m_impl.toElement();
@@ -662,13 +660,13 @@ std::vector<rc::xml::attribute> node::attributes() const
     return out;
   QDomNamedNodeMap map = e.attributes();
   for(int i = 0; i < map.count(); ++i)
-    out.push_back(rc::xml::attribute(map.item(i).toAttr()));
+    out.push_back(xml::attribute(map.item(i).toAttr()));
   return out;
 }
 
-rc::xml::text node::text() const
+xml::text node::text() const
 {
-  return rc::xml::text(m_impl);
+  return xml::text(m_impl);
 }
 
 bool node::set_value(const char* value)
@@ -863,4 +861,3 @@ node document::document_element() const
 }
 
 } // namespace xml
-} // namespace rc

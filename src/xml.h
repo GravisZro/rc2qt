@@ -11,7 +11,7 @@
 #elif defined(HAVE_QT)
 #include <QDomDocument>
 #else
-#error "rc::xml: no XML backend selected -- define HAVE_PUGIXML or HAVE_QT"
+#error "xml: no XML backend selected -- define HAVE_PUGIXML or HAVE_QT"
 #endif
 
 /* XML abstraction layer.
@@ -36,8 +36,6 @@
  * left to the XML parser's standard normalization.
  */
 
-namespace rc
-{
 namespace xml
 {
 
@@ -280,10 +278,10 @@ public:
   bool remove_child(const char* name);
   node append_copy(const node& n);
 
-  rc::xml::attribute attribute(const char* name) const;
-  rc::xml::attribute append_attribute(const char* name);
+  xml::attribute attribute(const char* name) const;
+  xml::attribute append_attribute(const char* name);
   bool remove_attribute(const char* name);
-  std::vector<rc::xml::attribute> attributes() const;
+  std::vector<xml::attribute> attributes() const;
 
   /* Convenience writers: append an attribute, skipping empty/null strings. */
   void add_attr(const char* name, const char* value)
@@ -315,7 +313,7 @@ public:
     append_attribute(name).set_value(value, precision);
   }
 
-  rc::xml::text text() const;
+  xml::text text() const;
   bool set_value(const char* value);
 
   node find_child_by_attribute(const char* name, const char* attr,
@@ -359,4 +357,3 @@ private:
 };
 
 } // namespace xml
-} // namespace rc
