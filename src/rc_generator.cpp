@@ -119,30 +119,6 @@ namespace rc
     font.append_child("italic").text() = italic ? "true" : "false";
   }
 
-  static void add_property_sizepolicy(xml::node& widget, const std::string& htype, const std::string& vtype)
-  {
-    xml::node prop = widget.append_child("property");
-    prop.add_attr("name", "sizePolicy");
-    xml::node policy = prop.append_child("sizepolicy");
-    policy.add_attr("hsizetype", htype);
-    policy.add_attr("vsizetype", vtype);
-    policy.append_child("horstretch").text() = 0;
-    policy.append_child("verstretch").text() = 0;
-  }
-
-  /* Widget classes that should grow when their container is resized. Everything
-     else keeps a Preferred size, so a dialog opens close to its RC size. */
-  static bool layout_class_stretches(const std::string& qt_class)
-  {
-    static const std::set<std::string> stretch_classes =
-    {
-      "QTextEdit", "QPlainTextEdit", "QListWidget", "QListView",
-      "QTableWidget", "QTableView", "QTreeWidget", "QTreeView",
-      "QScrollArea", "QWidget", "QOpenGLWidget", "QGLWidget",
-    };
-    return stretch_classes.count(qt_class) != 0;
-  }
-
   static std::string map_keyword_to_widget(const std::string& keyword)
   {
     static const std::map<std::string, std::string> keyword_map =
@@ -427,29 +403,10 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     write_actions(root_widget, file);
 
-#ifdef HAVE_QT
-    if(m_collect_verify)
-    {
-      render::verify_input input;
-      input.name = res.id;
-      input.doc = std::move(doc);
-      input.targets = std::move(m_verify_targets);
-      input.dialog_width = dlu_to_pixel_x(dd.width);
-      input.dialog_height = dlu_to_pixel_y(dd.height);
-      m_verify_targets.clear();
-      m_verify_inputs.push_back(std::move(input));
-      continue;
-    }
-#endif
-
     if(doc.save_file(filename.generic_string().c_str(), "  "))
       generated_files.push_back(filename.generic_string());
   }
 
-#ifdef HAVE_QT
-  if(m_collect_verify)
-    return !m_verify_inputs.empty();
-#endif
   return !generated_files.empty();
 }
 
@@ -648,11 +605,6 @@ bool generator::generate_qrc(const rc_file& file, const std::string& output_path
 
 void generator::write_dialog(xml::node& parent, const resource& res)
 {
-  if(m_use_layouts)
-  {
-    write_dialog_layout(parent, res);
-    return;
-  }
   write_dialog_absolute(parent, res);
 }
 
@@ -1009,277 +961,6 @@ void generator::control_layout_pixel_size(const control& ctrl, const std::string
     height_px = min_h;
 }
 
-int generator::multiline_edit_min_height(int height_dlu) const
-{
-  /* RC multiline edit controls are sized with the convention height = 8 DLU
-     per text row plus a 10 DLU frame. Express the minimum height in terms of
-     the rows the control should contain so it always shows that many lines,
-     regardless of the runtime font. */
-  int rows = std::max(1, static_cast<int>(std::lround((height_dlu - 10) / 8.0)));
-  double line_height = m_font_height;
-  double frame = dlu_to_pixel_y(10);
-  int rows_height = static_cast<int>(std::lround(rows * line_height + frame));
-  return std::max(rows_height, dlu_to_pixel_y(height_dlu));
-}
-
-void generator::write_dialog_layout(xml::node& parent, const resource& res)
-{
-  if(!std::holds_alternative<dialog_data>(res.data))
-    return;
-  const auto& dd = std::get<dialog_data>(res.data);
-  std::string dialog_name = res.id;
-
-  xml::node widget = parent.append_child("widget");
-  widget.add_attr("class", "QDialog");
-  widget.add_attr("name", dialog_name);
-
-  setup_dialog_font(dd);
-
-  std::vector<std::string> qt_classes(dd.controls.size());
-  for(size_t i = 0; i < dd.controls.size(); ++i)
-    qt_classes[i] = widget_class_for_control(dd.controls[i]);
-
-  write_dialog_properties(widget, dd, 0);
-
-  /* In layout mode the dialog keeps its RC size as a minimum so it opens at the
-     original dimensions; fixed-size dialogs already got min==max above. */
-  bool fixed_size = false;
-  if(const dialog_stmt* stmt = find_statement(dd, "STYLE"))
-    fixed_size = has_style(stmt->value, "DS_MODALFRAME");
-  if(!fixed_size)
-  {
-    if(const dialog_stmt* stmt = find_statement(dd, "EXSTYLE"))
-      fixed_size = has_style(stmt->value, "WS_EX_DLGMODALFRAME");
-  }
-  if(!fixed_size)
-  {
-    int pw = dlu_to_pixel_x(dd.width);
-    int ph = dlu_to_pixel_y(dd.height);
-    add_property_size(widget, "minimumSize", pw, ph);
-  }
-
-  std::vector<int> parent_groupbox = compute_parent_groupbox(dd.controls, qt_classes);
-
-  /* Build the container tree (dialog plus every groupbox) with coordinates
-     relative to each box, exactly as in the absolute path. Each container is
-     then decomposed into box/grid layouts by emit_layout_container(). */
-  layout_node root;
-  auto build_tree = [&](auto&& self, layout_node& node, int parent_index) -> void
-  {
-    for(size_t i = 0; i < dd.controls.size(); ++i)
-    {
-      if(parent_groupbox[i] != parent_index)
-        continue;
-
-      control relative = dd.controls[i];
-      if(parent_index >= 0)
-      {
-        const control& gb = dd.controls[parent_index];
-        relative.x = relative.x - gb.x;
-        relative.y = relative.y - gb.y + 4;
-      }
-
-      layout_child child;
-      child.ctrl = relative;
-      child.qt_class = qt_classes[i];
-      if(qt_classes[i] == "QGroupBox")
-      {
-        child.nested_index = static_cast<int>(node.nested.size());
-        node.nested.emplace_back();
-        self(self, node.nested.back(), static_cast<int>(i));
-      }
-      node.children.push_back(std::move(child));
-    }
-  };
-
-  build_tree(build_tree, root, -1);
-  emit_layout_container(widget, root, dialog_name,
-                        dlu_to_pixel_x(dd.width), dlu_to_pixel_y(dd.height));
-}
-
-void generator::emit_layout_container(xml::node& container_widget, const layout_node& node,
-                                      const std::string& dialog_name,
-                                      int container_w, int container_h)
-{
-  if(node.children.empty())
-    return;
-
-  /* Pixel rects feed the layout solver; they match the geometry write_control()
-     would emit in absolute mode. */
-  std::vector<rc::layout::child> items(node.children.size());
-  for(size_t i = 0; i < node.children.size(); ++i)
-  {
-    const layout_child& child = node.children[i];
-    items[i].control_index = static_cast<int>(i);
-    items[i].qt_class = child.qt_class;
-    items[i].bounds.x = dlu_to_pixel_x(child.ctrl.x);
-    items[i].bounds.y = dlu_to_pixel_y(child.ctrl.y);
-    control_layout_pixel_size(child.ctrl, child.qt_class, items[i].bounds.w, items[i].bounds.h);
-  }
-
-  /* Default: box decomposition + grid subgroups + per-item alignment. The
-     stretch and trailing-spacer patterns measurably hurt fidelity (they push
-     widgets off their RC positions), so they stay off by default. */
-  layout::pattern_flag pattern_flags = rc::layout::pattern_box |
-                                           rc::layout::pattern_grid |
-                                           rc::layout::pattern_align;
-  if(const char* env = std::getenv("RC2QT_PATTERNS"))
-    pattern_flags = static_cast<layout::pattern_flag>(std::strtoul(env, nullptr, 0));
-
-  layout::node root = layout::solve_container(items, pattern_flags,
-                                              container_w, container_h);
-  emit_layout_node(container_widget, root, node, dialog_name, items, pattern_flags,
-                   container_widget.attribute("name").value());
-}
-
-/* Serialize one layout-tree node under parent (a container widget or an item).
-   Leaves are written with write_control(); nested tree nodes recurse into a
-   nested <layout> element inside the item. */
-void generator::emit_layout_node(xml::node& parent, const rc::layout::node& ln,
-                                 const layout_node& node, const std::string& dialog_name,
-                                 const std::vector<rc::layout::child>& items,
-                                 layout::pattern_flag pattern_flags,
-                                 const std::string& container_name)
-{
-  const bool is_grid = ln.k == rc::layout::node::kind::grid;
-  const bool is_box_x = ln.k == rc::layout::node::kind::box_x;
-
-  xml::node layout = parent.append_child("layout");
-  layout.add_attr("class", is_grid ? "QGridLayout"
-                                    : (is_box_x ? "QHBoxLayout" : "QVBoxLayout"));
-  layout.add_attr("name", unique_name("layout"));
-  add_property_int(layout, "spacing", 6);
-  add_property_int(layout, "margin", 0);
-
-  if(is_grid && ln.label_column_minwidth > 0)
-    layout.add_attr("columnminimumwidth", ln.label_column_minwidth);
-
-  if(is_grid && (pattern_flags & rc::layout::pattern_stretch) &&
-     ln.equal_row_stretch > 0)
-  {
-    std::string row_stretch;
-    for(int r = 0; r < ln.rows; ++r)
-      row_stretch += (r ? "," : "") + std::to_string(ln.equal_row_stretch);
-    std::string col_stretch;
-    for(int c = 0; c < ln.columns; ++c)
-      col_stretch += (c ? "," : "") + std::to_string(ln.equal_col_stretch);
-    layout.add_attr("rowstretch", row_stretch.c_str());
-    layout.add_attr("columnstretch", col_stretch.c_str());
-  }
-
-  /* Grid items are emitted in row-major order so the XML is stable; box items
-     keep the solver's reading order. */
-  std::vector<int> order(ln.children.size());
-  for(size_t i = 0; i < order.size(); ++i)
-    order[i] = static_cast<int>(i);
-  if(is_grid)
-  {
-    std::stable_sort(order.begin(), order.end(), [&](int a, int b)
-    {
-      const rc::layout::node::cell& ca = ln.cells[a];
-      const rc::layout::node::cell& cb = ln.cells[b];
-      if(ca.row != cb.row)
-        return ca.row < cb.row;
-      if(ca.column != cb.column)
-        return ca.column < cb.column;
-      const rc::layout::rect& ra = items[ln.children[a].control_index].bounds;
-      const rc::layout::rect& rb = items[ln.children[b].control_index].bounds;
-      if(ra.y != rb.y)
-        return ra.y < rb.y;
-      return ra.x < rb.x;
-    });
-  }
-
-  const auto alignment_attr = [&](const rc::layout::node& c) -> std::string
-  {
-    if(!(pattern_flags & rc::layout::pattern_align))
-      return "";
-    std::string h;
-    std::string v;
-    if(c.halign == rc::layout::align_h::left)
-      h = "Qt::AlignLeft";
-    else if(c.halign == rc::layout::align_h::right)
-      h = "Qt::AlignRight";
-    else if(c.halign == rc::layout::align_h::center)
-      h = "Qt::AlignHCenter";
-    if(c.valign == rc::layout::align_v::top)
-      v = "Qt::AlignTop";
-    else if(c.valign == rc::layout::align_v::bottom)
-      v = "Qt::AlignBottom";
-    else if(c.valign == rc::layout::align_v::center)
-      v = "Qt::AlignVCenter";
-    if(h.empty() && v.empty())
-      return "";
-    return h.empty() ? v : (v.empty() ? h : h + "|" + v);
-  };
-
-  for(int k : order)
-  {
-    const rc::layout::node& child = ln.children[k];
-    xml::node item = layout.append_child("item");
-    if(is_grid)
-    {
-      const rc::layout::node::cell& c = ln.cells[k];
-      item.add_attr("row", c.row);
-      item.add_attr("column", c.column);
-      if(c.rowspan > 1)
-        item.add_attr("rowspan", c.rowspan);
-      if(c.colspan > 1)
-        item.add_attr("colspan", c.colspan);
-    }
-    std::string align = alignment_attr(child);
-    if(!align.empty())
-      item.add_attr("alignment", align.c_str());
-
-    if(child.k == rc::layout::node::kind::item)
-    {
-      const int k_ctrl = child.control_index;
-      const layout_child& lc = node.children[k_ctrl];
-      write_control(item, lc.ctrl, dialog_name, 0, 0, false);
-
-#ifdef HAVE_QT
-      if(m_collect_verify)
-      {
-        render::target t;
-        t.x = items[k_ctrl].bounds.x;
-        t.y = items[k_ctrl].bounds.y;
-        t.w = items[k_ctrl].bounds.w;
-        t.h = items[k_ctrl].bounds.h;
-        t.container = container_name;
-        m_verify_targets[item.last_child().attribute("name").value()] = t;
-      }
-#endif
-
-      if(lc.nested_index >= 0)
-      {
-        xml::node gb_widget = item.last_child();
-        emit_layout_container(gb_widget, node.nested[lc.nested_index], dialog_name,
-                              items[k_ctrl].bounds.w, items[k_ctrl].bounds.h);
-      }
-    }
-    else
-    {
-      emit_layout_node(item, child, node, dialog_name, items, pattern_flags,
-                       container_name);
-    }
-  }
-
-  /* Trailing spacer absorbs the free space so the widgets keep their RC
-     positions when the container grows. */
-  if(ln.spacer_size > 0)
-  {
-    xml::node item = layout.append_child("item");
-    xml::node spacer = item.append_child("spacer");
-    spacer.add_attr("name", unique_name("spacer"));
-    spacer.add_attr("orientation", is_box_x ? "Horizontal" : "Vertical");
-    xml::node prop = spacer.append_child("property");
-    prop.add_attr("name", "sizeHint");
-    xml::node size = prop.append_child("size");
-    size.append_child("width").text() = is_box_x ? ln.spacer_size : 20;
-    size.append_child("height").text() = is_box_x ? 20 : ln.spacer_size;
-  }
-}
-
 void generator::setup_dialog_font(const dialog_data& dd)
 {
   std::string original_font_name = "MS Sans Serif";
@@ -1455,7 +1136,7 @@ bool generator::share_common_word(const std::string& id1, const std::string& id2
   return false;
 }
 
-void generator::write_control(xml::node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px, int extra_height_px, bool emit_geometry)
+void generator::write_control(xml::node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px, int extra_height_px)
 {
   std::string qt_class = widget_class_for_control(ctrl);
 
@@ -1502,25 +1183,7 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
     ph = min_h;
   ph += extra_height_px;
 
-  if(emit_geometry)
-  {
-    add_property_rect(widget, px, py, pw, ph);
-  }
-  else
-  {
-    /* In layout mode the geometry rect is replaced by a minimum size (from the
-       RC size) plus a size policy, so widgets open at their RC size but reflow
-       when the dialog is resized. Multiline edits derive their minimum height
-       from the number of text rows they should contain. */
-    int layout_ph = ph;
-    if(qt_class == "QTextEdit")
-      layout_ph = multiline_edit_min_height(ctrl_h_dlu);
-    add_property_size(widget, "minimumSize", pw, layout_ph);
-    if(layout_class_stretches(qt_class))
-      add_property_sizepolicy(widget, "Expanding", "Expanding");
-    else
-      add_property_sizepolicy(widget, "Preferred", "Preferred");
-  }
+  add_property_rect(widget, px, py, pw, ph);
 
   if(!ctrl.text.empty())
   {
@@ -1740,16 +1403,13 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
       tab_attr.add_attr("name", "title");
       tab_attr.append_child("string").text() = tab_title.c_str();
 
-      if(emit_geometry)
-      {
-        xml::node tab_prop = tab_widget.append_child("property");
-        tab_prop.add_attr("name", "geometry");
-        xml::node tab_rect = tab_prop.append_child("rect");
-        tab_rect.append_child("x").text() = 0;
-        tab_rect.append_child("y").text() = 0;
-        tab_rect.append_child("width").text() = dlu_to_pixel_x(dd.width);
-        tab_rect.append_child("height").text() = dlu_to_pixel_y(dd.height);
-      }
+      xml::node tab_prop = tab_widget.append_child("property");
+      tab_prop.add_attr("name", "geometry");
+      xml::node tab_rect = tab_prop.append_child("rect");
+      tab_rect.append_child("x").text() = 0;
+      tab_rect.append_child("y").text() = 0;
+      tab_rect.append_child("width").text() = dlu_to_pixel_x(dd.width);
+      tab_rect.append_child("height").text() = dlu_to_pixel_y(dd.height);
 
       std::vector<std::string> child_classes(dd.controls.size());
       for(size_t i = 0; i < dd.controls.size(); ++i)
@@ -1759,58 +1419,42 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
         child_classes[i] = child_class;
       }
 
-      if(!emit_geometry)
+      std::vector<control_layout> child_layout;
+      layout_control_sizes(dd.controls, child_classes, child_layout);
+
+      for(size_t i = 0; i < dd.controls.size(); ++i)
       {
-        layout_node tab_node;
-        for(size_t i = 0; i < dd.controls.size(); ++i)
+        const auto& child_ctrl = dd.controls[i];
+        const std::string& child_class = child_classes[i];
+
+        std::string child_name = unique_name(child_ctrl.id);
+        xml::node child_widget = add_widget(tab_widget, child_class, child_name);
+
+        int child_w_dlu = child_ctrl.width;
+        int child_h_dlu = child_ctrl.height;
+        ensure_text_fits(child_ctrl.text, child_w_dlu, child_h_dlu, child_widget, child_class);
+
+        int cx = dlu_to_pixel_x(child_ctrl.x);
+        int cy = dlu_to_pixel_y(child_ctrl.y) + child_layout[i].y_shift_px;
+        int cw = dlu_to_pixel_x(child_w_dlu);
+        int ch = dlu_to_pixel_y(child_h_dlu);
+        apply_combo_dropdown_height(child_widget, child_ctrl, child_class == "QComboBox", ch);
+
+        int child_min_w = min_width_px(child_class);
+        if(cw < child_min_w)
+          cw = child_min_w;
+        int child_min_h = min_height_px(child_class);
+        if(ch < child_min_h)
+          ch = child_min_h;
+
+        add_property_rect(child_widget, cx, cy, cw, ch);
+
+        if(!child_ctrl.text.empty())
         {
-          layout_child child;
-          child.ctrl = dd.controls[i];
-          child.qt_class = child_classes[i];
-          tab_node.children.push_back(std::move(child));
-        }
-        emit_layout_container(tab_widget, tab_node, dialog_name,
-                              dlu_to_pixel_x(dd.width), dlu_to_pixel_y(dd.height));
-      }
-      else
-      {
-        std::vector<control_layout> child_layout;
-        layout_control_sizes(dd.controls, child_classes, child_layout);
-
-        for(size_t i = 0; i < dd.controls.size(); ++i)
-        {
-          const auto& child_ctrl = dd.controls[i];
-          const std::string& child_class = child_classes[i];
-
-          std::string child_name = unique_name(child_ctrl.id);
-          xml::node child_widget = add_widget(tab_widget, child_class, child_name);
-
-          int child_w_dlu = child_ctrl.width;
-          int child_h_dlu = child_ctrl.height;
-          ensure_text_fits(child_ctrl.text, child_w_dlu, child_h_dlu, child_widget, child_class);
-
-          int cx = dlu_to_pixel_x(child_ctrl.x);
-          int cy = dlu_to_pixel_y(child_ctrl.y) + child_layout[i].y_shift_px;
-          int cw = dlu_to_pixel_x(child_w_dlu);
-          int ch = dlu_to_pixel_y(child_h_dlu);
-          apply_combo_dropdown_height(child_widget, child_ctrl, child_class == "QComboBox", ch);
-
-          int child_min_w = min_width_px(child_class);
-          if(cw < child_min_w)
-            cw = child_min_w;
-          int child_min_h = min_height_px(child_class);
-          if(ch < child_min_h)
-            ch = child_min_h;
-
-          add_property_rect(child_widget, cx, cy, cw, ch);
-
-          if(!child_ctrl.text.empty())
-          {
-            if(child_class == "QGroupBox")
-              add_property_string(child_widget, "title", child_ctrl.text);
-            else
-              add_property_string(child_widget, "text", child_ctrl.text);
-          }
+          if(child_class == "QGroupBox")
+            add_property_string(child_widget, "title", child_ctrl.text);
+          else
+            add_property_string(child_widget, "text", child_ctrl.text);
         }
       }
 

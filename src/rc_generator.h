@@ -12,11 +12,8 @@
 
 #include "rc_types.h"
 
-#include "rc_layout.h"
-
 #ifdef HAVE_QT
 # include <QFont>
-# include "rc_render.h"
 #else
 # include <ft2build.h>
 # include <freetype/freetype.h>
@@ -50,21 +47,6 @@ public:
     { m_disable_geometry_adjustments = value; }
   void set_prevent_font_substitution(bool value)
     { m_prevent_font_substitution = value; }
-  void set_use_layouts(bool value)
-    { m_use_layouts = value; }
-  void set_collect_verify(bool value)
-  {
-    (void)value;
-#ifdef HAVE_QT
-    m_collect_verify = value;
-#endif
-  }
-#ifdef HAVE_QT
-  std::vector<render::verify_input> take_verify_inputs()
-  {
-    return std::move(m_verify_inputs);
-  }
-#endif
 
 private:
   struct text_fit_info
@@ -80,38 +62,15 @@ private:
     int height_px = 0;
   };
 
-  struct layout_child
-  {
-    control ctrl;
-    std::string qt_class;
-    int nested_index = -1;
-  };
-
-  struct layout_node
-  {
-    std::vector<layout_child> children;
-    std::vector<layout_node> nested;
-  };
-
   void collect_global_data(const rc_file& file);
 
   void write_dialog(xml::node& parent, const resource& res);
   void write_dialog_absolute(xml::node& parent, const resource& res);
-  void write_dialog_layout(xml::node& parent, const resource& res);
   void setup_dialog_font(const dialog_data& dd);
   void write_dialog_properties(xml::node& widget, const dialog_data& dd, int extra_height = 0);
-  void write_control(xml::node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0, int extra_height_px = 0, bool emit_geometry = true);
+  void write_control(xml::node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px = 0, int extra_height_px = 0);
   void apply_combo_dropdown_height(xml::node& widget, const control& ctrl, bool is_combo, int& height_px);
 
-  void emit_layout_container(xml::node& container_widget, const layout_node& node,
-                             const std::string& dialog_name,
-                             int container_w = 0, int container_h = 0);
-  void emit_layout_node(xml::node& parent, const rc::layout::node& ln,
-                        const layout_node& node, const std::string& dialog_name,
-                        const std::vector<rc::layout::child>& items,
-                        layout::pattern_flag pattern_flags,
-                        const std::string& container_name);
-  int multiline_edit_min_height(int height_dlu) const;
   text_fit_info fit_text(const std::string& text, int width_dlu, int height_dlu, const std::string& widget_class);
   int min_width_px(const std::string& qt_class) const;
   int min_height_px(const std::string& qt_class) const;
@@ -187,12 +146,6 @@ private:
   bool m_font_italic = false;
   bool m_disable_geometry_adjustments = false;
   bool m_prevent_font_substitution = false;
-  bool m_use_layouts = false;
-#ifdef HAVE_QT
-  bool m_collect_verify = false;
-  std::vector<render::verify_input> m_verify_inputs;
-  std::map<std::string, render::target> m_verify_targets;
-#endif
 
   #ifdef HAVE_QT
   QFont m_current_font;

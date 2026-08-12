@@ -1,9 +1,14 @@
 #include "rc_layout.h"
 #include "utils.h"
 #include "xml.h"
+#ifdef HAVE_QT
+# include "rc_render.h"
+# include <QApplication>
+#endif
 
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -33,6 +38,19 @@ int g_name_counts = 0;
 
 int g_default_tol = 2;
 std::map<std::string, int> g_widget_tol;
+
+#ifdef HAVE_QT
+std::map<std::string, rc::render::target> g_verify_targets;
+#endif
+
+void usage()
+{
+  std::cerr << "usage: ui_relayout -o <out.ui> [-t <tolerances.txt>] [-v [-d <dir>]] <in.ui>\n";
+#ifdef HAVE_QT
+  std::cerr << "  -v             Render the relaid-out dialog offscreen and verify geometry\n";
+  std::cerr << "  -d <dir>       Render dump directory for -v (default: none)\n";
+#endif
+}
 
 std::string unique_name(const char* base)
 {
@@ -275,8 +293,11 @@ xml::node emit_layout_node(xml::node& parent, const rc::layout::node& ln,
 }
 
 void process(xml::node widget, const std::string& cls,
-             rc::layout::rect bounds)
+             rc::layout::rect bounds, const std::string& container_name)
 {
+#ifndef HAVE_QT
+  (void)container_name;
+#endif
   if(cls == "QTabWidget")
   {
     for(xml::node page : widget.children("widget"))
@@ -284,7 +305,8 @@ void process(xml::node widget, const std::string& cls,
       rc::layout::rect page_bounds;
       if(get_geometry(page, page_bounds))
         remove_property(page, "geometry");
-      process(page, page.attribute("class").as_string(), page_bounds);
+      process(page, page.attribute("class").as_string(), page_bounds,
+              page.attribute("name").as_string());
     }
   }
   else if(is_container_class(cls))
@@ -301,7 +323,7 @@ void process(xml::node widget, const std::string& cls,
     }
 
     for(const auto& c : positioned)
-      process(c.widget, c.qt_class, c.bounds);
+      process(c.widget, c.qt_class, c.bounds, c.name);
 
     if(positioned.size() >= 2)
     {
@@ -330,6 +352,19 @@ void process(xml::node widget, const std::string& cls,
           lchildren, pattern_flags, bounds.w, bounds.h, g_default_tol);
 
       xml::node layout = emit_layout_node(widget, plan, positioned);
+
+#ifdef HAVE_QT
+      for(const auto& c : positioned)
+      {
+        rc::render::target t;
+        t.x = c.bounds.x;
+        t.y = c.bounds.y;
+        t.w = c.bounds.w;
+        t.h = c.bounds.h;
+        t.container = container_name;
+        g_verify_targets[c.name] = t;
+      }
+#endif
 
       for(const auto& c : positioned)
         widget.remove_child(c.widget);
@@ -386,9 +421,17 @@ int main(int argc, char** argv)
   std::string in_path;
   std::string out_path;
   std::string tolerances_path;
+#ifdef HAVE_QT
+  bool verify = false;
+  std::string dump_dir;
+#endif
 
   int opt;
+#ifdef HAVE_QT
+  while((opt = getopt(argc, argv, "o:t:vd:h")) != -1)
+#else
   while((opt = getopt(argc, argv, "o:t:h")) != -1)
+#endif
   {
     switch(opt)
     {
@@ -398,11 +441,19 @@ int main(int argc, char** argv)
       case 't':
         tolerances_path = optarg;
         break;
+#ifdef HAVE_QT
+      case 'v':
+        verify = true;
+        break;
+      case 'd':
+        dump_dir = optarg;
+        break;
+#endif
       case 'h':
-        std::cerr << "usage: ui_relayout -o <out.ui> [-t <margins.txt>] <in.ui>\n";
+        usage();
         return 0;
       default:
-        std::cerr << "usage: ui_relayout -o <out.ui> [-t <margins.txt>] <in.ui>\n";
+        usage();
         return 1;
     }
   }
@@ -419,7 +470,7 @@ int main(int argc, char** argv)
 
   if(in_path.empty() || out_path.empty())
   {
-    std::cerr << "usage: ui_relayout -o <out.ui> [-t <margins.txt>] <in.ui>\n";
+    usage();
     return 1;
   }
 
@@ -450,7 +501,8 @@ int main(int argc, char** argv)
 
   rc::layout::rect root_bounds;
   get_geometry(root, root_bounds);
-  process(root, root.attribute("class").as_string(), root_bounds);
+  process(root, root.attribute("class").as_string(), root_bounds,
+          root.attribute("name").as_string());
 
   comment_out_duplicate_cells(ui);
 
@@ -461,5 +513,38 @@ int main(int argc, char** argv)
   }
 
   std::cout << "wrote " << out_path << "\n";
+
+#ifdef HAVE_QT
+  if(verify)
+  {
+    /* Render offscreen so the verify works without a display; pin the DPI to
+       96 to match the generator's pixel conversion. The QApplication must
+       exist before any widget is constructed. */
+    qputenv("QT_QPA_PLATFORM", "offscreen");
+    qputenv("QT_FONT_DPI", "96");
+    int qargc = 1;
+    QApplication app(qargc, nullptr);
+
+    /* Render the relaid-out document offscreen and compare every widget that
+       went into a layout against its original absolute geometry. */
+    rc::render::verify_input input;
+    input.name = std::filesystem::path(in_path).stem().string();
+    input.doc = std::move(doc);
+    input.targets = std::move(g_verify_targets);
+    input.dialog_width = root_bounds.w;
+    input.dialog_height = root_bounds.h;
+
+    rc::render::result r = rc::render::verify_layout(input, dump_dir);
+    std::cout << "Verify: " << input.name << ": targets=" << r.target_widgets
+              << " rendered=" << r.rendered_widgets
+              << " missing=" << r.missing_widgets
+              << " iou=" << r.mean_iou
+              << " dx=" << r.mean_dx << " dy=" << r.mean_dy
+              << " dw=" << r.mean_dw << " dh=" << r.mean_dh
+              << " max_dx=" << r.max_dx << " max_dy=" << r.max_dy
+              << " overlaps=" << r.overlap_violations << std::endl;
+  }
+#endif
+
   return 0;
 }

@@ -87,7 +87,6 @@ set(HEADERS
   src/rc_types.h
   src/rc_constants.h
   src/rc_generator.h
-  src/rc_layout.h
   src/rc_parser.h
   src/rc_resolver.h
   src/rc_tokenizer.h
@@ -104,13 +103,9 @@ set(SOURCES
   src/rc_tokenizer.cpp
   src/pe_resource_decoder.cpp
   src/imageio.cpp
-  src/rc_layout.cpp
   src/main.cpp
 )
 
-if(BUILD_WITH_QT)
-  list(APPEND SOURCES src/rc_render.cpp src/rc_render.h)
-endif()
 list(APPEND SOURCES ${XML_BACKEND_SOURCES})
 
 add_executable(${TARGET_NAME} ${HEADERS} ${SOURCES})
@@ -182,15 +177,23 @@ target_compile_definitions(ui_overlap PRIVATE ${XML_BACKEND_DEFS})
 
 # ui_relayout: converts absolute-positioned .ui files to layout-based .ui
 # files. Reuses the pure-geometry layout solver (src/rc_layout.cpp) and only
-# depends on the XML backend, so it builds with either pugixml or Qt.
-add_executable(ui_relayout
+# depends on the XML backend, so it builds with either pugixml or Qt. With Qt
+# it also gains -v/-d, which render the relaid-out dialog offscreen through
+# src/rc_render.cpp and compare it against the original geometry.
+set(UI_RELAYOUT_SOURCES
   src/rc_layout.cpp
   src/ui_relayout.cpp
+)
+set(UI_RELAYOUT_HEADERS
   src/rc_layout.h
   src/utils.h
   src/xml.h
-  ${XML_BACKEND_SOURCES}
 )
+if(BUILD_WITH_QT)
+  list(APPEND UI_RELAYOUT_SOURCES src/rc_render.cpp)
+  list(APPEND UI_RELAYOUT_HEADERS src/rc_render.h)
+endif()
+add_executable(ui_relayout ${UI_RELAYOUT_HEADERS} ${UI_RELAYOUT_SOURCES} ${XML_BACKEND_SOURCES})
 target_include_directories(ui_relayout PRIVATE src ${EXTRA_DIRS})
 target_link_libraries(ui_relayout PRIVATE ${XML_BACKEND_LIBS} ${EXTRA_LIBS})
 target_compile_definitions(ui_relayout PRIVATE ${XML_BACKEND_DEFS} ${EXTRA_DEFS})

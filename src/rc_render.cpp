@@ -464,6 +464,12 @@ struct builder
 
 QWidget* build_widget(const xml::node& node, QWidget* parent, builder& b);
 
+bool is_container_class(const std::string& cls)
+{
+  return cls == "QDialog" || cls == "QWidget" || cls == "QGroupBox" ||
+         cls == "QFrame";
+}
+
 void build_layout(const xml::node& node, QWidget* owner, builder& b,
                   QLayout* parent_layout, int row, int col, int rowspan, int colspan,
                   Qt::Alignment item_align = Qt::Alignment())
@@ -605,7 +611,18 @@ QWidget* build_widget(const xml::node& node, QWidget* parent, builder& b)
          attr && std::string(attr.attribute("name").value()) == "title")
         title = QString::fromStdString(attr.child("string").text().get());
       QWidget* pw = build_widget(page, tw, b);
+      b.widget_container[pw] = tw;
       tw->addTab(pw, title);
+    }
+    return w;
+  }
+
+  if(is_container_class(cls))
+  {
+    for(xml::node child : node.children("widget"))
+    {
+      QWidget* cw = build_widget(child, w, b);
+      b.widget_container[cw] = w;
     }
   }
 
