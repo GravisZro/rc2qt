@@ -65,6 +65,8 @@ void usage()
   std::cerr << "usage: ui_relayout -o <out.ui> [-t <tolerances.txt>] [-v [-d <dir>]] <in.ui>\n";
   std::cerr << "  -o <file>      Write the relaid-out .ui to <file>\n";
   std::cerr << "  -t <file>      Read per-widget and per-class layout tolerances from <file>\n";
+  std::cerr << "                 (run with -T for the file format; a tolerance given for\n";
+  std::cerr << "                 a container also inherits to the widgets it contains)\n";
   std::cerr << "  -T             Explain how to write the -t tolerances file\n";
 #ifdef HAVE_QT
   std::cerr << "  -v             Render the relaid-out dialog offscreen and verify geometry\n";
@@ -91,9 +93,14 @@ void print_tolerances_help()
   std::cerr << "  <widget-class> <n>     Override for every widget of that Qt class; the\n";
   std::cerr << "                         supported classes are listed below\n";
   std::cerr << "\n";
+  std::cerr << "When <widget-name> is a container (QDialog, QGroupBox, QFrame, QWidget)\n";
+  std::cerr << "its tolerance also applies to every widget it contains, down to its nested\n";
+  std::cerr << "containers' children, unless a child sets its own tolerance.\n";
+  std::cerr << "\n";
   std::cerr << "The effective tolerance for a pair of widgets is the larger of the\n";
   std::cerr << "default, either widget's per-name override, and either widget's per-class\n";
-  std::cerr << "override. A per-name override wins over a per-class one.\n";
+  std::cerr << "override. A per-name override wins over a per-class one, which wins over\n";
+  std::cerr << "a container's inherited tolerance.\n";
   std::cerr << "\n";
   std::cerr << "Supported widget classes:\n";
   for(size_t i = 0; i < k_supported_widgets.size(); ++i)
@@ -111,6 +118,8 @@ void print_tolerances_help()
   std::cerr << "  QPushButton 0\n";
   std::cerr << "  # but let this specific control be loose\n";
   std::cerr << "  IDC_LIST1 8\n";
+  std::cerr << "  # give everything inside this group box extra slack too\n";
+  std::cerr << "  IDC_GROUP 6\n";
 }
 
 std::string unique_name(const char* base)
@@ -357,7 +366,8 @@ xml::node emit_layout_node(xml::node& parent, const rc::layout::node& ln,
 }
 
 void process(xml::node widget, const std::string& cls,
-             rc::layout::rect bounds, const std::string& container_name)
+             rc::layout::rect bounds, const std::string& container_name,
+             int inherited_tol = 0)
 {
 #ifndef HAVE_QT
   (void)container_name;
@@ -370,7 +380,7 @@ void process(xml::node widget, const std::string& cls,
       if(get_geometry(page, page_bounds))
         remove_property(page, "geometry");
       process(page, page.attribute("class").as_string(), page_bounds,
-              page.attribute("name").as_string());
+              page.attribute("name").as_string(), inherited_tol);
     }
   }
   else if(is_container_class(cls))
@@ -386,8 +396,15 @@ void process(xml::node widget, const std::string& cls,
         positioned.push_back(std::move(c));
     }
 
+    /* A tolerance given for a container by name also applies to the widgets
+       it contains, unless a child sets its own. */
+    int child_inherit = inherited_tol;
+    auto it_tol = g_widget_tol.find(widget.attribute("name").as_string());
+    if(it_tol != g_widget_tol.end())
+      child_inherit = std::max(child_inherit, it_tol->second);
+
     for(const auto& c : positioned)
-      process(c.widget, c.qt_class, c.bounds, c.name);
+      process(c.widget, c.qt_class, c.bounds, c.name, child_inherit);
 
     if(positioned.size() >= 2)
     {
@@ -399,6 +416,7 @@ void process(xml::node widget, const std::string& cls,
         ch.control_index = static_cast<int>(i);
         ch.qt_class = positioned[i].qt_class;
         ch.bounds = positioned[i].bounds;
+        ch.tol = child_inherit;
         auto it = g_widget_tol.find(positioned[i].name);
         if(it != g_widget_tol.end())
           ch.tol = it->second;
