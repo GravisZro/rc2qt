@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 namespace
@@ -126,13 +127,27 @@ void check_file(const std::string& file)
 
 int main(int argc, char** argv)
 {
-  if(argc < 2)
+  int opt;
+  while((opt = getopt(argc, argv, "h")) != -1)
+  {
+    switch(opt)
+    {
+      case 'h':
+        std::cerr << "usage: ui_overlap <file.ui> [<file.ui> ... | <dir>]\n";
+        return 0;
+      default:
+        std::cerr << "usage: ui_overlap <file.ui> [<file.ui> ... | <dir>]\n";
+        return 1;
+    }
+  }
+
+  if(optind >= argc)
   {
     std::cerr << "usage: ui_overlap <file.ui> [<file.ui> ... | <dir>]\n";
     return 1;
   }
 
-  for(int i = 1; i < argc; ++i)
+  for(int i = optind; i < argc; ++i)
   {
     std::filesystem::path p(argv[i]);
     if(std::filesystem::is_directory(p))

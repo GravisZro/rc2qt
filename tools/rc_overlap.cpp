@@ -7,6 +7,7 @@
 #include <format>
 #include <iostream>
 #include <string>
+#include <unistd.h>
 #include <variant>
 #include <vector>
 
@@ -154,16 +155,30 @@ void check_dialog(const rc::resource& res)
 
 int main(int argc, char** argv)
 {
-  if(argc < 2)
+  int opt;
+  while((opt = getopt(argc, argv, "h")) != -1)
+  {
+    switch(opt)
+    {
+      case 'h':
+        std::cerr << "usage: rc_overlap <file.rc>\n";
+        return 0;
+      default:
+        std::cerr << "usage: rc_overlap <file.rc>\n";
+        return 1;
+    }
+  }
+
+  if(optind >= argc)
   {
     std::cerr << "usage: rc_overlap <file.rc>\n";
     return 1;
   }
 
-  std::ifstream ifs(argv[1]);
+  std::ifstream ifs(argv[optind]);
   if(!ifs)
   {
-    std::cerr << argv[1] << ": cannot open\n";
+    std::cerr << argv[optind] << ": cannot open\n";
     return 1;
   }
   std::string input((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());

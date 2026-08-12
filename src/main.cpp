@@ -204,16 +204,14 @@ int main(int argc, char** argv)
       case 'l':
         use_layouts = true;
         break;
-      case 'v':
 #ifdef HAVE_QT
+      case 'v':
         verify_layouts = true;
-#endif
         break;
       case 'd':
-#ifdef HAVE_QT
         render_dir = std::filesystem::path(optarg).generic_string();
-#endif
         break;
+#endif
       case 'h':
         print_usage(argv[0]);
         return 0;
@@ -252,8 +250,6 @@ int main(int argc, char** argv)
       else
         out_dir = p.parent_path();
     }
-    // if(out_dir.empty())
-    //   out_dir = std::filesystem::path(input_path).parent_path();
     if(out_dir.empty())
       out_dir = ".";
     std::filesystem::path rc_stem = std::filesystem::path(input_path).stem();

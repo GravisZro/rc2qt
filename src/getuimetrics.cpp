@@ -5,6 +5,7 @@
 #include <QCalendarWidget>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCommandLineParser>
 #include <QDateTimeEdit>
 #include <QDialog>
 #include <QDir>
@@ -610,21 +611,6 @@ static void write_font_section(writer& w, const QFont& font)
   w.kv("dluYFactor", QString::number(g_dlu_y_factor, 'g', 10));
 }
 
-static void print_usage(const char* argv0)
-{
-  std::printf("Usage: %s [options] [output.txt]\n"
-              "Renders rc2qt widget classes offscreen and writes their component\n"
-              "metrics to a text file.\n"
-              "\n"
-              "Options:\n"
-              "  --font-family NAME   font family to measure (default: Liberation Sans)\n"
-              "  --point-size N       font point size to measure (default: 8)\n"
-              "  --style NAME         Qt style to measure (default: platform default)\n"
-              "  --image-dir DIR      also dump a PNG render of every widget to DIR\n"
-              "  -h, --help           show this help\n",
-              argv0);
-}
-
 int main(int argc, char** argv)
 {
   if(qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
@@ -636,49 +622,46 @@ int main(int argc, char** argv)
 
   QApplication app(argc, argv);
 
-  QString output_path = QStringLiteral("uimetrics.txt");
-  QString font_family = QStringLiteral("Liberation Sans");
-  int point_size = 8;
-  QString image_dir;
+  QCommandLineParser parser;
+  parser.setApplicationDescription(
+      "Renders rc2qt widget classes offscreen and writes their component "
+      "metrics to a text file.");
+  QCommandLineOption font_family_opt("font-family",
+                                     "font family to measure (default: Liberation Sans)", "NAME");
+  QCommandLineOption point_size_opt("point-size",
+                                    "font point size to measure (default: 8)", "N");
+  QCommandLineOption style_opt("style",
+                               "Qt style to measure (default: platform default)", "NAME");
+  QCommandLineOption image_dir_opt("image-dir",
+                                   "also dump a PNG render of every widget to DIR", "DIR");
+  parser.addOption(font_family_opt);
+  parser.addOption(point_size_opt);
+  parser.addOption(style_opt);
+  parser.addOption(image_dir_opt);
+  parser.addHelpOption();
+  parser.process(app);
 
-  QStringList args = app.arguments();
-  for(int i = 1; i < args.size(); ++i)
+  QString output_path = QStringLiteral("uimetrics.txt");
+  QStringList positionals = parser.positionalArguments();
+  if(!positionals.isEmpty())
+    output_path = positionals.first();
+
+  QString font_family = parser.value(font_family_opt);
+  if(font_family.isEmpty())
+    font_family = QStringLiteral("Liberation Sans");
+
+  int point_size = 8;
+  if(parser.isSet(point_size_opt))
   {
-    if(args[i] == QStringLiteral("--font-family") && i + 1 < args.size())
-    {
-      ++i;
-      font_family = args[i];
-    }
-    else if(args[i] == QStringLiteral("--point-size") && i + 1 < args.size())
-    {
-      ++i;
-      point_size = args[i].toInt();
-    }
-    else if(args[i] == QStringLiteral("--style") && i + 1 < args.size())
-    {
-      ++i;
-      QApplication::setStyle(args[i]);
-    }
-    else if(args[i] == QStringLiteral("--image-dir") && i + 1 < args.size())
-    {
-      ++i;
-      image_dir = args[i];
-    }
-    else if(args[i] == QStringLiteral("-h") || args[i] == QStringLiteral("--help"))
-    {
-      print_usage(argv[0]);
-      return 0;
-    }
-    else if(!args[i].startsWith('-'))
-    {
-      output_path = args[i];
-    }
-    else
-    {
-      print_usage(argv[0]);
-      return 2;
-    }
+    bool ok = false;
+    int parsed = parser.value(point_size_opt).toInt(&ok);
+    if(ok)
+      point_size = parsed;
   }
+
+  QString image_dir = parser.value(image_dir_opt);
+  if(parser.isSet(style_opt))
+    QApplication::setStyle(parser.value(style_opt));
 
   QFont app_font(font_family, point_size);
   app.setFont(app_font);

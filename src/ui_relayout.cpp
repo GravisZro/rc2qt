@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -107,8 +108,8 @@ bool layout_class_stretches(const std::string& qt_class)
          stretch_classes.end();
 }
 
-bool load_margins_file(const std::string& path, int& default_tol,
-                       std::map<std::string, int>& widget_tol)
+bool load_tolerances_file(const std::string& path, int& default_tol,
+                          std::map<std::string, int>& widget_tol)
 {
   std::ifstream in(path);
   if(!in)
@@ -384,37 +385,35 @@ int main(int argc, char** argv)
 {
   std::string in_path;
   std::string out_path;
-  std::string margins_path;
+  std::string tolerances_path;
 
-  for(int i = 1; i < argc; ++i)
+  int opt;
+  while((opt = getopt(argc, argv, "o:t:h")) != -1)
   {
-    std::string arg = argv[i];
-    if(arg == "-o" || arg == "--output")
+    switch(opt)
     {
-      if(i + 1 >= argc)
-      {
-        std::cerr << "error: -o requires a file path\n";
+      case 'o':
+        out_path = optarg;
+        break;
+      case 't':
+        tolerances_path = optarg;
+        break;
+      case 'h':
+        std::cerr << "usage: ui_relayout -o <out.ui> [-t <margins.txt>] <in.ui>\n";
+        return 0;
+      default:
+        std::cerr << "usage: ui_relayout -o <out.ui> [-t <margins.txt>] <in.ui>\n";
         return 1;
-      }
-      out_path = argv[++i];
     }
-    else if(arg == "-t" || arg == "--margins-file")
+  }
+
+  if(optind < argc)
+  {
+    in_path = argv[optind++];
+    if(optind < argc)
     {
-      if(i + 1 >= argc)
-      {
-        std::cerr << "error: -t requires a file path\n";
-        return 1;
-      }
-      margins_path = argv[++i];
-    }
-    else if(!in_path.empty())
-    {
-      std::cerr << "error: unexpected extra argument \"" << arg << "\"\n";
+      std::cerr << "error: unexpected extra argument \"" << argv[optind] << "\"\n";
       return 1;
-    }
-    else
-    {
-      in_path = arg;
     }
   }
 
@@ -424,10 +423,10 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  if(!margins_path.empty() && !load_margins_file(margins_path, g_default_tol,
+  if(!tolerances_path.empty() && !load_tolerances_file(tolerances_path, g_default_tol,
                                                  g_widget_tol))
   {
-    std::cerr << "error: could not read margins file \"" << margins_path << "\"\n";
+    std::cerr << "error: could not read margins file \"" << tolerances_path << "\"\n";
     return 1;
   }
 
