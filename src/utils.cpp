@@ -30,7 +30,7 @@ bool is_expression_text(const std::string& s)
   bool found = false;
   for(size_t i = 0; i < s.size(); ++i)
   {
-    if(s[i] == '(' || (i > 0 && strchr("+-&|^", s[i]) != nullptr))
+    if(s[i] == '(' || (i > 0 && strchr("+-&|", s[i]) != nullptr))
       found = true;
   }
   return found;
@@ -118,7 +118,7 @@ int64_t eval_expr(const std::string& text, size_t& pos)
     if(pos >= text.size())
       break;
     char op = text[pos];
-    if(strchr("+-&|^", op) == nullptr)
+    if(strchr("+-&|", op) == nullptr)
       break;
     ++pos;
     int64_t rhs = eval_term(text, pos);
@@ -135,9 +135,6 @@ int64_t eval_expr(const std::string& text, size_t& pos)
         break;
       case '|':
         value |= rhs;
-        break;
-      case '^':
-        value ^= rhs;
         break;
     }
   }

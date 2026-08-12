@@ -177,7 +177,7 @@ static std::string read_string(const std::string& input, size_t& pos, size_t& li
 // treat all binary operators as having completely equal precedence.
 static bool is_expr_operator(char c)
 {
-  return strchr("+-&|^()", c) != NULL;
+  return strchr("+-&|()", c) != NULL;
 }
 
 static std::pair<token_type, std::string> read_numeric(const std::string& input, size_t& pos)
@@ -210,7 +210,7 @@ static std::pair<token_type, std::string> read_numeric(const std::string& input,
   }
 
   // Detect a trailing arithmetic expression, e.g. "200 - 8" or "295-7".
-  // Expressions use the operators + - & | ^ (and parentheses for grouping)
+  // Expressions use the operators + - & | (and parentheses for grouping)
   // and always end at a comma or a newline; the raw text of the whole
   // expression is stored as-is and marked with the expression token type.
   // Binary operators have equal precedence and are evaluated left-to-right.

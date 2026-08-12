@@ -2571,7 +2571,7 @@ static void test_numeric_token_types()
 }
 
 // Verifies that evaluate_expression and safe_stoi compute arithmetic
-// expressions. Binary operators + - & | ^ have equal precedence and are
+// expressions. Binary operators + - & | have equal precedence and are
 // evaluated left-to-right, matching the RC resource compiler; parentheses
 // override that order. Multiplication and division are not part of the RC
 // expression language, so they are not treated as operators. E.g. (1+5)&1
@@ -2595,6 +2595,7 @@ static void test_expression_evaluation()
     assert(evaluate_expression("not_a_number") == 0);
     assert(evaluate_expression("8 * 2") == 8);
     assert(evaluate_expression("8 / 2") == 8);
+    assert(evaluate_expression("8 ^ 2") == 8);
     assert(evaluate_expression("-") == 0);
     assert(evaluate_expression("1--") == 1);
     assert(safe_stoi("(1+5)&1") == 0);
