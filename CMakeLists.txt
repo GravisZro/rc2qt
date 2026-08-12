@@ -109,7 +109,7 @@ set(SOURCES
 )
 
 if(BUILD_WITH_QT)
-  list(APPEND SOURCES src/rc_render.cpp)
+  list(APPEND SOURCES src/rc_render.cpp src/rc_render.h)
 endif()
 list(APPEND SOURCES ${XML_BACKEND_SOURCES})
 
@@ -129,7 +129,16 @@ set(TEST_SOURCES
   src/test_parser.cpp
 )
 
-add_executable(test_parser ${TEST_SOURCES})
+set(TEST_HEADERS
+  src/rc_parser.h
+  src/rc_resolver.h
+  src/rc_constants.h
+  src/rc_tokenizer.h
+  src/rc_types.h
+  src/utils.h
+)
+
+add_executable(test_parser ${TEST_HEADERS} ${TEST_SOURCES})
 target_include_directories(test_parser PRIVATE src ${EXTRA_DIRS})
 target_link_libraries(test_parser PRIVATE ${EXTRA_LIBS})
 target_compile_definitions(test_parser PRIVATE ${EXTRA_DEFS})
@@ -142,6 +151,12 @@ add_test(NAME parser_tests COMMAND test_parser)
 # Overlaps are detected in source DLU coordinates so they can be classified
 # as source-inherited (by design) versus introduced by the converter.
 add_executable(rc_overlap
+  src/rc_parser.h
+  src/rc_resolver.h
+  src/rc_constants.h
+  src/rc_tokenizer.h
+  src/rc_types.h
+  src/utils.h
   src/rc_tokenizer.cpp
   src/rc_constants.cpp
   src/rc_resolver.cpp
@@ -158,6 +173,7 @@ target_compile_definitions(rc_overlap PRIVATE ${EXTRA_DEFS})
 # tab page); tab pages stacked by design are excluded from sibling checks.
 add_executable(ui_overlap
   tools/ui_overlap.cpp
+  src/xml.h
   ${XML_BACKEND_SOURCES}
 )
 target_include_directories(ui_overlap PRIVATE src ${EXTRA_DIRS})
@@ -170,6 +186,9 @@ target_compile_definitions(ui_overlap PRIVATE ${XML_BACKEND_DEFS})
 add_executable(ui_relayout
   src/rc_layout.cpp
   src/ui_relayout.cpp
+  src/rc_layout.h
+  src/utils.h
+  src/xml.h
   ${XML_BACKEND_SOURCES}
 )
 target_include_directories(ui_relayout PRIVATE src ${EXTRA_DIRS})
