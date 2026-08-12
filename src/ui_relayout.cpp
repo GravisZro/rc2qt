@@ -46,10 +46,40 @@ std::map<std::string, rc::render::target> g_verify_targets;
 void usage()
 {
   std::cerr << "usage: ui_relayout -o <out.ui> [-t <tolerances.txt>] [-v [-d <dir>]] <in.ui>\n";
+  std::cerr << "  -o <file>      Write the relaid-out .ui to <file>\n";
+  std::cerr << "  -t <file>      Read per-widget layout tolerances from <file>\n";
+  std::cerr << "  -T             Explain how to write the -t tolerances file\n";
 #ifdef HAVE_QT
   std::cerr << "  -v             Render the relaid-out dialog offscreen and verify geometry\n";
   std::cerr << "  -d <dir>       Render dump directory for -v (default: none)\n";
 #endif
+  std::cerr << "  -h             Show this help\n";
+}
+
+void print_tolerances_help()
+{
+  std::cerr << "Tolerances file for -t <file>:\n";
+  std::cerr << "\n";
+  std::cerr << "The -t option reads a text file that sets a margin of error, in pixels,\n";
+  std::cerr << "used by the layout solver. Two widgets whose edges are within that many\n";
+  std::cerr << "pixels of each other are treated as sharing a grid row/column, so the\n";
+  std::cerr << "solver snaps them together instead of splitting into separate bands.\n";
+  std::cerr << "The built-in default is 2 pixels.\n";
+  std::cerr << "\n";
+  std::cerr << "Format: one rule per line; '#' starts a comment.\n";
+  std::cerr << "\n";
+  std::cerr << "  default <n>        Tolerance for every widget (>= 0)\n";
+  std::cerr << "  <widget-name> <n>  Override for one widget, matched against the .ui\n";
+  std::cerr << "                     <widget name=\"...\"> attribute\n";
+  std::cerr << "\n";
+  std::cerr << "The effective tolerance for a pair of widgets is the larger of the\n";
+  std::cerr << "default and either widget's override.\n";
+  std::cerr << "\n";
+  std::cerr << "Example:\n";
+  std::cerr << "  # loosen everything\n";
+  std::cerr << "  default 5\n";
+  std::cerr << "  # keep this control on its own row\n";
+  std::cerr << "  IDOK 0\n";
 }
 
 std::string unique_name(const char* base)
@@ -428,9 +458,9 @@ int main(int argc, char** argv)
 
   int opt;
 #ifdef HAVE_QT
-  while((opt = getopt(argc, argv, "o:t:vd:h")) != -1)
+  while((opt = getopt(argc, argv, "o:t:vTd:h")) != -1)
 #else
-  while((opt = getopt(argc, argv, "o:t:h")) != -1)
+  while((opt = getopt(argc, argv, "o:t:Th")) != -1)
 #endif
   {
     switch(opt)
@@ -441,6 +471,9 @@ int main(int argc, char** argv)
       case 't':
         tolerances_path = optarg;
         break;
+      case 'T':
+        print_tolerances_help();
+        return 0;
 #ifdef HAVE_QT
       case 'v':
         verify = true;
