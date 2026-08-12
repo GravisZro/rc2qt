@@ -2575,7 +2575,8 @@ static void test_numeric_token_types()
 // evaluated left-to-right, matching the RC resource compiler; parentheses
 // override that order. Multiplication and division are not part of the RC
 // expression language, so they are not treated as operators. E.g. (1+5)&1
-// == 0 and 5&1+1 == 2.
+// == 0 and 5&1+1 == 2. Unary ~ is bitwise NOT and, like - in rc.exe, is a
+// valid number literal on its own (evaluate_expression("~") == -1).
 static void test_expression_evaluation()
 {
   try
@@ -2598,6 +2599,15 @@ static void test_expression_evaluation()
     assert(evaluate_expression("8 ^ 2") == 8);
     assert(evaluate_expression("-") == 0);
     assert(evaluate_expression("1--") == 1);
+    assert(evaluate_expression("~") == -1);
+    assert(evaluate_expression("~5") == -6);
+    assert(evaluate_expression("~~5") == 5);
+    assert(evaluate_expression("~-5") == 4);
+    assert(evaluate_expression("-~5") == 6);
+    assert(evaluate_expression("~0x10") == -17);
+    assert(evaluate_expression("5 & ~2") == 5);
+    assert(safe_stoi("~") == -1);
+    assert(safe_stoi("~5") == -6);
     assert(safe_stoi("(1+5)&1") == 0);
     assert(safe_stoi("5&1+1") == 2);
     assert(safe_stoi("295-7") == 288);

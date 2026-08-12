@@ -30,7 +30,8 @@ bool is_expression_text(const std::string& s)
   bool found = false;
   for(size_t i = 0; i < s.size(); ++i)
   {
-    if(s[i] == '(' || (i > 0 && strchr("+-&|", s[i]) != nullptr))
+    if(s[i] == '(' || s[i] == '~' ||
+       (i > 0 && strchr("+-&|", s[i]) != nullptr))
       found = true;
   }
   return found;
@@ -74,36 +75,54 @@ int64_t parse_number(const std::string& s, size_t& pos)
   return std::stoll(s.substr(start, pos - start), nullptr, 10);
 }
 
-// Reads a single operand: an optional unary sign followed by an integer
-// literal (decimal, 0x hex, or 0o octal) or a parenthesized subexpression.
+// Reads a single operand: an optional sequence of unary prefix operators
+// (+ - ~) followed by an integer literal (decimal, 0x hex, or 0o octal) or
+// a parenthesized subexpression. Prefixes apply innermost-last, so "-~5" is
+// -(~5) and "~-5" is ~(-5). Unary ~ is bitwise NOT; like rc.exe, "~" on its
+// own is the literal ~0 (0xFFFF as a u16) and "-" on its own is the literal
+// -0, which evaluates to 0.
 int64_t eval_term(const std::string& text, size_t& pos)
 {
-  int sign = 1;
-  while(pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos])))
-    ++pos;
-  if(pos < text.size() && (text[pos] == '+' || text[pos] == '-'))
+  std::vector<char> ops;
+  for(;;)
   {
-    if(text[pos] == '-')
-      sign = -1;
-    ++pos;
-    while(pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos])))
+    while(pos < text.size() &&
+          std::isspace(static_cast<unsigned char>(text[pos])))
       ++pos;
+    if(pos >= text.size())
+      break;
+    char c = text[pos];
+    if(c != '+' && c != '-' && c != '~')
+      break;
+    ops.push_back(c);
+    ++pos;
   }
+  int64_t value;
   if(pos < text.size() && text[pos] == '(')
   {
     ++pos;
-    int64_t value = eval_expr(text, pos);
-    while(pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos])))
+    value = eval_expr(text, pos);
+    while(pos < text.size() &&
+          std::isspace(static_cast<unsigned char>(text[pos])))
       ++pos;
     if(pos < text.size() && text[pos] == ')')
       ++pos;
-    return sign * value;
   }
-  size_t start = pos;
-  int64_t value = parse_number(text, pos);
-  if(pos == start)
-    return 0;
-  return sign * value;
+  else
+  {
+    size_t start = pos;
+    value = parse_number(text, pos);
+    if(pos == start && ops.empty())
+      return 0;
+  }
+  for(auto it = ops.rbegin(); it != ops.rend(); ++it)
+  {
+    if(*it == '-')
+      value = -value;
+    else if(*it == '~')
+      value = ~value;
+  }
+  return value;
 }
 
 // Evaluates binary operators left-to-right with equal precedence, matching
