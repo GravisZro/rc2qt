@@ -38,6 +38,23 @@ int g_name_counts = 0;
 
 int g_default_tol = 2;
 std::map<std::string, int> g_widget_tol;
+std::map<std::string, int> g_class_tol;
+
+/* Qt widget classes that rc2qt can emit as child widgets; tolerances can be
+   given per class as well as per widget name. */
+const std::vector<std::string> k_supported_widgets = {
+  "QCalendarWidget", "QCheckBox", "QComboBox", "QDateTimeEdit",
+  "QGroupBox", "QHeaderView", "QLabel", "QLineEdit", "QListWidget",
+  "QProgressBar", "QPushButton", "QRadioButton", "QScrollBar",
+  "QSlider", "QSpinBox", "QStackedWidget", "QStatusBar", "QTableWidget",
+  "QTabWidget", "QTextEdit", "QToolBar", "QTreeWidget", "QWidget",
+};
+
+bool is_supported_widget(const std::string& key)
+{
+  return std::find(k_supported_widgets.begin(), k_supported_widgets.end(),
+                   key) != k_supported_widgets.end();
+}
 
 #ifdef HAVE_QT
 std::map<std::string, rc::render::target> g_verify_targets;
@@ -47,7 +64,7 @@ void usage()
 {
   std::cerr << "usage: ui_relayout -o <out.ui> [-t <tolerances.txt>] [-v [-d <dir>]] <in.ui>\n";
   std::cerr << "  -o <file>      Write the relaid-out .ui to <file>\n";
-  std::cerr << "  -t <file>      Read per-widget layout tolerances from <file>\n";
+  std::cerr << "  -t <file>      Read per-widget and per-class layout tolerances from <file>\n";
   std::cerr << "  -T             Explain how to write the -t tolerances file\n";
 #ifdef HAVE_QT
   std::cerr << "  -v             Render the relaid-out dialog offscreen and verify geometry\n";
@@ -68,18 +85,32 @@ void print_tolerances_help()
   std::cerr << "\n";
   std::cerr << "Format: one rule per line; '#' starts a comment.\n";
   std::cerr << "\n";
-  std::cerr << "  default <n>        Tolerance for every widget (>= 0)\n";
-  std::cerr << "  <widget-name> <n>  Override for one widget, matched against the .ui\n";
-  std::cerr << "                     <widget name=\"...\"> attribute\n";
+  std::cerr << "  default <n>            Tolerance for every widget (>= 0)\n";
+  std::cerr << "  <widget-name> <n>      Override for one widget, matched against the .ui\n";
+  std::cerr << "                         <widget name=\"...\"> attribute\n";
+  std::cerr << "  <widget-class> <n>     Override for every widget of that Qt class; the\n";
+  std::cerr << "                         supported classes are listed below\n";
   std::cerr << "\n";
   std::cerr << "The effective tolerance for a pair of widgets is the larger of the\n";
-  std::cerr << "default and either widget's override.\n";
+  std::cerr << "default, either widget's per-name override, and either widget's per-class\n";
+  std::cerr << "override. A per-name override wins over a per-class one.\n";
+  std::cerr << "\n";
+  std::cerr << "Supported widget classes:\n";
+  for(size_t i = 0; i < k_supported_widgets.size(); ++i)
+  {
+    if(i > 0 && i % 5 == 0)
+      std::cerr << "\n";
+    std::cerr << "  " << k_supported_widgets[i];
+  }
+  std::cerr << "\n";
   std::cerr << "\n";
   std::cerr << "Example:\n";
   std::cerr << "  # loosen everything\n";
   std::cerr << "  default 5\n";
-  std::cerr << "  # keep this control on its own row\n";
-  std::cerr << "  IDOK 0\n";
+  std::cerr << "  # keep every button on its own row\n";
+  std::cerr << "  QPushButton 0\n";
+  std::cerr << "  # but let this specific control be loose\n";
+  std::cerr << "  IDC_LIST1 8\n";
 }
 
 std::string unique_name(const char* base)
@@ -157,7 +188,8 @@ bool layout_class_stretches(const std::string& qt_class)
 }
 
 bool load_tolerances_file(const std::string& path, int& default_tol,
-                          std::map<std::string, int>& widget_tol)
+                          std::map<std::string, int>& widget_tol,
+                          std::map<std::string, int>& class_tol)
 {
   std::ifstream in(path);
   if(!in)
@@ -175,6 +207,8 @@ bool load_tolerances_file(const std::string& path, int& default_tol,
       continue;
     if(key == "default")
       default_tol = value;
+    else if(is_supported_widget(key))
+      class_tol[key] = value;
     else
       widget_tol[key] = value;
   }
@@ -368,6 +402,12 @@ void process(xml::node widget, const std::string& cls,
         auto it = g_widget_tol.find(positioned[i].name);
         if(it != g_widget_tol.end())
           ch.tol = it->second;
+        else
+        {
+          auto cit = g_class_tol.find(positioned[i].qt_class);
+          if(cit != g_class_tol.end())
+            ch.tol = cit->second;
+        }
         lchildren.push_back(std::move(ch));
       }
 
@@ -508,7 +548,7 @@ int main(int argc, char** argv)
   }
 
   if(!tolerances_path.empty() && !load_tolerances_file(tolerances_path, g_default_tol,
-                                                 g_widget_tol))
+                                                 g_widget_tol, g_class_tol))
   {
     std::cerr << "error: could not read margins file \"" << tolerances_path << "\"\n";
     return 1;
