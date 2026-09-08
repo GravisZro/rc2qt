@@ -1267,7 +1267,6 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
 {
   std::string qt_class = widget_class_for_control(ctrl);
   const bool lefttext = is_lefttext(ctrl);
-  const std::string outer_class = lefttext ? "QWidget" : qt_class;
 
   std::string name_id = ctrl.id;
   auto resolved_id = constant_registry::instance().resolve(ctrl.id);
@@ -1289,25 +1288,25 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
       name_id = "static_" + text_id;
   }
   std::string name = unique_name(name_id);
-  xml::node widget = add_widget(parent, outer_class, name);
+
+  xml::node widget;
+  if(!lefttext)
+    widget = add_widget(parent, qt_class, name);
 
   int ctrl_w_dlu = ctrl.width;
   int ctrl_h_dlu = ctrl.height;
-  ensure_text_fits(ctrl.text, ctrl_w_dlu, ctrl_h_dlu, widget, qt_class);
+  if(widget)
+    ensure_text_fits(ctrl.text, ctrl_w_dlu, ctrl_h_dlu, widget, qt_class);
 
   int px = dlu_to_pixel_x(ctrl.x);
   int py = dlu_to_pixel_y(ctrl.y);
   int pw = dlu_to_pixel_x(ctrl_w_dlu);
   int ph = dlu_to_pixel_y(ctrl_h_dlu);
-  apply_combo_dropdown_height(widget, ctrl, qt_class == "QComboBox", ph);
+  if(widget)
+    apply_combo_dropdown_height(widget, ctrl, qt_class == "QComboBox", ph);
 
   py += y_shift_px;
-  if(getenv("RC2QT_DBG_WC") && (ctrl.text == "Completion Rule" || ctrl.text == "Current Goal Item (Must be same type)"))
-    fprintf(stderr, "WC: '%s' ctrl.y=%d y_shift=%d py_final=%d extra=%d\n", ctrl.text.c_str(), ctrl.y, y_shift_px, py, extra_height_px);
   int min_w = min_width_px(qt_class);
-  /* The width minimum is a text-area metric (measured on a labeled sample, e.g.
-     QRadioButton("Radio Button"), getuimetrics.cpp). A radio button with no text is
-     only as wide as its indicator; clamping it up to the label width is wrong. */
   if(qt_class == "QRadioButton" && ctrl.text.empty())
     min_w = 0;
   if(pw < min_w)
@@ -1317,13 +1316,8 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
     ph = min_h;
   ph += extra_height_px;
 
-  add_property_rect(widget, px, py, pw, ph);
-
   if(lefttext)
   {
-    // The label takes the control's absolute position; the indicator button is
-    // placed to its right at a position computed from the measured text width, so
-    // no layout redistributes either child.
     int label_w = dlu_to_pixel_x(text_dimensions(ctrl.text).first);
     if(label_w > pw)
       label_w = pw;
@@ -1331,24 +1325,30 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
     if(btn_w < 0)
       btn_w = 0;
 
-    const std::string btn_suffix = (qt_class == "QRadioButton") ? "_radio" : "_check";
-
-    xml::node label = add_widget(widget, "QLabel", name + "_TEXT");
-    add_property_rect(label, 0, 0, label_w, ph);
+    xml::node label = add_widget(parent, "QLabel", name + "_TEXT");
+    add_property_rect(label, px, py, label_w, ph);
     add_property_string(label, "text", ctrl.text);
+    add_property_set(label, "alignment", "Qt::AlignLeft");
 
-    xml::node btn = add_widget(widget, qt_class, name + btn_suffix);
-    add_property_rect(btn, label_w, 0, btn_w, ph);
+    const std::string btn_suffix = qt_class == "QRadioButton" ? "_radio" : "_check";
+    widget = add_widget(parent, qt_class, name + btn_suffix);
+    add_property_rect(widget, px + label_w, py, btn_w, ph);
+
     if(qt_class == "QRadioButton" &&
        (ctrl.keyword == "AUTORADIOBUTTON" || has_style(ctrl.style, "BS_AUTORADIOBUTTON")))
-      add_property_bool(btn, "autoExclusive", true);
+      add_property_bool(widget, "autoExclusive", true);
   }
-  else if(!ctrl.text.empty())
+  else
   {
-    if(qt_class == "QGroupBox")
-      add_property_string(widget, "title", ctrl.text);
-    else
-      add_property_string(widget, "text", ctrl.text);
+    add_property_rect(widget, px, py, pw, ph);
+
+    if(!ctrl.text.empty())
+    {
+      if(qt_class == "QGroupBox")
+        add_property_string(widget, "title", ctrl.text);
+      else
+        add_property_string(widget, "text", ctrl.text);
+    }
   }
 
   bool visible = !has_style(ctrl.style, "WS_HIDDEN");
