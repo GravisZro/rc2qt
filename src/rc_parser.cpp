@@ -556,16 +556,84 @@ void parser::parse_dialog_resource(resource& res)
     match(token_type::end);
   }
 
-  /* Controls are processed top to bottom, left to right, so sort them by y
-     first and then by x. Stable so controls at identical positions keep their
-     RC source order. */
-  std::stable_sort(dd.controls.begin(), dd.controls.end(),
-    [](const control& a, const control& b)
+  /* Spatial nearest-neighbour sort producing reading order: top-to-bottom and,
+     within a row, left-to-right. The first control is the topmost (ties broken by
+     leftmost); each subsequent control is the nearest unvisited one to the current,
+     where "nearest" prefers a rightward neighbour on the same row (vertical
+     overlap), then the next row below, and only lastly anything above. */
+  auto rows_overlap = [](const control& a, const control& b)
+  {
+    return a.y + a.height > b.y && b.y + b.height > a.y;
+  };
+
+  const long long kSameRowRight = 0;
+  const long long kSameRowLeft  = 1000000000LL;
+  const long long kBelow        = 2000000000LL;
+  const long long kAbove        = 3000000000LL;
+
+  if(dd.controls.empty())
+  {
+    res.data = dd;
+    return;
+  }
+
+  std::vector<control> sorted;
+  sorted.reserve(dd.controls.size());
+  std::vector<uint8_t> used(dd.controls.size(), 0);
+
+  // Start at the topmost control (leftmost among equal y).
+  size_t start = 0;
+  for(size_t i = 1; i < dd.controls.size(); ++i)
+  {
+    if(dd.controls[i].y < dd.controls[start].y ||
+       (dd.controls[i].y == dd.controls[start].y && dd.controls[i].x < dd.controls[start].x))
+      start = i;
+  }
+
+  sorted.push_back(dd.controls[start]);
+  used[start] = 1;
+  size_t current = start;
+
+  while(sorted.size() < dd.controls.size())
+  {
+    size_t best = SIZE_MAX;
+    long long best_cost = LLONG_MAX;
+    for(size_t j = 0; j < dd.controls.size(); ++j)
     {
-      if(a.y != b.y)
-        return a.y < b.y;
-      return a.x < b.x;
-    });
+      if(used[j])
+        continue;
+
+      long long dx = static_cast<long long>(dd.controls[j].x) - dd.controls[current].x;
+      long long dy = static_cast<long long>(dd.controls[j].y) - dd.controls[current].y;
+      long long cost;
+      long long magnitude = std::max(0LL, std::max(std::llabs(dx), std::llabs(dy)));
+
+      if(rows_overlap(dd.controls[current], dd.controls[j]))
+      {
+        if(dx >= 0)
+          cost = kSameRowRight + dx + magnitude;
+        else
+          cost = kSameRowLeft + std::llabs(dx) + magnitude;
+      }
+      else if(dy > 0)
+        cost = kBelow + dy * 1000 + magnitude;
+      else
+        cost = kAbove + std::llabs(dy) * 1000 + magnitude;
+
+      if(cost < best_cost)
+      {
+        best_cost = cost;
+        best = j;
+      }
+    }
+    if(best == SIZE_MAX)
+      break;
+    sorted.push_back(dd.controls[best]);
+    used[best] = 1;
+    current = best;
+  }
+
+  dd.controls = std::move(sorted);
 
   res.data = dd;
 }
