@@ -1,5 +1,8 @@
 #include "rc_constants.h"
 
+#include <algorithm>
+#include <stdexcept>
+
 namespace rc
 {
 
@@ -17,18 +20,90 @@ constant_registry::constant_registry()
 void constant_registry::add(category_t cat,
                             int64_t value,
                             const std::string& name,
-                            const std::string& desc)
+                            const std::string& desc,
+                            resource_t resource)
 {
   if(m_name_to_value.contains(name))
     throw std::runtime_error("duplicate constant name added: " + name);
   m_name_to_value[name] = value;
-  m_value_to_name[catval_t { cat, value }] = name;
-  m_entries.push_back({name, value, cat, desc});
+  if(resource == resource_t::none)
+    resource = resource_for_category(cat);
+  m_value_to_name[catval_t { cat, value }].push_back(name);
+  m_entries.push_back({name, value, cat, resource, desc});
 }
 
 bool constant_registry::has_name(const std::string& name) const
 {
   return m_name_to_value.count(name) > 0;
+}
+resource_t constant_registry::resource_for_category(category_t cat)
+{
+  switch(cat)
+  {
+    // Style / event / flag / message families are not an ID namespace: they do
+    // not own a resource ID, so one numeric value there names a style bit, and
+    // any "resource type" alias grouping applies uniformly.
+    case category_t::window_style:
+    case category_t::extended_style:
+    case category_t::dialog_style:
+    case category_t::button_style:
+    case category_t::edit_style:
+    case category_t::static_style:
+    case category_t::listbox_style:
+    case category_t::combobox_style:
+    case category_t::scrollbar_style:
+    case category_t::listview_style:
+    case category_t::treeview_style:
+    case category_t::trackbar_style:
+    case category_t::progressbar_style:
+    case category_t::updown_style:
+    case category_t::datetime_style:
+    case category_t::tabcontrol_style:
+    case category_t::window_message:
+    case category_t::virtual_key:
+    case category_t::message_box:
+    case category_t::menu_flag:
+    case category_t::accelerator_flag:
+    case category_t::resource_type:
+    case category_t::control_message:
+    case category_t::notification:
+    case category_t::header_style:
+    case category_t::common_control_style:
+    case category_t::listview_ex_style:
+    case category_t::edit_ex_style:
+    case category_t::treeview_ex_style:
+    case category_t::month_calendar_style:
+    case category_t::pager_style:
+    case category_t::rebar_style:
+    case category_t::tooltip_style:
+    case category_t::toolbar_style:
+    case category_t::animate_style:
+    case category_t::statusbar_style:
+    case category_t::tabcontrol_ex_style:
+    case category_t::controlbar_style:
+      return resource_t::any;
+
+    // .rc resource-ID namespaces, each scoped to its owning resource type.
+    case category_t::oem_bitmap:       return resource_t::bitmap;
+
+    case category_t::mfc_cursor_id:    return resource_t::cursor;
+    case category_t::system_resource_id: return resource_t::any;   // ID_* system IDs span many resource kinds
+
+    case category_t::mfc_icon_id:       return resource_t::icon;
+    case category_t::mfc_bitmap_id:     return resource_t::bitmap;
+
+    case category_t::mfc_dialog_id:     return resource_t::dialog;
+    case category_t::dialog_id:         return resource_t::dialog;
+    case category_t::control_id:        return resource_t::dialog;
+    case category_t::system_id:         return resource_t::dialog;
+
+    case category_t::mfc_string_id:    return resource_t::stringtable;
+    case category_t::mfc_prompt_id:   return resource_t::stringtable;
+
+    case category_t::mfc_accel_id:     return resource_t::accelerators;
+    default:
+      return resource_t::any;
+  }
 }
 
 category_t constant_registry::resolve_category(const std::string& name)
@@ -129,11 +204,42 @@ std::string constant_registry::resolve(category_t cat, int64_t value) const
     {
       auto it = m_value_to_name.find(catval_t
         { static_cast<category_t>(bit), value });
-      if(it != m_value_to_name.end())
-        return it->second;
+      if(it != m_value_to_name.end() && !it->second.empty())
+        return it->second.front();
     }
   }
   return {};
+}
+
+std::vector<std::string> constant_registry::resolve_all(category_t cat, int64_t value) const
+{
+  std::vector<std::string> result;
+  for(uint64_t bit = 1; bit != 0; bit <<= 1)
+  {
+    if(static_cast<uint64_t>(cat) & bit)
+    {
+      auto it = m_value_to_name.find(catval_t
+        { static_cast<category_t>(bit), value });
+      if(it != m_value_to_name.end())
+      {
+        result.insert(result.end(), it->second.begin(), it->second.end());
+      }
+    }
+  }
+  return result;
+}
+
+std::vector<std::string> constant_registry::resolve_all(resource_t res, int64_t value) const
+{
+  std::vector<std::string> result;
+  for(const auto& e : m_entries)
+  {
+    if(e.resource == res && e.value == value)
+      result.push_back(e.name);
+  }
+  std::sort(result.begin(), result.end());
+  result.erase(std::unique(result.begin(), result.end()), result.end());
+  return result;
 }
 
 std::vector<constant_entry> constant_registry::entries_by_category(category_t cat) const
@@ -142,6 +248,17 @@ std::vector<constant_entry> constant_registry::entries_by_category(category_t ca
   for(const auto& e : m_entries)
     if(static_cast<uint64_t>(e.category) & static_cast<uint64_t>(cat))
       result.push_back(e);
+  return result;
+}
+
+std::vector<constant_entry> constant_registry::entries_by_resource_type(resource_t res) const
+{
+  std::vector<constant_entry> result;
+  for(const auto& e : m_entries)
+  {
+    if(e.resource == res)
+      result.push_back(e);
+  }
   return result;
 }
 
@@ -1011,16 +1128,16 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::control_id, 0x44e, "AFX_IDC_COLOR_RED", "Control ID for Red color selection box");
   add(category_t::control_id, 0x44d, "AFX_IDC_COLOR_WHITE", "Control ID for White color selection box");
   add(category_t::control_id, 0x451, "AFX_IDC_COLOR_YELLOW", "Control ID for Yellow color selection box");
-  add(category_t::control_id, 0x7901, "AFX_IDC_CONTEXTHELP", "Cursor ID for Context Help cursor");
+  add(category_t::mfc_cursor_id, 0x7901, "AFX_IDC_CONTEXTHELP", "Cursor ID for Context Help cursor");
   add(category_t::control_id, 0x3e9, "AFX_IDC_FONTNAMES", "Control ID for Font Name list");
   add(category_t::control_id, 0x3e8, "AFX_IDC_FONTPROP", "Control ID for Font property page control");
   add(category_t::control_id, 0x3eb, "AFX_IDC_FONTSIZES", "Control ID for Font Size list");
   add(category_t::control_id, 0x3ea, "AFX_IDC_FONTSTYLES", "Control ID for Font Style list");
-  add(category_t::control_id, 0x7904, "AFX_IDC_HSPLITBAR", "Cursor ID for Horizontal Splitter bar");
+  add(category_t::mfc_cursor_id, 0x7904, "AFX_IDC_HSPLITBAR", "Cursor ID for Horizontal Splitter bar");
   add(category_t::control_id, 0x64, "AFX_IDC_LISTBOX", "Control ID for standard List Box control");
-  add(category_t::control_id, 0x7902, "AFX_IDC_MAGNIFY", "Cursor ID for Magnifier tool cursor");
-  add(category_t::control_id, 0x790c, "AFX_IDC_MOVE4WAY", "Cursor ID for 4-way move operation");
-  add(category_t::control_id, 0x7906, "AFX_IDC_NODROPCRSR", "Cursor ID for No Drop drop-target indicator");
+  add(category_t::mfc_cursor_id, 0x7902, "AFX_IDC_MAGNIFY", "Cursor ID for Magnifier tool cursor");
+  add(category_t::mfc_cursor_id, 0x790c, "AFX_IDC_MOVE4WAY", "Cursor ID for 4-way move operation");
+  add(category_t::mfc_cursor_id, 0x7906, "AFX_IDC_NODROPCRSR", "Cursor ID for No Drop drop-target indicator");
   add(category_t::control_id, 0x4b2, "AFX_IDC_PICTURE", "Control ID for Picture property control");
   add(category_t::control_id, 0xc9, "AFX_IDC_PRINT_DOCNAME", "Control ID for Document Name static text in Print dialog");
   add(category_t::control_id, 0xcc, "AFX_IDC_PRINT_PAGENUM", "Control ID for Page Number static text in Print dialog");
@@ -1028,17 +1145,17 @@ add(category_t::dialog_args, 0x00000404, "CB_INSERTSTRING"?, "Used for inserting
   add(category_t::control_id, 0xca, "AFX_IDC_PRINT_PRINTERNAME", "Control ID for Printer Name static text in Print dialog");
   add(category_t::control_id, 0x4b1, "AFX_IDC_PROPNAME", "Control ID for Property Name static text");
   add(category_t::control_id, 0x3ee, "AFX_IDC_SAMPLEBOX", "Control ID for Font Sample display box");
-  add(category_t::control_id, 0x7903, "AFX_IDC_SMALLARROWS", "Cursor ID for small directional adjustment arrows");
+  add(category_t::mfc_cursor_id, 0x7903, "AFX_IDC_SMALLARROWS", "Cursor ID for small directional adjustment arrows");
   add(category_t::control_id, 0x3ec, "AFX_IDC_STRIKEOUT", "Control ID for Strikeout checkbox");
   add(category_t::control_id, 0x45d, "AFX_IDC_SYSTEMCOLORS", "Control ID for System Colors list");
   add(category_t::control_id, 0x3020, "AFX_IDC_TAB_CONTROL", "Control ID for Tab Control in property sheets");
-  add(category_t::control_id, 0x790b, "AFX_IDC_TRACK4WAY", "Cursor ID for 4-way object tracking");
-  add(category_t::control_id, 0x7908, "AFX_IDC_TRACKNESW", "Cursor ID for Northeast-Southwest tracking");
-  add(category_t::control_id, 0x7909, "AFX_IDC_TRACKNS", "Cursor ID for North-South tracking");
-  add(category_t::control_id, 0x7907, "AFX_IDC_TRACKNWSE", "Cursor ID for Northwest-Southeast tracking");
-  add(category_t::control_id, 0x790a, "AFX_IDC_TRACKWE", "Cursor ID for West-East tracking");
+  add(category_t::mfc_cursor_id, 0x790b, "AFX_IDC_TRACK4WAY", "Cursor ID for 4-way object tracking");
+  add(category_t::mfc_cursor_id, 0x7908, "AFX_IDC_TRACKNESW", "Cursor ID for Northeast-Southwest tracking");
+  add(category_t::mfc_cursor_id, 0x7909, "AFX_IDC_TRACKNS", "Cursor ID for North-South tracking");
+  add(category_t::mfc_cursor_id, 0x7907, "AFX_IDC_TRACKNWSE", "Cursor ID for Northwest-Southeast tracking");
+  add(category_t::mfc_cursor_id, 0x790a, "AFX_IDC_TRACKWE", "Cursor ID for West-East tracking");
   add(category_t::control_id, 0x3ed, "AFX_IDC_UNDERLINE", "Control ID for Underline checkbox");
-  add(category_t::control_id, 0x7905, "AFX_IDC_VSPLITBAR", "Cursor ID for Vertical Splitter bar");
+  add(category_t::mfc_cursor_id, 0x7905, "AFX_IDC_VSPLITBAR", "Cursor ID for Vertical Splitter bar");
 
   /* ── AFX_IDD_* MFC Dialog Template IDs ──────────────────────── */
   add(category_t::mfc_dialog_id, 0x780a, "AFX_IDD_BUSY", "Dialog Template ID for OLE Busy dialog");

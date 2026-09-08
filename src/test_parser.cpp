@@ -1,11 +1,13 @@
 #include "rc_types.h"
 #include "rc_parser.h"
 #include "rc_tokenizer.h"
+#include "rc_constants.h"
 
 #include <cassert>
 #include <format>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -2765,6 +2767,73 @@ static void test_nativefontctl()
 // Main
 // ============================================================================
 
+static void test_constant_registry_multi_id()
+{
+  try
+  {
+    const auto& reg = rc::constant_registry::instance();
+
+    // One numeric value may name several distinct constants within a single
+    // category (aliases without dedupment control on add()); resolve_all must
+    // return every alias, not collapse to one.
+    auto window0 = reg.resolve_all(rc::category_t::window_style, 0x00010000);
+    if(window0.size() < 2)
+      throw std::runtime_error(std::format("window style 0x10000 should resolve to >= 2 aliases, got {}", window0.size()));
+
+    // One numeric value reused across distinct .rc resource-ID namespaces must
+    // remain distinguishable by resource type (the historic "one ID / one type"
+    // flaw). Each ID namespace is tagged with its owning resource type.
+    auto cursors = reg.entries_by_resource_type(rc::resource_t::cursor);
+    if(cursors.empty())
+      throw std::runtime_error("expected cursor IDs registered under resource_t::cursor");
+    for(const auto& e : cursors)
+      if(e.resource != rc::resource_t::cursor)
+        throw std::runtime_error("mis-tagged cursor constant: " + e.name);
+
+    // The MFC cursor IDs were historically misfiled under control_id; they must
+    // now reside under the cursor resource type so the two namespaces stay apart.
+
+    bool found_cursor_id = false;
+    for(const auto& e : reg.all_entries())
+      if(e.category == rc::category_t::mfc_cursor_id && e.resource == rc::resource_t::cursor)
+    {
+      found_cursor_id = true;
+      break;
+    }
+    if(!found_cursor_id)
+      throw std::runtime_error("mfc_cursor_id constants must map to resource_t::cursor");
+
+    record_result("constant_registry_multi_id", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("constant_registry_multi_id", false, e.what());
+  }
+}
+
+static void test_constant_registry_unique_names()
+{
+  try
+  {
+    const auto& reg = rc::constant_registry::instance();
+
+    // Every registered constant name is unique; name resolution is deterministic.
+
+    std::map<std::string, int> name_counts;
+    for(const auto& e : reg.all_entries())
+      name_counts[e.name]++;
+    for(const auto& [name, count] : name_counts)
+      if(count > 1)
+        throw std::runtime_error("duplicate constant name: " + name);
+
+    record_result("constant_registry_unique_names", true);
+  }
+  catch (const std::exception& e)
+  {
+    record_result("constant_registry_unique_names", false,e.what());
+  }
+}
+
 int main()
 {
   std::cout << "Parser Unit Tests\n";
@@ -2884,6 +2953,10 @@ int main()
   test_dialog_ex_width_height();
   test_style_pipe_multiline();
   test_multiple_resources();
+
+  std::cout << "\n--- Constant Registry Tests ---\n";
+  test_constant_registry_multi_id();
+  test_constant_registry_unique_names();
 
   std::cout << "\n--- Other Resource Type Tests ---\n";
   test_toolbar_basic();

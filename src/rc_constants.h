@@ -29,6 +29,28 @@ namespace rc
    IDR_ — Generic resource identifier
 */
 
+/* Real .rc resource types a constant's numeric ID/name belongs to. The fine
+   category_t groups the constants by style family or naming prefix; this coarse
+   axis groups them by the actual resource type, so one numeric value can be
+   reused across several resource types with distinct meanings (e.g. a dialog ID, a
+   menu ID and a string ID may all equal 100}each scoped to its own type. */
+enum class resource_t : uint16_t
+{
+  none            = 0,
+  any             = 0x0001, // cross-cutting style bit etc., not an ID resource namespace
+  bitmap          = 0x0002,
+  cursor          = 0x0004,
+  icon            = 0x0008,
+  menu            = 0x0010,
+  dialog          = 0x0020,
+  stringtable     = 0x0040,
+  accelerators    = 0x0080,
+  versioninfo     = 0x0100,
+  toolbar         = 0x0200,
+  dlginit         = 0x0400,
+  rcdata          = 0x0800, // RCDATA / user-defined resources
+};
+
 enum class category_t : uint64_t
 {
   bad_category          = 0,
@@ -89,6 +111,7 @@ struct constant_entry
   std::string name;
   int64_t value;
   category_t category;
+  resource_t resource = resource_t::none;
   std::string description;
 };
 
@@ -100,15 +123,31 @@ public:
   void add(category_t cat,
            int64_t value,
            const std::string& name,
-           const std::string& desc = "");
+           const std::string& desc = "",
+           resource_t resource = resource_t::none);
 
   bool has_name(const std::string& name) const;
 
   static rc::category_t resolve_category(const std::string& name);
+
+  /* Default coarse resource type for a fine category. Categories that group
+      style bits are not an ID namespace and map to resource_t::any; categories
+      that group resource IDs map to their owning .rc resource type. Registrations
+      that cannot be derived from the category (e.g. the cursor IDs historically
+      filed under control_id) pass an explicit resource override to add(). */
+  static rc::resource_t resource_for_category(category_t cat);
+
   int64_t resolve(const std::string& name) const;
   std::string resolve(category_t cat, int64_t value) const;
 
+  /* All names whose (category, value) matches. Several distinct constants may
+      legitimately share a numeric value within a category (aliases) or across
+      categories; this returns every match rather than collapsing to one. */
+  std::vector<std::string> resolve_all(category_t cat, int64_t value) const;
+  std::vector<std::string> resolve_all(resource_t res, int64_t value) const;
+
   std::vector<constant_entry> entries_by_category(category_t cat) const;
+  std::vector<constant_entry> entries_by_resource_type(resource_t res) const;
   std::vector<constant_entry> all_entries() const;
 
   size_t size() const;
@@ -130,7 +169,7 @@ private:
   };
 
   std::unordered_map<std::string, int64_t> m_name_to_value;
-  std::map<catval_t, std::string> m_value_to_name;
+  std::map<catval_t, std::vector<std::string>> m_value_to_name;
   std::vector<constant_entry> m_entries;
 };
 
