@@ -44,6 +44,33 @@ namespace rc
     return widget;
   }
 
+  bool resource_ids_match(const std::string& ref_id, const std::string& res_id)
+  {
+    if(ref_id == res_id)
+      return true;
+    const auto& reg = constant_registry::instance();
+    int64_t ref_val = reg.resolve(ref_id);
+    int64_t res_val = reg.resolve(res_id);
+    if(ref_val >= 0 && res_val >= 0 && ref_val == res_val)
+      return true;
+    return false;
+  }
+
+  // Lowercase-alpha-numeric "file stem" form of a resource id, for turning it into a .ui filename.
+
+  std::string sanitize_resource_id(const std::string& id)
+  {
+    std::string out = id;
+    for(char& c : out)
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for(char& c : out)
+    {
+      if(!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-')
+        c = '_';
+    }
+    return out;
+  }
+
   static void add_property_rect(xml::node& widget, int x, int y, int width, int height)
   {
     xml::node prop = widget.append_child("property");
@@ -318,48 +345,102 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
   collect_global_data(file);
 
   std::vector<std::string> generated_files;
+  std::vector<std::string> non_dialog_files;   // explicit report of non-dialog .ui outputs
   std::set<std::string> used_short_ids;
 
   bool created_output_dir = false;
 
   int dialog_index = 0;
 
+  // A menu (or toolbar) resource owns the actions that flow into a dialog only when
+  // the dialog actually references it via its MENU statement..
+  auto dialog_menu_reference_ids = [&](const dialog_data& dd) -> std::set<std::string>
+  {
+    std::set<std::string> ids;
+    if(const dialog_stmt* stmt = find_statement(dd, "MENU"))
+      if(!stmt->id_value.empty())
+        ids.insert(stmt->id_value);
+    return ids;
+  };
+
+  auto matches_any_reference = [&](const std::string& res_id, const std::set<std::string>& ref_ids) -> bool
+  {
+    for(const auto& ref : ref_ids)
+      if(resource_ids_match(ref, res_id))
+        return true;
+    return false;
+  };
+
+  auto is_resource_referenced_by_dialog = [&](const resource& res) -> bool
+
+
+  {
+    if(!std::holds_alternative<menu_data>(res.data) &&
+       !std::holds_alternative<toolbar_data>(res.data))
+      return false;
+    for(const auto& dres : file.resources)
+
+    {
+      if(!std::holds_alternative<dialog_data>(dres.data))
+        continue;
+      const auto& dd = std::get<dialog_data>(dres.data);
+
+      if(matches_any_reference(res.id, dialog_menu_reference_ids(dd)))
+        return true;
+    }
+    return false;
+  };
+
+
   for(const auto& res : file.resources)
+
   {
     if(!std::holds_alternative<dialog_data>(res.data))
       continue;
 
     const auto& dd = std::get<dialog_data>(res.data);
 
+
     if(!created_output_dir)
+
     {
       std::filesystem::create_directories(std::filesystem::path(output_dir) / res_dir_name);
       created_output_dir = true;
     }
 
+
     std::string short_id = res.id;
+
     if(short_id.size() > 4 && short_id.substr(0, 4) == "IDD_")
       short_id = short_id.substr(4);
     for(char& c : short_id)
       c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     for(char& c : short_id)
+
+
     {
       if(!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-')
         c = '_';
     }
 
+
     if(short_id.empty())
       short_id = std::format("dialog_{}", dialog_index);
 
+
     ++dialog_index;
 
+
     std::string unique_short_id = short_id;
+
     int suffix = 2;
     while(used_short_ids.count(unique_short_id))
       unique_short_id = std::format("{}_{}", short_id, suffix++);
     used_short_ids.insert(unique_short_id);
 
+
     std::filesystem::path filename = std::filesystem::path(output_dir) / res_dir_name / (unique_short_id + ".ui");
+
 
     m_name_counts.clear();
     m_action_counter = 0;
@@ -371,46 +452,119 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
     ui.add_attr("version", "4.0");
     ui.append_child("class").text() = "Form";
 
+
     write_dialog(ui, res);
+
 
     xml::node root_widget = ui.child("widget");
 
-    std::string menu_id;
-    if(const dialog_stmt* stmt = find_statement(dd, "MENU"))
-      menu_id = stmt->id_value;
 
+    std::set<std::string> ref_ids = dialog_menu_reference_ids(dd);
+
+
+    // Attach each menu the dialog references (textually or via an equal numeric id).
     for(const auto& menu_res : file.resources)
     {
       if(!std::holds_alternative<menu_data>(menu_res.data))
         continue;
-
-      if(menu_id.empty())
-        continue;
-
-      if(menu_res.id == menu_id)
-      {
+      if(matches_any_reference(menu_res.id, ref_ids))
         write_menu(root_widget, menu_res);
-      }
-      else
-      {
-        const auto& reg = constant_registry::instance();
-        int64_t dialog_menu_val = reg.resolve(menu_id);
-        int64_t menu_res_val = reg.resolve(menu_res.id);
-        if(dialog_menu_val >= 0 && menu_res_val >= 0 && dialog_menu_val == menu_res_val)
-          write_menu(root_widget, menu_res);
-      }
+
     }
 
-    write_actions(root_widget, file);
+    // Only the actions belonging to the referenced menus/toolbars flow in; i.e.
+
+
+    // actions of unrelated standalone menus must not leak into every dialog..
+
+    write_actions(root_widget, file, ref_ids);
+
 
     if(doc.save_file(filename.generic_string().c_str(), "  "))
+
       generated_files.push_back(filename.generic_string());
   }
 
-  return !generated_files.empty();
-}
 
-void generator::collect_global_data(const rc_file& file)
+  // Unreferenced non-dialog controls (menus, toolbars) each get their own standalone
+  // .ui document instead of being smuggled into every dialog. Explicitly report them..
+  for(const auto& res : file.resources)
+
+  {
+    if(!std::holds_alternative<menu_data>(res.data) &&
+       !std::holds_alternative<toolbar_data>(res.data))
+      continue;
+
+    if(is_resource_referenced_by_dialog(res))
+      continue;
+
+
+    if(!created_output_dir)
+    {
+      std::filesystem::create_directories(std::filesystem::path(output_dir) / res_dir_name);
+      created_output_dir = true;
+    }
+
+
+    m_name_counts.clear();
+    m_action_counter = 0;
+    m_menubar_node = xml::node();
+
+
+    xml::document doc;
+    xml::node ui = doc.append_child("ui");
+    ui.add_attr("version", "4.0");
+    ui.append_child("class").text() = "Form";
+
+
+    std::string name = sanitize_resource_id(res.id);
+
+    if(name.empty())
+      name = "menu";
+
+    // A resource id may own several resource types (e.g. IDR_MAINFRAME has both a
+    // MENU and a TOOLBAR). Disambiguate the standalone filename by resource type..
+    std::string type_tag = sanitize_resource_id(res.type);
+    if(!type_tag.empty())
+      name = name + "_" + type_tag;
+
+
+    xml::node root_widget = ui.append_child("widget");
+    root_widget.add_attr("class", "QMainWindow");
+    root_widget.add_attr("name", name);
+
+
+    if(std::holds_alternative<menu_data>(res.data))
+      write_menu(root_widget, res);
+    else if(std::holds_alternative<toolbar_data>(res.data))
+      write_toolbar(root_widget, res);
+
+
+    // Standalone resources own only their own actions..
+
+    write_actions(root_widget, file, { res.id });
+
+
+    std::filesystem::path filename = std::filesystem::path(output_dir) / res_dir_name / (name + ".ui");
+    if(doc.save_file(filename.generic_string().c_str(), "  "))
+    {
+      generated_files.push_back(filename.generic_string());
+      non_dialog_files.push_back(filename.generic_string());
+
+    }
+  }
+
+
+  if(!non_dialog_files.empty())
+  {
+    std::cout << "\nNon-dialog .ui file(s) written (standalone, unreferenced menus/toolbars):\n";
+    for(const auto& f : non_dialog_files)
+      std::cout << "  " << f << "\n";
+  }
+
+
+  return !generated_files.empty();
+}void generator::collect_global_data(const rc_file& file)
 {
   m_accelerator_map.clear();
   m_string_table_map.clear();
@@ -2167,12 +2321,21 @@ void generator::write_toolbar(xml::node& parent, const resource& res)
   }
 }
 
-void generator::write_actions(xml::node& parent, const rc_file& file)
+void generator::write_actions(xml::node& parent, const rc_file& file, const std::set<std::string>& enabled_resource_ids)
 {
   std::map<std::string, bool> actions_defined;
 
+  if(enabled_resource_ids.empty())
+    return;
+
   for(const auto& res : file.resources)
   {
+    bool in_scope = false;
+    for(const auto& ref : enabled_resource_ids)
+      if(resource_ids_match(ref, res.id))
+      { in_scope = true; break; }
+    if(!in_scope)
+      continue;
     if(std::holds_alternative<menu_data>(res.data))
     {
       const auto& md = std::get<menu_data>(res.data);
