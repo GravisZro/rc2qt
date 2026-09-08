@@ -1079,12 +1079,7 @@ void generator::control_layout_pixel_size(const control& ctrl, const std::string
 
   width_px = dlu_to_pixel_x(width_dlu);
   height_px = dlu_to_pixel_y(height_dlu);
-  if(qt_class == "QComboBox")
-  {
-    int closed_dlu = combo_closed_height_dlu(ctrl);
-    if(closed_dlu > 0)
-      height_px = dlu_to_pixel_y(closed_dlu);
-  }
+
   int min_w = min_width_px(qt_class);
   if(width_px < min_w)
     width_px = min_w;
@@ -1793,10 +1788,18 @@ int generator::vertical_margin_px(const std::string& qt_class) const
   if(m_disable_geometry_adjustments)
     return 0;
 
+  /* Indicator-button controls (radio/checkbox) pack tightly in RC at the dialog
+     row pitch, so they must not be separated by a full click-rect height. The
+     per-class override takes precedence over the clickRectH fallback. */
   static const std::map<std::string, int> vertical_margin_map =
   {
-    { "QCheckBox", 18 },
+    { "QCheckBox", 10 },
+    { "QRadioButton", 10 },
   };
+
+  auto fallback = vertical_margin_map.find(qt_class);
+  if(fallback != vertical_margin_map.end())
+    return fallback->second;
 
   auto it = m_uimetrics.find("widget:" + qt_class);
   if(it != m_uimetrics.end())
@@ -1816,10 +1819,7 @@ int generator::vertical_margin_px(const std::string& qt_class) const
     }
   }
 
-  auto fallback = vertical_margin_map.find(qt_class);
-  if(fallback == vertical_margin_map.end())
-    return 0;
-  return fallback->second;
+  return 0;
 }
 
 void generator::layout_control_sizes(const std::vector<control>& controls,
@@ -1839,11 +1839,16 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
   std::vector<int> extra(controls.size());
   std::vector<int> min_h(controls.size());
   std::vector<int> margin(controls.size());
+  std::vector<int> xl(controls.size());
+  std::vector<int> xr(controls.size());
 
   for(size_t i = 0; i < controls.size(); ++i)
   {
     const control& ctrl = controls[i];
     const std::string& qt_class = qt_classes[i];
+
+    xl[i] = dlu_to_pixel_x(ctrl.x);
+    xr[i] = xl[i] + dlu_to_pixel_x(ctrl.width);
 
     int height_dlu = ctrl.height;
     if(!m_disable_geometry_adjustments)
@@ -1894,20 +1899,38 @@ void generator::layout_control_sizes(const std::vector<control>& controls,
     size_t i = order[p];
     if(margin[i] > 0)
     {
+      /* The immediate next control below may be a side-by-side row neighbour
+         (e.g. a BS_LEFTTEXT label container and its adjacent indicator radios share
+         a row with a 1-2px y offset). Only enforce a vertical gap against a control
+         that is truly stacked (x-extents overlap); side-by-side members are not
+         pushed apart as if they were stacked. */
       size_t q = p + 1;
       while(q < order.size() && py[order[q]] <= py[i])
         ++q;
       if(q < order.size())
       {
-        int gap = py[order[q]] - py[i];
-        if(gap < margin[i])
-          events.push_back({ py[order[q]], margin[i] - gap });
+        size_t j = order[q];
+        bool stacked = (xl[i] < xr[j] && xl[j] < xr[i]);
+        int gap = py[j] - py[i];
+        if(stacked && gap < margin[i])
+        {
+          events.push_back({ py[j], margin[i] - gap });
+        }
       }
     }
 
-    int expansion = std::max(0, min_h[i] - ph[i]);
+    /* Indicator-button controls pack tightly at the RC row pitch (their cells are
+       only ~8 DLU high, which is less than the widget minimum height, but Win32
+       renders them with a slight natural overlap). Emitting a per-row minimum-height
+       expansion here accumulates back-to-front across a long radio/checkbox grid,
+       blowing rows far apart. Let them sit at the RC pitch. */
+    int expansion = 0;
+    if(qt_classes[i] != "QRadioButton" && qt_classes[i] != "QCheckBox")
+      expansion = std::max(0, min_h[i] - ph[i]);
     if(expansion > 0)
+    {
       events.push_back({ py[i] + ph[i], expansion });
+    }
   }
   if(extra_events != nullptr)
     events.insert(events.end(), extra_events->begin(), extra_events->end());
