@@ -724,26 +724,26 @@ int main(int argc, char** argv)
       {
         QDialog* dlg = new QDialog;
         QVBoxLayout* layout = new QVBoxLayout(dlg);
-        layout->addWidget(new QPushButton(QStringLiteral("Button")));
-        layout->addWidget(new QLineEdit(QStringLiteral("Edit")));
+        layout->addWidget(new QPushButton(QStringLiteral("1")));
+        layout->addWidget(new QLineEdit(QStringLiteral("2")));
         return dlg;
       },
       nullptr,
       measure_dialog
     },
-    { "QPushButton", []() -> QWidget* { return new QPushButton(QStringLiteral("&OK")); }, nullptr, measure_push_button },
-    { "QCheckBox", []() -> QWidget* { return new QCheckBox(QStringLiteral("Check Box")); }, nullptr, measure_check_box },
-    { "QRadioButton", []() -> QWidget* { return new QRadioButton(QStringLiteral("Radio Button")); }, nullptr, measure_radio_button },
-    { "QGroupBox", []() -> QWidget* { return new QGroupBox(QStringLiteral("Group Box")); }, nullptr, measure_group_box },
-    { "QLabel", []() -> QWidget* { return new QLabel(QStringLiteral("Text Label")); }, nullptr, nullptr },
-    { "QLineEdit", []() -> QWidget* { return new QLineEdit(QStringLiteral("Edit")); }, nullptr, measure_line_edit },
-    { "QTextEdit", []() -> QWidget* { return new QTextEdit(QStringLiteral("Multi-line\ntext")); }, nullptr, nullptr },
+    { "QPushButton", []() -> QWidget* { return new QPushButton(QStringLiteral("O")); }, nullptr, measure_push_button },
+    { "QCheckBox", []() -> QWidget* { return new QCheckBox(QStringLiteral()); }, nullptr, measure_check_box },
+    { "QRadioButton", []() -> QWidget* { return new QRadioButton(); }, nullptr, measure_radio_button },
+    { "QGroupBox", []() -> QWidget* { return new QGroupBox(QStringLiteral("T")); }, nullptr, measure_group_box },
+    { "QLabel", []() -> QWidget* { return new QLabel(QStringLiteral("T")); }, nullptr, nullptr },
+    { "QLineEdit", []() -> QWidget* { return new QLineEdit(QStringLiteral("E")); }, nullptr, measure_line_edit },
+    { "QTextEdit", []() -> QWidget* { return new QTextEdit(QStringLiteral("M\nM")); }, nullptr, nullptr },
     {
       "QListWidget",
       []() -> QWidget* { return new QListWidget; },
       [](QWidget* raw)
       {
-        static_cast<QListWidget*>(raw)->addItems({ QStringLiteral("Item 1"), QStringLiteral("Item 2"), QStringLiteral("Item 3") });
+        static_cast<QListWidget*>(raw)->addItems({ QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("3") });
       },
       measure_list_widget
     },
@@ -752,7 +752,7 @@ int main(int argc, char** argv)
       []() -> QWidget* { return new QComboBox; },
       [](QWidget* raw)
       {
-        static_cast<QComboBox*>(raw)->addItems({ QStringLiteral("Item 1"), QStringLiteral("Item 2") });
+        static_cast<QComboBox*>(raw)->addItems({ QStringLiteral("1"), QStringLiteral("2") });
       },
       measure_combo_box
     },
@@ -773,8 +773,8 @@ int main(int argc, char** argv)
       []() -> QWidget*
       {
         QTabWidget* tw = new QTabWidget;
-        tw->addTab(new QLabel(QStringLiteral("Tab 1")), QStringLiteral("Tab 1"));
-        tw->addTab(new QLabel(QStringLiteral("Tab 2")), QStringLiteral("Tab 2"));
+        tw->addTab(new QLabel(QStringLiteral("1")), QStringLiteral("1"));
+        tw->addTab(new QLabel(QStringLiteral("Tab2")), QStringLiteral("2"));
         return tw;
       },
       nullptr,
@@ -787,8 +787,8 @@ int main(int argc, char** argv)
       {
         QTreeWidget* tw = static_cast<QTreeWidget*>(raw);
         tw->setColumnCount(2);
-        tw->setHeaderLabels({ QStringLiteral("Column 1"), QStringLiteral("Column 2") });
-        new QTreeWidgetItem(tw, { QStringLiteral("Item"), QStringLiteral("Value") });
+        tw->setHeaderLabels({ QStringLiteral("1"), QStringLiteral("2") });
+        new QTreeWidgetItem(tw, { QStringLiteral("I"), QStringLiteral("V") });
       },
       measure_tree_widget
     },
@@ -847,8 +847,8 @@ int main(int argc, char** argv)
       {
         QToolBar* tb = new QToolBar;
         tb->setMovable(true);
-        tb->addAction(QStringLiteral("&New"));
-        tb->addAction(QStringLiteral("&Open"));
+        tb->addAction(QStringLiteral("N"));
+        tb->addAction(QStringLiteral("O"));
         return tb;
       },
       nullptr,
@@ -859,8 +859,8 @@ int main(int argc, char** argv)
       []() -> QWidget*
       {
         QStackedWidget* sw = new QStackedWidget;
-        sw->addWidget(new QLabel(QStringLiteral("Page 1")));
-        sw->addWidget(new QLabel(QStringLiteral("Page 2")));
+        sw->addWidget(new QLabel(QStringLiteral("1")));
+        sw->addWidget(new QLabel(QStringLiteral("2")));
         return sw;
       },
       nullptr,
@@ -871,7 +871,7 @@ int main(int argc, char** argv)
       []() -> QWidget*
       {
         QStatusBar* sb = new QStatusBar;
-        sb->showMessage(QStringLiteral("Status message"));
+        sb->showMessage(QStringLiteral("M"));
         return sb;
       },
       nullptr,
@@ -894,10 +894,10 @@ int main(int argc, char** argv)
       []() -> QWidget*
       {
         QMenuBar* mb = new QMenuBar;
-        QMenu* file = mb->addMenu(QStringLiteral("&File"));
-        file->addAction(QStringLiteral("&New"));
-        file->addAction(QStringLiteral("&Open"));
-        mb->addAction(QStringLiteral("&Help"));
+        QMenu* file = mb->addMenu(QStringLiteral("F"));
+        file->addAction(QStringLiteral("N"));
+        file->addAction(QStringLiteral("O"));
+        mb->addAction(QStringLiteral("H"));
         return mb;
       },
       nullptr,
@@ -907,11 +907,11 @@ int main(int argc, char** argv)
       "QMenu",
       []() -> QWidget*
       {
-        QMenu* menu = new QMenu(QStringLiteral("&File"));
-        menu->addAction(QStringLiteral("&New"));
-        menu->addAction(QStringLiteral("&Open"));
+        QMenu* menu = new QMenu(QStringLiteral("F"));
+        menu->addAction(QStringLiteral("N"));
+        menu->addAction(QStringLiteral("O"));
         menu->addSeparator();
-        menu->addAction(QStringLiteral("E&xit"));
+        menu->addAction(QStringLiteral("x"));
         return menu;
       },
       nullptr,
