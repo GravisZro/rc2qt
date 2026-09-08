@@ -1309,6 +1309,11 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
   if(getenv("RC2QT_DBG_WC") && (ctrl.text == "Completion Rule" || ctrl.text == "Current Goal Item (Must be same type)"))
     fprintf(stderr, "WC: '%s' ctrl.y=%d y_shift=%d py_final=%d extra=%d\n", ctrl.text.c_str(), ctrl.y, y_shift_px, py, extra_height_px);
   int min_w = min_width_px(qt_class);
+  /* The width minimum is a text-area metric (measured on a labeled sample, e.g.
+     QRadioButton("Radio Button"), getuimetrics.cpp). A radio button with no text is
+     only as wide as its indicator; clamping it up to the label width is wrong. */
+  if(qt_class == "QRadioButton" && ctrl.text.empty())
+    min_w = 0;
   if(pw < min_w)
     pw = min_w;
   int min_h = min_height_px(qt_class);
