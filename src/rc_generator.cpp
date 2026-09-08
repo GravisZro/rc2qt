@@ -316,6 +316,19 @@ namespace rc
     return qt_class;
   }
 
+  /* A radio button using BS_LEFTTEXT draws its text to the left of the circle,
+     which Qt cannot express natively on QRadioButton. The generator emulates it
+     with a minimal container widget holding a QHBoxLayout of a QLabel and a
+     text-free QRadioButton so the label appears left of the indicator. */
+  static bool is_lefttext_radio(const control& ctrl)
+  {
+    if(ctrl.text.empty())
+      return false;
+    if(widget_class_for_control(ctrl) != "QRadioButton")
+      return false;
+    return has_style(ctrl.style, "BS_LEFTTEXT");
+  }
+
 
 generator::generator(void)
 {
@@ -1257,6 +1270,8 @@ bool generator::share_common_word(const std::string& id1, const std::string& id2
 void generator::write_control(xml::node& parent, const control& ctrl, const std::string& dialog_name, int y_shift_px, int extra_height_px)
 {
   std::string qt_class = widget_class_for_control(ctrl);
+  const bool lefttext = is_lefttext_radio(ctrl);
+  const std::string outer_class = lefttext ? "QWidget" : qt_class;
 
   std::string name_id = ctrl.id;
   auto resolved_id = constant_registry::instance().resolve(ctrl.id);
@@ -1278,7 +1293,7 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
       name_id = "static_" + text_id;
   }
   std::string name = unique_name(name_id);
-  xml::node widget = add_widget(parent, qt_class, name);
+  xml::node widget = add_widget(parent, outer_class, name);
 
   int ctrl_w_dlu = ctrl.width;
   int ctrl_h_dlu = ctrl.height;
@@ -1303,7 +1318,30 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
 
   add_property_rect(widget, px, py, pw, ph);
 
-  if(!ctrl.text.empty())
+  if(lefttext)
+  {
+    // Emit a minimal container: a QHBoxLayout holding a QLabel (the radio's text,
+    // shown to the left) and a text-free QRadioButton, since Qt cannot draw text
+    // to the left of a QRadioButton natively.
+    xml::node layout = widget.append_child("layout");
+    layout.add_attr("class", "QHBoxLayout");
+    layout.add_attr("name", (name + "_layout").c_str());
+
+    xml::node label_item = layout.append_child("item");
+    xml::node label = label_item.append_child("widget");
+    label.add_attr("class", "QLabel");
+    label.add_attr("name", (name + "_TEXT").c_str());
+    add_property_string(label, "text", ctrl.text);
+
+    xml::node radio_item = layout.append_child("item");
+    xml::node radio = radio_item.append_child("widget");
+    radio.add_attr("class", "QRadioButton");
+    radio.add_attr("name", (name + "_radio").c_str());
+
+    if(ctrl.keyword == "AUTORADIOBUTTON" || has_style(ctrl.style, "BS_AUTORADIOBUTTON"))
+      add_property_bool(radio, "autoExclusive", true);
+  }
+  else if(!ctrl.text.empty())
   {
     if(qt_class == "QGroupBox")
       add_property_string(widget, "title", ctrl.text);
