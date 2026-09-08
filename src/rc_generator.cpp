@@ -58,16 +58,12 @@ namespace rc
 
   // Lowercase-alpha-numeric "file stem" form of a resource id, for turning it into a .ui filename.
 
-  std::string sanitize_resource_id(const std::string& id)
+  std::string sanitize_string(const std::string& id)
   {
     std::string out = id;
     for(char& c : out)
-      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    for(char& c : out)
-    {
-      if(!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-')
-        c = '_';
-    }
+      c = (!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-') ? '_' :
+          static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return out;
   }
 
@@ -373,13 +369,11 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
   auto is_resource_referenced_by_dialog = [&](const resource& res) -> bool
 
-
   {
     if(!std::holds_alternative<menu_data>(res.data) &&
        !std::holds_alternative<toolbar_data>(res.data))
       return false;
     for(const auto& dres : file.resources)
-
     {
       if(!std::holds_alternative<dialog_data>(dres.data))
         continue;
@@ -391,7 +385,6 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
     return false;
   };
 
-
   for(const auto& res : file.resources)
 
   {
@@ -400,14 +393,11 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     const auto& dd = std::get<dialog_data>(res.data);
 
-
     if(!created_output_dir)
-
     {
       std::filesystem::create_directories(std::filesystem::path(output_dir) / res_dir_name);
       created_output_dir = true;
     }
-
 
     std::string short_id = res.id;
 
@@ -417,19 +407,15 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
       c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     for(char& c : short_id)
 
-
     {
       if(!std::isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-')
         c = '_';
     }
 
-
     if(short_id.empty())
       short_id = std::format("dialog_{}", dialog_index);
 
-
     ++dialog_index;
-
 
     std::string unique_short_id = short_id;
 
@@ -438,29 +424,20 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
       unique_short_id = std::format("{}_{}", short_id, suffix++);
     used_short_ids.insert(unique_short_id);
 
-
     std::filesystem::path filename = std::filesystem::path(output_dir) / res_dir_name / (unique_short_id + ".ui");
-
 
     m_name_counts.clear();
     m_action_counter = 0;
     m_menubar_node = xml::node();
-
 
     xml::document doc;
     xml::node ui = doc.append_child("ui");
     ui.add_attr("version", "4.0");
     ui.append_child("class").text() = "Form";
 
-
     write_dialog(ui, res);
-
-
     xml::node root_widget = ui.child("widget");
-
-
     std::set<std::string> ref_ids = dialog_menu_reference_ids(dd);
-
 
     // Attach each menu the dialog references (textually or via an equal numeric id).
     for(const auto& menu_res : file.resources)
@@ -469,19 +446,13 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
         continue;
       if(matches_any_reference(menu_res.id, ref_ids))
         write_menu(root_widget, menu_res);
-
     }
 
     // Only the actions belonging to the referenced menus/toolbars flow in; i.e.
-
-
     // actions of unrelated standalone menus must not leak into every dialog..
-
     write_actions(root_widget, file, ref_ids);
 
-
     if(doc.save_file(filename.generic_string().c_str(), "  "))
-
       generated_files.push_back(filename.generic_string());
   }
 
@@ -489,7 +460,6 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
   // Unreferenced non-dialog controls (menus, toolbars) each get their own standalone
   // .ui document instead of being smuggled into every dialog. Explicitly report them..
   for(const auto& res : file.resources)
-
   {
     if(!std::holds_alternative<menu_data>(res.data) &&
        !std::holds_alternative<toolbar_data>(res.data))
@@ -498,36 +468,31 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
     if(is_resource_referenced_by_dialog(res))
       continue;
 
-
     if(!created_output_dir)
     {
       std::filesystem::create_directories(std::filesystem::path(output_dir) / res_dir_name);
       created_output_dir = true;
     }
 
-
     m_name_counts.clear();
     m_action_counter = 0;
     m_menubar_node = xml::node();
-
 
     xml::document doc;
     xml::node ui = doc.append_child("ui");
     ui.add_attr("version", "4.0");
     ui.append_child("class").text() = "Form";
 
-
-    std::string name = sanitize_resource_id(res.id);
+    std::string name = sanitize_string(res.id);
 
     if(name.empty())
       name = "menu";
 
     // A resource id may own several resource types (e.g. IDR_MAINFRAME has both a
     // MENU and a TOOLBAR). Disambiguate the standalone filename by resource type..
-    std::string type_tag = sanitize_resource_id(res.type);
+    std::string type_tag = sanitize_string(res.type);
     if(!type_tag.empty())
       name = name + "_" + type_tag;
-
 
     xml::node root_widget = ui.append_child("widget");
     root_widget.add_attr("class", "QMainWindow");
@@ -544,16 +509,14 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
 
     write_actions(root_widget, file, { res.id });
 
-
     std::filesystem::path filename = std::filesystem::path(output_dir) / res_dir_name / (name + ".ui");
+
     if(doc.save_file(filename.generic_string().c_str(), "  "))
     {
       generated_files.push_back(filename.generic_string());
       non_dialog_files.push_back(filename.generic_string());
-
     }
   }
-
 
   if(!non_dialog_files.empty())
   {
@@ -562,9 +525,10 @@ bool generator::generate_all(const rc_file& file, const std::string& output_dir,
       std::cout << "  " << f << "\n";
   }
 
-
   return !generated_files.empty();
-}void generator::collect_global_data(const rc_file& file)
+}
+
+void generator::collect_global_data(const rc_file& file)
 {
   m_accelerator_map.clear();
   m_string_table_map.clear();

@@ -84,7 +84,7 @@ private:
 
   std::set<std::string> id_words(const std::string& id) const;
   bool share_common_word(const std::string& id1, const std::string& id2) const;
-void write_menu(xml::node& parent, const resource& res);
+  void write_menu(xml::node& parent, const resource& res);
   void write_menu_entries(xml::node& menu_node, const std::vector<menu_entry>& entries);
   void write_toolbar(xml::node& parent, const resource& res);
   void write_actions(xml::node& parent, const rc_file& file, const std::set<std::string>& enabled_resource_ids);
