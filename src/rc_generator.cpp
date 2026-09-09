@@ -1330,8 +1330,7 @@ void generator::write_control(xml::node& parent, const control& ctrl, const std:
     add_property_string(label, "text", ctrl.text);
     add_property_set(label, "alignment", "Qt::AlignLeft");
 
-    const std::string btn_suffix = qt_class == "QRadioButton" ? "_radio" : "_check";
-    widget = add_widget(parent, qt_class, name + btn_suffix);
+    widget = add_widget(parent, qt_class, name);
     add_property_rect(widget, px + label_w, py, btn_w, ph);
 
     if(qt_class == "QRadioButton" &&
