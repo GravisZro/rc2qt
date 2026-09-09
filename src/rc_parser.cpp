@@ -562,26 +562,25 @@ void parser::parse_dialog_resource(resource& res)
     return;
   }
 
-  /* Spatial nearest-neighbour sort sweeping left-to-right first, then
-     top-to-bottom (column-major). The first control is the leftmost (topmost on
-     equal x); each next control is the nearest unvisited one to the current,
-     preferring the control directly below on the same column (x-overlap), then a
-     column to the right, then a column to the left, and only lastly anything
-     roughly straight above. */
-  /* Two controls are in the "same column" when their left edges are near each
-     other (RC dialogs align a column's controls on the same x). Width is not used
-     because edit boxes can be wide enough to span several columns. */
-  const long long kColumnTolerancePx = 6;
-  auto cols_overlap = [](const control& a, const control& b) -> bool
+  /* Spatial nearest-neighbour sort producing row-major reading order:
+     top-to-bottom first, then left-to-right within a row. The first control is the
+     topmost (leftmost on equal y); each next control is the nearest unvisited one to
+     the current, preferring a control near enough to sit on the same row and to its
+     right, then the next row below, and only lastly anything roughly straight above. */
+  /* Two controls are on the "same row" when their y positions are within a small
+     tolerance of each other, matching how RC dialogs align a row's controls on the
+     same vertical line. */
+  const long long kRowTolerancePx = 8;
+  auto rows_close = [](const control& a, const control& b) -> bool
   {
-    const long long d = static_cast<long long>(a.x) - b.x;
-    return d > -kColumnTolerancePx && d < kColumnTolerancePx;
+    const long long d = static_cast<long long>(a.y) - b.y;
+    return d > -kRowTolerancePx && d < kRowTolerancePx;
   };
 
-  const long long kSameColBelow = 0;
-  const long long kSameColAbove = 1000000000LL;
-  const long long kRightCol     = 2000000000LL;
-  const long long kLeftCol      = 3000000000LL;
+  const long long kSameRowRight = 0;
+  const long long kSameRowLeft  = 1000000000LL;
+  const long long kBelow        = 2000000000LL;
+  const long long kAbove        = 3000000000LL;
 
   std::vector<control> sorted;
   sorted.reserve(dd.controls.size());
@@ -590,8 +589,8 @@ void parser::parse_dialog_resource(resource& res)
   size_t start = 0;
   for(size_t i = 1; i < dd.controls.size(); ++i)
   {
-    if(dd.controls[i].x < dd.controls[start].x ||
-       (dd.controls[i].x == dd.controls[start].x && dd.controls[i].y < dd.controls[start].y))
+    if(dd.controls[i].y < dd.controls[start].y ||
+       (dd.controls[i].y == dd.controls[start].y && dd.controls[i].x < dd.controls[start].x))
       start = i;
   }
 
@@ -612,17 +611,17 @@ void parser::parse_dialog_resource(resource& res)
       long long dy = static_cast<long long>(dd.controls[j].y) - dd.controls[current].y;
       long long cost;
 
-      if(cols_overlap(dd.controls[current], dd.controls[j]))
+      if(rows_close(dd.controls[current], dd.controls[j]))
       {
-        if(dy >= 0)
-          cost = kSameColBelow + dy;
+        if(dx >= 0)
+          cost = kSameRowRight + dx;
         else
-          cost = kSameColAbove + std::llabs(dy);
+          cost = kSameRowLeft + std::llabs(dx);
       }
-      else if(dx > 0)
-        cost = kRightCol + dx * 1000 + dy;
+      else if(dy > 0)
+        cost = kBelow + dy * 1000 + std::max(0LL, dx);
       else
-        cost = kLeftCol + std::llabs(dx) * 1000 + dy;
+        cost = kAbove + std::llabs(dy) * 1000 + std::max(0LL, -dx);
 
       if(cost < best_cost)
       {
